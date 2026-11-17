@@ -60,10 +60,10 @@ function AlertItem({ al, i }: { al: AssessmentAlert; i: number }) {
     <li className={cn("space-y-2 rounded-lg border p-4",
       m.tone === "bad" ? "border-[hsl(var(--tone-bad)/0.35)] bg-[hsl(var(--tone-bad-bg))]" : "border-[hsl(var(--tone-warn)/0.3)] bg-[hsl(var(--tone-warn-bg))]")}
       data-testid={`alert-${al.kind}-${i}`}>
-      <p className={cn("flex items-center gap-2 text-sm font-semibold", m.tone === "bad" ? "text-[hsl(var(--tone-bad))]" : "text-[hsl(var(--tone-warn))]")}>
-        <Icon className="size-4 shrink-0" aria-hidden /> {m.title}
+      <p className="flex items-start gap-2 text-sm font-medium">
+        <Icon className={cn("mt-0.5 size-4 shrink-0", m.tone === "bad" ? "text-[hsl(var(--tone-bad))]" : "text-[hsl(var(--tone-warn))]")} aria-hidden />
+        <span><span className="sr-only">{m.title}: </span>{al.message}</span>
       </p>
-      <p className="text-sm font-medium">{al.message}</p>
       {al.quote ? (
         <BankQuote document={al.documentName ?? "Document"} page={al.pageNo} dir={/[\u0600-\u06FF]/.test(al.quote) ? "rtl" : "ltr"}>
           {al.quote}
@@ -115,9 +115,11 @@ function FindingCard({ f, defaultOpen }: { f: Finding; defaultOpen: boolean }) {
         </span>
         <span className="flex flex-wrap items-center gap-1.5">
           <StatusPill variant={f.proposedStatus} />
-          <StatusPill variant={sev.variant} label={`${sev.label} severity`} />
+          {f.proposedStatus === "breach" || f.proposedStatus === "warning" || f.proposedStatus === "needs_review"
+            ? <StatusPill variant={sev.variant} label={`${sev.label} severity`} />
+            : <span className="sr-only">{sev.label} severity</span>}
           {f.verification === "verified"
-            ? <StatusPill variant="done" label="Quote verified" data-testid={`badge-verified-${f.id}`} />
+            ? <span className="inline-flex items-center gap-1 px-1 text-xs text-muted-foreground" data-testid={`badge-verified-${f.id}`}><CheckCircle2 className="size-3.5" aria-hidden />Quote verified</span>
             : <StatusPill variant="error" label="Unsupported quote" data-testid={`badge-unsupported-${f.id}`} />}
           <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} aria-hidden />
         </span>
@@ -125,7 +127,7 @@ function FindingCard({ f, defaultOpen }: { f: Finding; defaultOpen: boolean }) {
       {open ? (
         <div id={bodyId} className="space-y-4 border-t border-border px-4 py-4">
           <div className="space-y-1">
-            <p className="text-[11px] text-muted-foreground">Proposed by <ToolText as="span" className="text-[11px]">{f.proposedBy}</ToolText> · {CHECK_TYPE_LABELS[f.checkType]}</p>
+            <p className="text-xs text-muted-foreground">Proposed by {f.proposedBy} · {CHECK_TYPE_LABELS[f.checkType]}</p>
             <ToolText data-testid={`text-rationale-${f.id}`}>{f.rationale}</ToolText>
           </div>
           <div>
@@ -135,7 +137,7 @@ function FindingCard({ f, defaultOpen }: { f: Finding; defaultOpen: boolean }) {
             {ruleOpen ? <p className="mt-1 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">{f.ruleText}</p> : null}
           </div>
           <div className="space-y-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Evidence</p>
+            <p className="text-xs font-medium text-muted-foreground">Evidence</p>
             {f.evidence.length === 0 ? <p className="text-xs text-muted-foreground">No quote cited.</p> : (
               <ul className="space-y-3">
                 {f.evidence.map((e) => (
@@ -152,7 +154,7 @@ function FindingCard({ f, defaultOpen }: { f: Finding; defaultOpen: boolean }) {
           </div>
           {f.checks.length ? (
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Checks run by code</p>
+              <p className="text-xs font-medium text-muted-foreground">Checks run by code</p>
               <ul className="divide-y divide-dashed divide-border">{f.checks.map((c, i) => <CheckRow key={i} c={c} />)}</ul>
             </div>
           ) : null}
@@ -170,7 +172,7 @@ function Trace({ a }: { a: AssessmentDetail }) {
     <div className="rounded-lg border border-card-border bg-card" data-testid="section-trace">
       <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} data-testid="button-toggle-trace"
         className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
-        <span>How the agents worked <span className="font-mono text-xs font-normal text-muted-foreground">· {steps.length} steps</span></span>
+        <span>Agent trace <span className="text-xs font-normal text-muted-foreground">· {steps.length} steps</span></span>
         <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
       </button>
       {open ? (
@@ -179,7 +181,7 @@ function Trace({ a }: { a: AssessmentDetail }) {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-xs" data-testid="table-trace">
                 <thead>
-                  <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
                     <th className="px-3 py-2 font-medium">#</th><th className="px-3 py-2 font-medium">Agent</th><th className="px-3 py-2 font-medium">Tool</th>
                     <th className="px-3 py-2 font-medium">Summary</th><th className="px-3 py-2 text-right font-medium">Tokens in/out</th><th className="px-3 py-2 text-right font-medium">Latency</th>
                   </tr>
@@ -330,7 +332,7 @@ export function AssessmentDetailView({ id }: { id: number }) {
         a.alerts.length ? (
           <ul className="space-y-3" data-testid="list-alerts">{a.alerts.map((al, i) => <AlertItem key={i} al={al} i={i} />)}</ul>
         ) : (
-          <ToolText className="text-sm text-muted-foreground">No alerts: no text addressed to an AI system, no missing documents, no extraction gaps, no model errors.</ToolText>
+          <p className="text-sm text-muted-foreground">No alerts: no text addressed to an AI system, no missing documents, no extraction gaps, no model errors.</p>
         )
       }
       evidence={

@@ -28,7 +28,7 @@ export function Nav({ onNavigate }: { onNavigate?: () => void }) {
         </Link>
       </div>
       <div>
-        <p className="mb-1.5 px-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Review flow</p>
+        <p className="mb-1.5 px-2.5 text-xs font-medium text-muted-foreground">Review flow</p>
         <ol className="space-y-0.5">
           {FLOW.map((s) => {
             const step = data?.steps.find((x) => x.key === s.key);
@@ -64,7 +64,7 @@ export function Nav({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       {GROUPS.map((g) => (
         <div key={g.title}>
-          <p className="mb-1.5 px-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{g.title}</p>
+          <p className="mb-1.5 px-2.5 text-xs font-medium text-muted-foreground">{g.title}</p>
           <ul className="space-y-0.5">
             {g.items.map((it) => (
               <li key={it.href}>

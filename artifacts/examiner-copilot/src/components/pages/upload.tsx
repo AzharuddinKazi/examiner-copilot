@@ -86,7 +86,7 @@ function DocumentTable({ docs, onConfirm, onReject }: {
       <div className="hidden overflow-x-auto rounded-lg border border-card-border bg-card md:block">
         <table className="w-full text-sm" data-testid="table-documents">
           <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="px-4 py-2.5 font-medium">Document</th>
               <th className="px-3 py-2.5 font-medium">Type</th>
               <th className="px-3 py-2.5 font-medium">Language</th>
@@ -172,7 +172,9 @@ export function DemoLoadButton() {
 
 export function UploadView() {
   const { role, canWrite } = useCanWrite();
-  const docs = useListDocuments();
+  const docs = useListDocuments({
+    query: { queryKey: getListDocumentsQueryKey(), refetchInterval: (qq) => (qq.state.data?.items.some((d) => d.agentProposal?.status === "running") ? 3000 : false) },
+  });
   const upload = useUploadDocument();
   const invalidate = useInvalidate();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -256,7 +258,7 @@ export function UploadView() {
       reason={
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>Each document needs a bank, a card product, a type and a language before it can be assessed. The tool suggests these from the file; you confirm or correct them.</p>
-          <ToolText>Text is extracted page by page so every quote can be traced to its page. Pages without text are flagged as gaps; there is no OCR.</ToolText>
+          <p className="max-w-prose text-sm text-muted-foreground">Text is extracted page by page so every quote can be traced to its page. Pages without text are flagged as gaps; there is no OCR.</p>
         </div>
       }
       evidence={

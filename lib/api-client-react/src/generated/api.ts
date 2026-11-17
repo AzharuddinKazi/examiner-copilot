@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AgentMappingProposal,
   AssessmentCandidates,
   AssessmentDetail,
   AssessmentList,
@@ -30,7 +31,10 @@ import type {
   Bank,
   BankInput,
   BankList,
+  BulkAcceptInput,
+  BulkAcceptResult,
   ConfirmDocumentInput,
+  DecisionInput,
   DemoLoadResult,
   DocumentDetail,
   DocumentList,
@@ -38,6 +42,7 @@ import type {
   DuplicateFileError,
   ErrorResponse,
   FileUploadInput,
+  FindingDetail,
   HealthStatus,
   ListAuditEventsParams,
   LlmStatus,
@@ -45,6 +50,7 @@ import type {
   Product,
   ProductInput,
   RejectDocumentInput,
+  ReviewQueue,
   RoleChangeInput,
   RoleContext,
   RulebookImportInput,
@@ -2296,5 +2302,514 @@ export const useStopAssessment = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getStopAssessmentMutationOptions(options));
+    }
+
+export const getRequestDocumentAgentProposalUrl = (id: number,) => {
+
+
+
+
+  return `/api/documents/${id}/agent-proposal`
+}
+
+/**
+ * @summary Ask the Ingestion agent to propose type, language, bank and product. Runs in the background; poll the document.
+ */
+export const requestDocumentAgentProposal = async (id: number,
+    roleContext: RoleContext, options?: Parameters<typeof customFetch>[1]): Promise<DocumentSummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DocumentSummary>(getRequestDocumentAgentProposalUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(roleContext)
+  }
+);}
+
+
+
+
+
+export const getRequestDocumentAgentProposalMutationKey = () => ['requestDocumentAgentProposal'] as const;
+
+export const getRequestDocumentAgentProposalMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestDocumentAgentProposal>>, TError,RequestDocumentAgentProposalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestDocumentAgentProposal>>, TError,RequestDocumentAgentProposalMutationVariables, TContext> => {
+
+const mutationKey = getRequestDocumentAgentProposalMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestDocumentAgentProposal>>, RequestDocumentAgentProposalMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  requestDocumentAgentProposal(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestDocumentAgentProposalMutationResult = NonNullable<Awaited<ReturnType<typeof requestDocumentAgentProposal>>>
+    export type RequestDocumentAgentProposalMutationBody = BodyType<RoleContext>
+    export type RequestDocumentAgentProposalMutationError = ErrorType<ErrorResponse>
+    export type RequestDocumentAgentProposalMutationVariables = {id: number;data: BodyType<RoleContext>}
+
+    /**
+ * @summary Ask the Ingestion agent to propose type, language, bank and product. Runs in the background; poll the document.
+ */
+export const useRequestDocumentAgentProposal = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestDocumentAgentProposal>>, TError,RequestDocumentAgentProposalMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestDocumentAgentProposal>>,
+        TError,
+        RequestDocumentAgentProposalMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestDocumentAgentProposalMutationOptions(options));
+    }
+
+export const getRequestRulebookAgentMappingUrl = (importId: number,) => {
+
+
+
+
+  return `/api/rulebooks/import/${importId}/agent-mapping`
+}
+
+/**
+ * @summary Ask the Ingestion agent to propose a column mapping for an uploaded rulebook. Code checks the proposal.
+ */
+export const requestRulebookAgentMapping = async (importId: number,
+    roleContext: RoleContext, options?: Parameters<typeof customFetch>[1]): Promise<AgentMappingProposal> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AgentMappingProposal>(getRequestRulebookAgentMappingUrl(importId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(roleContext)
+  }
+);}
+
+
+
+
+
+export const getRequestRulebookAgentMappingMutationKey = () => ['requestRulebookAgentMapping'] as const;
+
+export const getRequestRulebookAgentMappingMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestRulebookAgentMapping>>, TError,RequestRulebookAgentMappingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof requestRulebookAgentMapping>>, TError,RequestRulebookAgentMappingMutationVariables, TContext> => {
+
+const mutationKey = getRequestRulebookAgentMappingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestRulebookAgentMapping>>, RequestRulebookAgentMappingMutationVariables> = (props) => {
+          const {importId,data} = props ?? {};
+
+          return  requestRulebookAgentMapping(importId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RequestRulebookAgentMappingMutationResult = NonNullable<Awaited<ReturnType<typeof requestRulebookAgentMapping>>>
+    export type RequestRulebookAgentMappingMutationBody = BodyType<RoleContext>
+    export type RequestRulebookAgentMappingMutationError = ErrorType<ErrorResponse>
+    export type RequestRulebookAgentMappingMutationVariables = {importId: number;data: BodyType<RoleContext>}
+
+    /**
+ * @summary Ask the Ingestion agent to propose a column mapping for an uploaded rulebook. Code checks the proposal.
+ */
+export const useRequestRulebookAgentMapping = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestRulebookAgentMapping>>, TError,RequestRulebookAgentMappingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof requestRulebookAgentMapping>>,
+        TError,
+        RequestRulebookAgentMappingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRequestRulebookAgentMappingMutationOptions(options));
+    }
+
+export const getGetReviewQueueUrl = () => {
+
+
+
+
+  return `/api/review/queue`
+}
+
+/**
+ * @summary Findings from the latest finished assessment of each product, with the latest examiner decision
+ */
+export const getReviewQueue = async ( options?: Parameters<typeof customFetch>[1]): Promise<ReviewQueue> => {
+
+  return customFetch<ReviewQueue>(getGetReviewQueueUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReviewQueueQueryKey = () => {
+    return [
+    `/api/review/queue`
+    ] as const;
+    }
+
+
+export const getGetReviewQueueQueryOptions = <TData = Awaited<ReturnType<typeof getReviewQueue>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReviewQueueQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReviewQueue>>> = ({ signal }) => getReviewQueue({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReviewQueue>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReviewQueueQueryResult = NonNullable<Awaited<ReturnType<typeof getReviewQueue>>>
+export type GetReviewQueueQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Findings from the latest finished assessment of each product, with the latest examiner decision
+ */
+
+export function useGetReviewQueue<TData = Awaited<ReturnType<typeof getReviewQueue>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReviewQueue>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReviewQueueQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetFindingUrl = (id: number,) => {
+
+
+
+
+  return `/api/findings/${id}`
+}
+
+/**
+ * @summary One finding with its evidence, the source pages, and the decision history
+ */
+export const getFinding = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<FindingDetail> => {
+
+  return customFetch<FindingDetail>(getGetFindingUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFindingQueryKey = (id: number,) => {
+    return [
+    `/api/findings/${id}`
+    ] as const;
+    }
+
+
+export const getGetFindingQueryOptions = <TData = Awaited<ReturnType<typeof getFinding>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFinding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFindingQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFinding>>> = ({ signal }) => getFinding(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFinding>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFindingQueryResult = NonNullable<Awaited<ReturnType<typeof getFinding>>>
+export type GetFindingQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary One finding with its evidence, the source pages, and the decision history
+ */
+
+export function useGetFinding<TData = Awaited<ReturnType<typeof getFinding>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFinding>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFindingQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDecideFindingUrl = (id: number,) => {
+
+
+
+
+  return `/api/findings/${id}/decisions`
+}
+
+/**
+ * @summary Record an examiner decision. Append-only; the latest decision wins.
+ */
+export const decideFinding = async (id: number,
+    decisionInput: DecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<FindingDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<FindingDetail>(getDecideFindingUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(decisionInput)
+  }
+);}
+
+
+
+
+
+export const getDecideFindingMutationKey = () => ['decideFinding'] as const;
+
+export const getDecideFindingMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideFinding>>, TError,DecideFindingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideFinding>>, TError,DecideFindingMutationVariables, TContext> => {
+
+const mutationKey = getDecideFindingMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideFinding>>, DecideFindingMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  decideFinding(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideFindingMutationResult = NonNullable<Awaited<ReturnType<typeof decideFinding>>>
+    export type DecideFindingMutationBody = BodyType<DecisionInput>
+    export type DecideFindingMutationError = ErrorType<ErrorResponse>
+    export type DecideFindingMutationVariables = {id: number;data: BodyType<DecisionInput>}
+
+    /**
+ * @summary Record an examiner decision. Append-only; the latest decision wins.
+ */
+export const useDecideFinding = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideFinding>>, TError,DecideFindingMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideFinding>>,
+        TError,
+        DecideFindingMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideFindingMutationOptions(options));
+    }
+
+export const getAcceptCompliantFindingsUrl = () => {
+
+
+
+
+  return `/api/review/accept-compliant`
+}
+
+/**
+ * @summary Accept every undecided, quote-verified Compliant or Not applicable proposal of one assessment in one step
+ */
+export const acceptCompliantFindings = async (bulkAcceptInput: BulkAcceptInput, options?: Parameters<typeof customFetch>[1]): Promise<BulkAcceptResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BulkAcceptResult>(getAcceptCompliantFindingsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bulkAcceptInput)
+  }
+);}
+
+
+
+
+
+export const getAcceptCompliantFindingsMutationKey = () => ['acceptCompliantFindings'] as const;
+
+export const getAcceptCompliantFindingsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptCompliantFindings>>, TError,AcceptCompliantFindingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof acceptCompliantFindings>>, TError,AcceptCompliantFindingsMutationVariables, TContext> => {
+
+const mutationKey = getAcceptCompliantFindingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof acceptCompliantFindings>>, AcceptCompliantFindingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  acceptCompliantFindings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AcceptCompliantFindingsMutationResult = NonNullable<Awaited<ReturnType<typeof acceptCompliantFindings>>>
+    export type AcceptCompliantFindingsMutationBody = BodyType<BulkAcceptInput>
+    export type AcceptCompliantFindingsMutationError = ErrorType<ErrorResponse>
+    export type AcceptCompliantFindingsMutationVariables = {data: BodyType<BulkAcceptInput>}
+
+    /**
+ * @summary Accept every undecided, quote-verified Compliant or Not applicable proposal of one assessment in one step
+ */
+export const useAcceptCompliantFindings = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof acceptCompliantFindings>>, TError,AcceptCompliantFindingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof acceptCompliantFindings>>,
+        TError,
+        AcceptCompliantFindingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAcceptCompliantFindingsMutationOptions(options));
     }
 

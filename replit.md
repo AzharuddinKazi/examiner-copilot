@@ -45,7 +45,7 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 
 ## Product
 
-Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess (done) → M3 review and decide → M4 notices → M5 overview and assurance → M6 market and what-if → M7 hardening.
+Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess (done) → M3 review and decide (done) → M4 notices → M5 overview and assurance → M6 market and what-if → M7 hardening.
 
 ## User preferences
 
@@ -64,6 +64,15 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 - A Compliant/Breach with no verified quote becomes Warning; an absence Breach is allowed only if every page was readable; the Consistency agent can downgrade a code-found difference to Needs review but never clear it.
 - Each run is bounded (20 model calls, 250k tokens, 2 Coordinator rounds); one run at a time; a provider failure fails the run and writes no findings. Runs interrupted by a restart are marked failed at startup.
 - Document text is wrapped as untrusted data; instruction-like passages raise an alert and are ignored.
+
+## Ingestion agent
+- Proposes document type, language, bank and product (first 2 pages) and rulebook column mappings (headers + 5 sample rows). Stored apart from the rule-based suggestion and compared with it (agrees/differs). Code drops any value whose quote is not found, any unknown bank/product id, a product from another bank, and any header not in the sheet or used twice.
+- Document proposals run in the background after upload (one call at a time); the confirm dialog prefers the rule-based value and uses the agent's only to fill a gap. Mapping proposals are on request.
+
+## Review and decide (M3)
+- Queue = findings from the latest finished (complete or stopped) assessment per product; older assessments are readable but closed to decisions (409).
+- Decisions are append-only; latest wins. Accept keeps the proposed status; Modify needs a different status and a note; Reject needs a note and stores no final status (no finding stands).
+- Bulk accept covers only undecided, verified Compliant/Not applicable proposals of one assessment.
 
 ## Gotchas
 

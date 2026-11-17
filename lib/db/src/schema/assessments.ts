@@ -84,7 +84,8 @@ export const decisionsTable = pgTable("decisions", {
   dataset: datasetEnum("dataset").notNull(),
   findingId: integer("finding_id").notNull().references(() => findingsTable.id, { onDelete: "cascade" }),
   decision: decisionEnum("decision").notNull(),
-  finalStatus: findingStatusEnum("final_status").notNull(),
+  /** null when the examiner rejects the proposal: no finding stands for this rule. */
+  finalStatus: findingStatusEnum("final_status"),
   examinerNote: text("examiner_note"),
   role: text("role").notNull(),
   decidedAt: timestamp("decided_at", { withTimezone: true }).notNull().defaultNow(),

@@ -17,6 +17,8 @@ export const documentsTable = pgTable("documents", {
   pageCount: integer("page_count").notNull().default(0),
   status: documentStatusEnum("status").notNull().default("uploaded"),
   ingestionProposal: jsonb("ingestion_proposal"),
+  /** Ingestion agent proposal (LLM), checked by code; separate from the rule-based suggestion. */
+  agentProposal: jsonb("agent_proposal"),
   extractionQuality: real("extraction_quality"),
   sizeBytes: integer("size_bytes").notNull().default(0),
   rejectedReason: text("rejected_reason"),

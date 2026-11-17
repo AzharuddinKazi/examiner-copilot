@@ -10,6 +10,8 @@ import {
   GetDocumentResponse,
   ConfirmDocumentResponse,
   RejectDocumentResponse,
+  RequestDocumentAgentProposalParams,
+  RequestDocumentAgentProposalResponse,
 } from "@workspace/api-zod";
 import { db, documentsTable, productsTable } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
@@ -19,6 +21,7 @@ import { requireWriter } from "../lib/roles";
 import { receiveFile } from "../lib/upload";
 import { getFile } from "../lib/files";
 import { PDF_LIMITS, PdfValidationError } from "../lib/pdf";
+import { llmReady, queueDocumentProposal } from "../lib/ingest/run";
 import {
   findDuplicate,
   getDocumentRow,
@@ -88,7 +91,9 @@ router.post("/documents", async (req, res): Promise<void> => {
     );
     return r;
   });
-  const [summary] = await summarize(dataset, [row]);
+  // The Ingestion agent's proposal arrives in the background; the rule-based suggestion is immediate.
+  if (llmReady()) await queueDocumentProposal(dataset, row.id, role);
+  const [summary] = await summarize(dataset, [(await getDocumentRow(dataset, row.id)) ?? row]);
   res.status(201).json(UploadDocumentResponse.parse(summary));
 });
 
@@ -185,6 +190,25 @@ router.post("/documents/:id/confirm", async (req, res): Promise<void> => {
   });
   const [summary] = await summarize(dataset, [updated]);
   res.json(ConfirmDocumentResponse.parse(summary));
+});
+
+router.post("/documents/:id/agent-proposal", async (req, res): Promise<void> => {
+  const role = requireWriter(req.body?.role, res);
+  if (!role) return;
+  const params = RequestDocumentAgentProposalParams.safeParse(req.params);
+  const dataset = await getActiveDataset();
+  const row = params.success ? await getDocumentRow(dataset, params.data.id) : null;
+  if (!row) {
+    res.status(404).json({ error: "Document not found." });
+    return;
+  }
+  if (!llmReady()) {
+    res.status(503).json({ error: "The model provider is not configured. Add the OpenRouter key in Secrets; the rule-based suggestion still works." });
+    return;
+  }
+  if ((row.agentProposal as { status?: string } | null)?.status !== "running") await queueDocumentProposal(dataset, row.id, role);
+  const [summary] = await summarize(dataset, [(await getDocumentRow(dataset, row.id))!]);
+  res.status(202).json(RequestDocumentAgentProposalResponse.parse(summary));
 });
 
 router.post("/documents/:id/reject", async (req, res): Promise<void> => {

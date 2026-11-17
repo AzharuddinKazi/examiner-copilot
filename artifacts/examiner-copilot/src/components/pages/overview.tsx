@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookOpen, Cpu, Landmark, Settings } from "lucide-react";
+import { ArrowRight, Settings } from "lucide-react";
 import { useGetLlmStatus, useGetWorkspaceProgress } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,7 +74,7 @@ export function Overview() {
                         <div className="flex flex-wrap items-baseline gap-x-3">
                           <span className="font-medium">{s.title}</span>
                           <span className="text-sm text-muted-foreground">{s.question}</span>
-                          {isNext ? <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--tone-info))]">Next</span> : null}
+                          {isNext ? <span className="text-xs font-medium text-[hsl(var(--tone-info))]">Next</span> : null}
                         </div>
                         <StepCounts step={s} />
                         <ToolText data-testid={`text-step-summary-${s.key}`}>{s.summary}</ToolText>
@@ -95,10 +95,7 @@ export function Overview() {
               <Link key={l.label} href={l.href} className="rounded-lg border border-card-border bg-card p-3 hover:bg-muted/40"
                 data-testid={`link-library-${l.label.replace(/\s+/g, "-").toLowerCase()}`}>
                 <p className="font-mono text-2xl">{l.value}</p>
-                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {l.label.startsWith("Rule") || l.label.startsWith("Active") ? <BookOpen className="size-3" aria-hidden /> : <Landmark className="size-3" aria-hidden />}
-                  {l.label}
-                </p>
+                <p className="text-xs text-muted-foreground">{l.label}</p>
               </Link>
             ))}
           </div>
@@ -111,7 +108,6 @@ export function Overview() {
           <QueryError title="Could not read model provider status" error={llm.error} onRetry={() => llm.refetch()} retrying={llm.isFetching} testId="error-llm" />
         ) : (
           <div className="flex flex-col gap-3 rounded-lg border border-card-border bg-card p-4 sm:flex-row sm:items-center" data-testid="card-llm-status">
-            <Cpu className="size-5 shrink-0 text-muted-foreground" aria-hidden />
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium">Model provider</span>
@@ -121,7 +117,7 @@ export function Overview() {
             </div>
             {!llm.data.configured ? (
               <Button asChild variant="outline" size="sm" className="bg-card" data-testid="link-llm-settings">
-                <Link href="/settings"><Settings aria-hidden /> Open settings</Link>
+                <Link href="/settings"><Settings aria-hidden /> Settings</Link>
               </Button>
             ) : null}
           </div>

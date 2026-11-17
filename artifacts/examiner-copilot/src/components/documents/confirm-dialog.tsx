@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   getGetDocumentQueryKey, getListBanksQueryKey, getListDocumentsQueryKey,
   useConfirmDocument, useListBanks,
-  type DocLanguage, type DocType, type DocumentSummary, type SuggestionItem,
+  type AgentField, type DocLanguage, type DocType, type DocumentSummary, type SuggestionItem,
 } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,13 +19,27 @@ import { parseApiError } from "@/lib/api-errors";
 import { DOC_TYPE_LABELS, DOC_TYPES, LANGUAGE_LABELS, LANGUAGES } from "@/lib/labels";
 import { useCanWrite, useInvalidate, ViewerReason } from "@/lib/write-access";
 
-function Suggestion({ item, testId }: { item: SuggestionItem | undefined; testId: string }) {
-  if (!item || item.value === null || item.value === undefined) return null;
-  return <ToolText className="mt-1 text-[11.5px] text-muted-foreground" data-testid={testId}>{item.reason}</ToolText>;
+function Suggestion({ item, agent, testId }: { item: SuggestionItem | undefined; agent: AgentField | null | undefined; testId: string }) {
+  const rules = item && item.value !== null && item.value !== undefined;
+  // Show the agent's reason only when it fills a gap or disagrees; when it agrees the rule reason is enough.
+  const agentShown = agent && agent.value !== null && (agent.agreement === "differs" || agent.agreement === "only_agent");
+  if (!rules && !agentShown) return null;
+  return (
+    <div className="mt-1 space-y-0.5">
+      {rules ? <ToolText className="text-[11.5px] text-muted-foreground" data-testid={testId}>{item!.reason}</ToolText> : null}
+      {agentShown ? (
+        <ToolText className="text-[11.5px] text-muted-foreground" data-testid={`${testId}-agent`}>
+          {agent!.agreement === "differs" ? "Agent disagrees: " : "Agent: "}{agent!.reason}
+        </ToolText>
+      ) : null}
+    </div>
+  );
 }
 
-function sugStr(item: SuggestionItem | undefined) {
-  return item && item.value !== null && item.value !== undefined ? String(item.value) : "";
+/** Rule-based value first; the agent's checked value only fills a gap. */
+function sugStr(item: SuggestionItem | undefined, agent?: AgentField | null) {
+  if (item && item.value !== null && item.value !== undefined) return String(item.value);
+  return agent && agent.value !== null ? String(agent.value) : "";
 }
 
 export function ConfirmDocumentDialog({
@@ -37,6 +51,7 @@ export function ConfirmDocumentDialog({
   const invalidate = useInvalidate();
   const { toast } = useToast();
   const s = doc.suggestion;
+  const ap = doc.agentProposal?.status === "done" ? doc.agentProposal : null;
 
   const [bankId, setBankId] = useState("");
   const [productId, setProductId] = useState("");
@@ -47,13 +62,13 @@ export function ConfirmDocumentDialog({
 
   useEffect(() => {
     if (!open) return;
-    setBankId(doc.bankId ? String(doc.bankId) : sugStr(s?.bankId));
-    setProductId(doc.productId ? String(doc.productId) : sugStr(s?.productId));
-    setDocType(doc.docType ?? sugStr(s?.docType));
-    setLanguage(doc.language ?? sugStr(s?.language));
+    setBankId(doc.bankId ? String(doc.bankId) : sugStr(s?.bankId, ap?.bankId));
+    setProductId(doc.productId ? String(doc.productId) : sugStr(s?.productId, ap?.productId));
+    setDocType(doc.docType ?? sugStr(s?.docType, ap?.docType));
+    setLanguage(doc.language ?? sugStr(s?.language, ap?.language));
     setVersionLabel(doc.versionLabel ?? "");
     setError(null);
-  }, [open, doc, s]);
+  }, [open, doc, s, ap]);
 
   const bankList = banks.data?.items ?? [];
   const products = useMemo(() => bankList.find((b) => String(b.id) === bankId)?.products ?? [], [bankList, bankId]);
@@ -83,7 +98,7 @@ export function ConfirmDocumentDialog({
     );
   };
 
-  const hasSuggestion = !!s && [s.bankId, s.productId, s.docType, s.language].some((i) => i && i.value !== null);
+  const hasSuggestion = (!!s && [s.bankId, s.productId, s.docType, s.language].some((i) => i && i.value !== null)) || (!!ap && [ap.bankId, ap.productId, ap.docType, ap.language].some((i) => i && i.value !== null));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,7 +109,7 @@ export function ConfirmDocumentDialog({
         </DialogHeader>
         {hasSuggestion ? (
           <p className="rounded-md bg-[hsl(var(--tone-info-bg))] px-3 py-2 text-xs text-[hsl(var(--tone-info))]" data-testid="text-suggestion-note">
-            Suggested by the tool from the file — check before confirming.
+            Filled in from the rule-based suggestion and the Ingestion agent's proposal. Check every field before confirming.
           </p>
         ) : null}
         {banks.isLoading ? <Skeleton className="h-48 w-full" /> : noLibrary ? (
@@ -115,7 +130,7 @@ export function ConfirmDocumentDialog({
                   {bankList.map((b) => <SelectItem key={b.id} value={String(b.id)}>{b.nameEn}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Suggestion item={s?.bankId} testId="text-suggest-bank" />
+              <Suggestion item={s?.bankId} agent={ap?.bankId} testId="text-suggest-bank" />
             </div>
             <div>
               <Label htmlFor="cf-product">Card product</Label>
@@ -127,7 +142,7 @@ export function ConfirmDocumentDialog({
                   {products.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}{p.cardTier ? ` · ${p.cardTier}` : ""}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Suggestion item={s?.productId} testId="text-suggest-product" />
+              <Suggestion item={s?.productId} agent={ap?.productId} testId="text-suggest-product" />
               {bankId && products.length === 0 ? (
                 <Link href="/library/banks" className="mt-1 inline-block text-xs underline underline-offset-2" data-testid="link-add-product">Add a product to this bank</Link>
               ) : null}
@@ -139,7 +154,7 @@ export function ConfirmDocumentDialog({
                   <SelectTrigger id="cf-type" className="mt-1.5" data-testid="select-doc-type"><SelectValue placeholder="Choose a type" /></SelectTrigger>
                   <SelectContent>{DOC_TYPES.map((t) => <SelectItem key={t} value={t}>{DOC_TYPE_LABELS[t]}</SelectItem>)}</SelectContent>
                 </Select>
-                <Suggestion item={s?.docType} testId="text-suggest-doc-type" />
+                <Suggestion item={s?.docType} agent={ap?.docType} testId="text-suggest-doc-type" />
               </div>
               <div>
                 <Label htmlFor="cf-lang">Language</Label>
@@ -147,7 +162,7 @@ export function ConfirmDocumentDialog({
                   <SelectTrigger id="cf-lang" className="mt-1.5" data-testid="select-language"><SelectValue placeholder="Choose a language" /></SelectTrigger>
                   <SelectContent>{LANGUAGES.map((l) => <SelectItem key={l} value={l}>{LANGUAGE_LABELS[l]}</SelectItem>)}</SelectContent>
                 </Select>
-                <Suggestion item={s?.language} testId="text-suggest-language" />
+                <Suggestion item={s?.language} agent={ap?.language} testId="text-suggest-language" />
               </div>
             </div>
             <div>

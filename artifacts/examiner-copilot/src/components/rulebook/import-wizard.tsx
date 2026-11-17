@@ -3,10 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  getListRulebooksQueryKey, useCommitRulebookImport, useListRulebooks, usePreviewRulebookImport,
-  type ColumnMapping, type RulebookImportPreview, type RulebookImportResult,
+  getListRulebooksQueryKey, useCommitRulebookImport, useListRulebooks, usePreviewRulebookImport, useRequestRulebookAgentMapping,
+  type AgentMappingProposal, type ColumnMapping, type RulebookImportPreview, type RulebookImportResult,
 } from "@workspace/api-client-react";
-import { CheckCircle2, FileSpreadsheet } from "lucide-react";
+import { CheckCircle2, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,9 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
   const rulebooks = useListRulebooks();
   const preview = usePreviewRulebookImport();
   const commit = useCommitRulebookImport();
+  const askAgent = useRequestRulebookAgentMapping();
+  const [agent, setAgent] = useState<AgentMappingProposal | null>(null);
+  const [agentError, setAgentError] = useState<string | null>(null);
   const invalidate = useInvalidate();
   const [step, setStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
@@ -38,7 +41,7 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
   const [done, setDone] = useState<RulebookImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const reset = () => { setStep(0); setFile(null); setPv(null); setMapping(null); setCheck(null); setTarget("new"); setName(""); setDone(null); setError(null); };
+  const reset = () => { setStep(0); setFile(null); setPv(null); setMapping(null); setCheck(null); setTarget("new"); setName(""); setDone(null); setError(null); setAgent(null); setAgentError(null); };
   const close = (o: boolean) => { onOpenChange(o); if (!o) reset(); };
 
   const doPreview = () => {
@@ -50,6 +53,16 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
       onError: (e) => setError(parseApiError(e).message),
     });
   };
+  const doAskAgent = () => {
+    if (!pv) return;
+    setAgentError(null);
+    askAgent.mutate({ importId: pv.importId, data: { role } }, {
+      onSuccess: (r) => setAgent(r),
+      onError: (e) => setAgentError(parseApiError(e).message),
+    });
+  };
+  const agentDiffers = agent && mapping ? RULE_FIELDS.some((f) => (agent.mapping[f] ?? null) !== (mapping[f] ?? null)) : false;
+
   const doCheck = () => {
     if (!pv || !mapping) return;
     setError(null);
@@ -110,14 +123,33 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
         ) : step === 1 && pv && mapping ? (
           <div className="space-y-4">
             <ToolText className="text-xs text-muted-foreground">{pv.fileName} · sheet "{pv.sheetName}" · {pv.rowCount} rows</ToolText>
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-card-border bg-card px-3 py-2" data-testid="block-agent-mapping">
+              <p className="flex-1 text-xs text-muted-foreground">
+                {agent
+                  ? agentDiffers
+                    ? `The Ingestion agent proposes a different mapping for ${RULE_FIELDS.filter((f) => (agent.mapping[f] ?? null) !== (mapping[f] ?? null)).map((f) => RULE_FIELD_LABELS[f].toLowerCase()).join(", ")}.`
+                    : "The Ingestion agent agrees with this mapping."
+                  : "The mapping below is from header names. You can also ask the Ingestion agent (model), which reads the headers and five sample rows."}
+              </p>
+              {agent && agentDiffers ? (
+                <Button size="sm" variant="outline" onClick={() => setMapping({ ...agent.mapping })} data-testid="button-use-agent-mapping">Use the agent's mapping</Button>
+              ) : null}
+              {!agent ? (
+                <Button size="sm" variant="outline" onClick={doAskAgent} disabled={!canWrite || askAgent.isPending} data-testid="button-ask-agent-mapping">
+                  {askAgent.isPending ? <><Loader2 className="animate-spin" aria-hidden /> Asking…</> : "Ask the agent"}
+                </Button>
+              ) : null}
+              {agentError ? <p role="alert" className="w-full text-xs text-[hsl(var(--tone-bad))]" data-testid="text-agent-mapping-error">{agentError}</p> : null}
+            </div>
             <div className="divide-y divide-border rounded-lg border border-card-border">
               {RULE_FIELDS.map((field) => {
                 const req = REQUIRED_RULE_FIELDS.includes(field);
                 const reason = pv.mappingReasons.find((r) => r.field === field)?.reason;
+                const agentReason = agent?.reasons.find((r) => r.field === field);
                 return (
                   <div key={field} className="grid gap-2 p-3 sm:grid-cols-[160px_220px_1fr] sm:items-start" data-testid={`row-mapping-${field}`}>
                     <Label htmlFor={`map-${field}`} className="pt-2">
-                      {RULE_FIELD_LABELS[field]} {req ? <span className="ml-1 rounded bg-[hsl(var(--tone-warn-bg))] px-1 text-[10px] font-semibold uppercase text-[hsl(var(--tone-warn))]">Required</span> : null}
+                      {RULE_FIELD_LABELS[field]} {req ? <span className="ml-1 rounded bg-[hsl(var(--tone-warn-bg))] px-1 text-[10px] font-semibold text-[hsl(var(--tone-warn))]">Required</span> : null}
                     </Label>
                     <Select value={mapping[field] ?? NONE} onValueChange={(v) => setMapping({ ...mapping, [field]: v === NONE ? null : v })}>
                       <SelectTrigger id={`map-${field}`} data-testid={`select-mapping-${field}`}><SelectValue /></SelectTrigger>
@@ -126,7 +158,14 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
                         {pv.headers.filter((h) => h).map((h) => <SelectItem key={h} value={h}>{h}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    {reason ? <ToolText className="text-xs text-muted-foreground">{reason}</ToolText> : <span />}
+                    <div className="space-y-1">
+                      {reason ? <ToolText className="text-xs text-muted-foreground">{reason}</ToolText> : null}
+                      {agentReason && (agentReason.header ?? null) !== (mapping[field] ?? null) ? (
+                        <ToolText className="text-xs text-[hsl(var(--tone-warn))]" data-testid={`text-agent-mapping-${field}`}>
+                          Agent: {agentReason.header ? `"${agentReason.header}"` : "not mapped"}. {agentReason.reason}
+                        </ToolText>
+                      ) : null}
+                    </div>
                   </div>
                 );
               })}

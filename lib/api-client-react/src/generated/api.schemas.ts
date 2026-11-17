@@ -333,6 +333,66 @@ export interface DocumentSuggestion {
   source: DocumentSuggestionSource;
 }
 
+export type AgentDocumentProposalStatus = typeof AgentDocumentProposalStatus[keyof typeof AgentDocumentProposalStatus];
+
+
+export const AgentDocumentProposalStatus = {
+  running: 'running',
+  done: 'done',
+  failed: 'failed',
+} as const;
+
+export interface AgentQuote {
+  page: number;
+  quote: string;
+  /** Found by code on the cited page */
+  verified: boolean;
+}
+
+/**
+ * How the agent's value compares with the rule-based suggestion from the file itself
+ */
+export type Agreement = typeof Agreement[keyof typeof Agreement];
+
+
+export const Agreement = {
+  agrees: 'agrees',
+  differs: 'differs',
+  only_agent: 'only_agent',
+  only_rules: 'only_rules',
+  neither: 'neither',
+} as const;
+
+export interface AgentField {
+  /** @nullable */
+  value: string | number | null;
+  reason: string;
+  quote: AgentQuote | null;
+  agreement: Agreement;
+}
+
+/**
+ * The Ingestion agent's proposal, checked by code. The examiner confirms or corrects it.
+ */
+export interface AgentDocumentProposal {
+  status: AgentDocumentProposalStatus;
+  /** @nullable */
+  error: string | null;
+  /** @nullable */
+  model: string | null;
+  tokensIn: number;
+  tokensOut: number;
+  /** @nullable */
+  latencyMs: number | null;
+  requestedAt: string;
+  /** @nullable */
+  finishedAt: string | null;
+  docType: AgentField | null;
+  language: AgentField | null;
+  bankId: AgentField | null;
+  productId: AgentField | null;
+}
+
 export interface DocumentSummary {
   id: number;
   originalName: string;
@@ -360,6 +420,7 @@ export interface DocumentSummary {
   sizeBytes: number;
   sha256: string;
   suggestion: DocumentSuggestion | null;
+  agentProposal: AgentDocumentProposal | null;
   /** @nullable */
   rejectedReason: string | null;
   /** @nullable */
@@ -844,6 +905,181 @@ export type AssessmentDetail = AssessmentSummary & {
   findings: Finding[];
   alerts: AssessmentAlert[];
 };
+
+export interface AgentMappingReason {
+  field: RuleField;
+  required: boolean;
+  /** @nullable */
+  header: string | null;
+  reason: string;
+  agreement: Agreement;
+}
+
+export interface AgentMappingProposal {
+  mapping: ColumnMapping;
+  reasons: AgentMappingReason[];
+  model: string;
+  tokensIn: number;
+  tokensOut: number;
+  latencyMs: number;
+}
+
+/**
+ * accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands
+ */
+export type DecisionKind = typeof DecisionKind[keyof typeof DecisionKind];
+
+
+export const DecisionKind = {
+  accept: 'accept',
+  reject: 'reject',
+  modify: 'modify',
+} as const;
+
+export interface Decision {
+  id: number;
+  decision: DecisionKind;
+  finalStatus: FindingStatus | null;
+  /** @nullable */
+  examinerNote: string | null;
+  role: string;
+  decidedAt: string;
+}
+
+export interface DecisionInput {
+  role: Role;
+  decision: DecisionKind;
+  finalStatus?: FindingStatus | null;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  examinerNote?: string | null;
+}
+
+export type ReviewItemVerification = typeof ReviewItemVerification[keyof typeof ReviewItemVerification];
+
+
+export const ReviewItemVerification = {
+  verified: 'verified',
+  unsupported: 'unsupported',
+} as const;
+
+export interface ReviewItem {
+  findingId: number;
+  assessmentId: number;
+  /** @nullable */
+  bankId: number | null;
+  /** @nullable */
+  bankName: string | null;
+  /** @nullable */
+  productId: number | null;
+  /** @nullable */
+  productName: string | null;
+  ruleCode: string;
+  ruleTitle: string;
+  proposedStatus: FindingStatus;
+  severity: Severity;
+  verification: ReviewItemVerification;
+  rationale: string;
+  evidenceCount: number;
+  decision: Decision | null;
+}
+
+export interface ReviewProduct {
+  /** @nullable */
+  productId: number | null;
+  /** @nullable */
+  productName: string | null;
+  /** @nullable */
+  bankName: string | null;
+  assessmentId: number;
+  /** @nullable */
+  finishedAt: string | null;
+  total: number;
+  undecided: number;
+  /** Undecided */
+  bulkAcceptable: number;
+}
+
+export type ReviewQueueCounts = {
+  total: number;
+  undecided: number;
+  decided: number;
+  accepted: number;
+  modified: number;
+  rejected: number;
+};
+
+export interface ReviewQueue {
+  items: ReviewItem[];
+  products: ReviewProduct[];
+  counts: ReviewQueueCounts;
+}
+
+export interface SourceHighlight {
+  start: number;
+  end: number;
+  evidenceId: number;
+}
+
+export interface SourcePage {
+  documentId: number;
+  documentName: string;
+  docType: DocType | null;
+  language: DocLanguage | null;
+  pageNo: number;
+  text: string;
+  isGap: boolean;
+  highlights: SourceHighlight[];
+}
+
+export type FindingDetail = Finding & ({
+  assessmentId: number;
+  assessmentStatus: AssessmentStatus;
+  /** @nullable */
+  assessmentFinishedAt: string | null;
+  /** @nullable */
+  model: string | null;
+  /** @nullable */
+  bankName: string | null;
+  /** @nullable */
+  productId: number | null;
+  /** @nullable */
+  productName: string | null;
+  /** false when a newer assessment of the product exists; decisions are then closed */
+  isLatest: boolean;
+  decision: Decision | null;
+  /** Every decision on this finding, newest first */
+  history: Decision[];
+  sourcePages: SourcePage[];
+  /**
+     * Previous finding in the review queue order
+     * @nullable
+     */
+  prevId: number | null;
+  /** @nullable */
+  nextId: number | null;
+  /**
+     * Next undecided finding after this one
+     * @nullable
+     */
+  nextUndecidedId: number | null;
+});
+
+export interface BulkAcceptInput {
+  role: Role;
+  assessmentId: number;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  examinerNote?: string | null;
+}
+
+export interface BulkAcceptResult {
+  accepted: number;
+}
 
 export type ListAuditEventsParams = {
 /**

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 function Section({ label, children, id }: { label: string; children: ReactNode; id: string }) {
   return (
     <section aria-labelledby={`sec-${id}`} className="rise space-y-3" data-testid={`section-${id}`}>
-      <h2 id={`sec-${id}`} className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+      <h2 id={`sec-${id}`} className="text-sm font-medium text-muted-foreground">
         {label}
       </h2>
       {children}
@@ -35,7 +35,7 @@ export function PageFrame({
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-10 lg:py-10">
       <header className="rise mb-8 flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
-          <p className="mb-1.5 font-mono text-xs text-muted-foreground" data-testid="text-eyebrow">{eyebrow}</p>
+          <p className="mb-1.5 text-xs text-muted-foreground" data-testid="text-eyebrow">{eyebrow}</p>
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-[28px]" data-testid="text-page-question">
             {question}
           </h1>

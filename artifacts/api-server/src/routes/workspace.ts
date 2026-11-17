@@ -16,6 +16,7 @@ import { GetWorkspaceStatusResponse, GetWorkspaceProgressResponse, LoadDemoDataR
 import { requireWriter } from "../lib/roles";
 import { DemoLoadError, loadDemoData } from "../lib/demo/load";
 import { getAppState, type Dataset } from "../lib/dataset";
+import { reviewQueue } from "../lib/review";
 
 const router: IRouter = Router();
 
@@ -55,15 +56,10 @@ async function countAssessments(dataset: Dataset) {
   return { total, running: (by["queued"] ?? 0) + (by["running"] ?? 0), finished: (by["complete"] ?? 0) + (by["stopped"] ?? 0) };
 }
 
+/** Counts only the latest finished assessment per product, matching the review queue. */
 async function countFindings(dataset: Dataset) {
-  const [f] = await db.select({ n: count }).from(findingsTable).where(eq(findingsTable.dataset, dataset));
-  const [d] = await db
-    .select({ n: sql<number>`count(distinct ${decisionsTable.findingId})::int` })
-    .from(decisionsTable)
-    .where(eq(decisionsTable.dataset, dataset));
-  const total = f?.n ?? 0;
-  const decided = d?.n ?? 0;
-  return { total, decided, pending: Math.max(0, total - decided) };
+  const { counts } = await reviewQueue(dataset);
+  return { total: counts.total, decided: counts.decided, pending: counts.undecided };
 }
 
 async function countLibrary(dataset: Dataset) {

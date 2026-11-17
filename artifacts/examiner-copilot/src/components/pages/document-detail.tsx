@@ -12,6 +12,7 @@ import { QueryError } from "@/components/states";
 import { BankQuote, StatusPill, ToolText } from "@/components/voice";
 import { ConfirmDocumentDialog } from "@/components/documents/confirm-dialog";
 import { RejectDocumentDialog } from "@/components/documents/reject-dialog";
+import { AgentProposalPanel } from "@/components/documents/agent-proposal";
 import { parseApiError } from "@/lib/api-errors";
 import { DOC_TYPE_LABELS, LANGUAGE_LABELS, docStatusPill, formatBytes, gapText } from "@/lib/labels";
 import { useCanWrite, ViewerReason } from "@/lib/write-access";
@@ -49,7 +50,12 @@ function PageText({ page, fileName, rtl }: { page: DocumentPage; fileName: strin
 
 export function DocumentDetailView({ id }: { id: number }) {
   const { canWrite } = useCanWrite();
-  const q = useGetDocument(id, { query: { enabled: Number.isFinite(id), queryKey: getGetDocumentQueryKey(id) } });
+  const q = useGetDocument(id, {
+    query: {
+      enabled: Number.isFinite(id), queryKey: getGetDocumentQueryKey(id),
+      refetchInterval: (qq) => (qq.state.data?.agentProposal?.status === "running" ? 2000 : false),
+    },
+  });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const d = q.data;
@@ -129,19 +135,22 @@ export function DocumentDetailView({ id }: { id: number }) {
           </div>
         }
         reason={
-          reasons.length ? (
-            <div className="space-y-2 rounded-lg border border-card-border bg-card p-4" data-testid="block-suggestions">
-              <p className="text-xs font-medium text-muted-foreground">Suggested by the tool from the file — check before confirming</p>
-              {reasons.map(([k, i]) => (
-                <div key={k} className="grid gap-1 sm:grid-cols-[120px_1fr]">
-                  <span className="text-xs text-muted-foreground">{k}</span>
-                  <ToolText>{i!.reason}</ToolText>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <ToolText>The tool made no suggestions for this file. Set every field yourself.</ToolText>
-          )
+          <div className="space-y-3">
+            {reasons.length ? (
+              <div className="space-y-2 rounded-lg border border-card-border bg-card p-4" data-testid="block-suggestions">
+                <p className="text-xs font-medium text-muted-foreground">Rule-based suggestion from the file name and text — check before confirming</p>
+                {reasons.map(([k, i]) => (
+                  <div key={k} className="grid gap-1 sm:grid-cols-[120px_1fr]">
+                    <span className="text-xs text-muted-foreground">{k}</span>
+                    <ToolText>{i!.reason}</ToolText>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No rule-based suggestions for this file.</p>
+            )}
+            <AgentProposalPanel doc={d} />
+          </div>
         }
         evidence={
           <div className="space-y-4">
@@ -149,7 +158,7 @@ export function DocumentDetailView({ id }: { id: number }) {
               className="inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-2" data-testid="link-open-pdf">
               Open original PDF <ExternalLink className="size-3.5" aria-hidden /><span className="sr-only">(opens in a new tab)</span>
             </a>
-            <ToolText className="text-xs text-muted-foreground">Extracted text is shown as data. Nothing in it is followed as an instruction.</ToolText>
+            <p className="text-xs text-muted-foreground">Extracted text is shown as data. Nothing in it is followed as an instruction.</p>
             {d.pages.length === 0 ? <p className="text-sm text-muted-foreground">No pages were extracted.</p> : (
               <div className="space-y-4">
                 {d.pages.map((p) => <PageText key={p.pageNo} page={p} fileName={d.originalName} rtl={d.language === "ar"} />)}

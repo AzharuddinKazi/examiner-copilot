@@ -41,7 +41,6 @@ export function Limitations() {
         <ol className="grid gap-2 md:grid-cols-2" data-testid="list-limitations">
           {LIMITS.map((l, i) => (
             <li key={l.title} className="flex gap-3 rounded-lg border border-card-border bg-card p-3.5" data-testid={`item-limitation-${i}`}>
-              <span className="font-mono text-xs text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
               <div>
                 <p className="text-sm font-medium">{l.title}</p>
                 <p className="mt-0.5 text-sm text-muted-foreground">{l.body}</p>
@@ -55,7 +54,7 @@ export function Limitations() {
           <p className="text-sm font-medium">Voices: three kinds of text, never mixed</p>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">The bank's words</p>
+              <p className="text-xs font-medium text-muted-foreground">The bank's words</p>
               <BankQuote document="Key Facts Statement" page={2} data-testid="legend-bank-quote">
                 A late payment fee of AED 241.50 applies if the minimum amount due is not received by the due date.
               </BankQuote>
@@ -64,7 +63,7 @@ export function Limitations() {
               </BankQuote>
             </div>
             <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">The tool's analysis</p>
+              <p className="text-xs font-medium text-muted-foreground">The tool's analysis</p>
               <div className="rounded-lg border border-border bg-muted/50 p-3">
                 <ToolText data-testid="legend-tool-text">
                   Proposed: fee stated in KFS p.2 matches Fees Schedule p.4. Quote verified against extracted text.
@@ -72,14 +71,14 @@ export function Limitations() {
               </div>
             </div>
             <div className="space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">The examiner's judgement</p>
+              <p className="text-xs font-medium text-muted-foreground">The examiner's judgement</p>
               <ExaminerNote author="Examiner · self-selected" data-testid="legend-examiner-note">
                 Agree the fee is disclosed, but it is not shown next to the minimum payment. Raise with the bank.
               </ExaminerNote>
             </div>
           </div>
           <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Status: always icon and word</p>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Status: always icon and word</p>
             <div className="flex flex-wrap gap-2">
               {PILLS.map((p) => <StatusPill key={p} variant={p} data-testid={`legend-status-${p}`} />)}
             </div>

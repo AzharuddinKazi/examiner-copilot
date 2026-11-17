@@ -15,6 +15,8 @@ import {
   CommitRulebookImportResponse,
   GetRulebookVersionResponse,
   ActivateRulebookVersionResponse,
+  RequestRulebookAgentMappingParams,
+  RequestRulebookAgentMappingResponse,
 } from "@workspace/api-zod";
 import {
   db,
@@ -33,6 +35,9 @@ import { receiveFile } from "../lib/upload";
 import { getFile, storeFile } from "../lib/files";
 import { XLSX_LIMITS, WorkbookError, parseWorkbook, proposeMapping, buildRules } from "../lib/rulebook-import";
 import { activateVersion, createRulebookVersion, versionSummaries } from "../lib/rulebooks";
+import { proposeMappingWithAgent } from "../lib/ingest/agent";
+import { llmReady } from "../lib/ingest/run";
+import { LlmError } from "../lib/llm/adapter";
 import { renderSampleRulebook } from "../lib/demo/generate";
 import { DEMO_RULEBOOK_FILE } from "../lib/demo/content";
 
@@ -202,6 +207,53 @@ router.post("/rulebooks/import/preview", async (req, res): Promise<void> => {
       mappingReasons: reasons,
     }),
   );
+});
+
+router.post("/rulebooks/import/:importId/agent-mapping", async (req, res): Promise<void> => {
+  const role = requireWriter(req.body?.role, res);
+  if (!role) return;
+  const params = RequestRulebookAgentMappingParams.safeParse(req.params);
+  const dataset = await getActiveDataset();
+  const file = params.success ? await getFile(dataset, params.data.importId) : null;
+  if (!file || file.purpose !== "rulebook") {
+    res.status(404).json({ error: "This import was not found. Upload the workbook again." });
+    return;
+  }
+  if (!llmReady()) {
+    res.status(503).json({ error: "The model provider is not configured. Use the rule-based mapping or map the columns yourself." });
+    return;
+  }
+  const sheet = await parseWorkbook(file.data);
+  const rules = proposeMapping(sheet.headers).mapping;
+  try {
+    const r = await proposeMappingWithAgent({ headers: sheet.headers, sampleRows: sheet.rows.slice(0, 5).map((x) => x.cells), rules });
+    const differs = r.checked.reasons.filter((x) => x.agreement === "differs").map((x) => x.field);
+    await appendAudit({
+      dataset,
+      role,
+      action: "rulebook.agent_mapping_proposed",
+      entityType: "rulebook_import",
+      entityId: String(file.id),
+      summary: `Ingestion agent proposed a column mapping for ${file.originalName}${differs.length ? `; differs from the rule-based mapping on ${differs.join(", ")}` : ""}.`,
+      after: { mapping: r.checked.mapping, model: r.model, tokens: r.tokensIn + r.tokensOut },
+    });
+    res.json(
+      RequestRulebookAgentMappingResponse.parse({
+        mapping: r.checked.mapping,
+        reasons: r.checked.reasons,
+        model: r.model,
+        tokensIn: r.tokensIn,
+        tokensOut: r.tokensOut,
+        latencyMs: r.latencyMs,
+      }),
+    );
+  } catch (err) {
+    if (err instanceof LlmError) {
+      res.status(502).json({ error: `${err.message} The rule-based mapping is unchanged.` });
+      return;
+    }
+    throw err;
+  }
 });
 
 router.post("/rulebooks/import/commit", async (req, res): Promise<void> => {

@@ -18,7 +18,7 @@ const ALL = "__all__";
 function Json({ label, value }: { label: string; value: unknown }) {
   return (
     <div className="min-w-0">
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mb-1 text-xs font-medium text-muted-foreground">{label}</p>
       <pre className="max-h-64 overflow-auto rounded-md border border-border bg-muted/60 p-3 font-mono text-[12px] leading-relaxed">
         {value === undefined || value === null ? "—" : JSON.stringify(value, null, 2)}
       </pre>
@@ -115,7 +115,7 @@ export function AuditLog() {
           ) : (
             <div className="overflow-x-auto rounded-lg border border-card-border bg-card">
               <table className="w-full min-w-[760px] text-sm" data-testid="table-audit">
-                <thead className="border-b border-border bg-muted/40 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                <thead className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
                   <tr>
                     <th className="w-8 px-2 py-2"><span className="sr-only">Expand</span></th>
                     <th className="px-3 py-2 font-semibold">Time</th>

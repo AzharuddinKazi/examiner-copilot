@@ -1,3 +1,4 @@
+import type { AgentDocumentProposal } from "./ingest/agent";
 import {
   db,
   banksTable,
@@ -144,6 +145,7 @@ export function toSummary(r: DocumentRow, names: { banks: Map<number, string>; p
     sizeBytes: r.sizeBytes,
     sha256: r.sha256,
     suggestion: (r.ingestionProposal as DocumentSuggestion | null) ?? null,
+    agentProposal: (r.agentProposal as AgentDocumentProposal | null) ?? null,
     rejectedReason: r.rejectedReason,
     confirmedAt: r.confirmedAt,
     confirmedByRole: r.confirmedByRole,

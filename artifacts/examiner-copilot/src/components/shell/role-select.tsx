@@ -18,7 +18,7 @@ export function RoleSelect() {
           ))}
         </SelectContent>
       </Select>
-      <span className="font-mono text-[11px] leading-tight text-muted-foreground" data-testid="text-role-unverified">
+      <span className="hidden text-xs leading-tight text-muted-foreground sm:inline" data-testid="text-role-unverified">
         Self-selected · not verified
       </span>
     </div>

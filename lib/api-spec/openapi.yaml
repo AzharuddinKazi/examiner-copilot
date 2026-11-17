@@ -22,6 +22,8 @@ tags:
     description: Uploaded disclosure PDFs and their extracted pages
   - name: assessments
     description: Agent runs that propose a status per rule, with evidence checked by code
+  - name: review
+    description: Examiner decisions on proposed findings (append-only)
 paths:
   /healthz:
     get:
@@ -729,6 +731,225 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+
+  /documents/{id}/agent-proposal:
+    post:
+      operationId: requestDocumentAgentProposal
+      tags: [documents]
+      summary: Ask the Ingestion agent to propose type, language, bank and product. Runs in the background; poll the document.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleContext"
+      responses:
+        "202":
+          description: Queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSummary"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: The model provider is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rulebooks/import/{importId}/agent-mapping:
+    post:
+      operationId: requestRulebookAgentMapping
+      tags: [library]
+      summary: Ask the Ingestion agent to propose a column mapping for an uploaded rulebook. Code checks the proposal.
+      parameters:
+        - name: importId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleContext"
+      responses:
+        "200":
+          description: Proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentMappingProposal"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Import not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: The model provider failed or gave no usable answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: The model provider is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /review/queue:
+    get:
+      operationId: getReviewQueue
+      tags: [review]
+      summary: Findings from the latest finished assessment of each product, with the latest examiner decision
+      responses:
+        "200":
+          description: Queue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewQueue"
+
+  /findings/{id}:
+    get:
+      operationId: getFinding
+      tags: [review]
+      summary: One finding with its evidence, the source pages, and the decision history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Finding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindingDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /findings/{id}/decisions:
+    post:
+      operationId: decideFinding
+      tags: [review]
+      summary: Record an examiner decision. Append-only; the latest decision wins.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionInput"
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindingDetail"
+        "400":
+          description: Invalid decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot record decisions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The finding belongs to an older assessment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /review/accept-compliant:
+    post:
+      operationId: acceptCompliantFindings
+      tags: [review]
+      summary: Accept every undecided, quote-verified Compliant or Not applicable proposal of one assessment in one step
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkAcceptInput"
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkAcceptResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot record decisions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The assessment is not the latest for its product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1035,7 +1256,7 @@ components:
 
     DocumentSummary:
       type: object
-      required: [id, originalName, bankId, bankName, productId, productName, docType, language, versionLabel, status, pageCount, gapPages, extractionQuality, sizeBytes, sha256, suggestion, rejectedReason, confirmedAt, confirmedByRole, createdAt]
+      required: [id, originalName, bankId, bankName, productId, productName, docType, language, versionLabel, status, pageCount, gapPages, extractionQuality, sizeBytes, sha256, suggestion, agentProposal, rejectedReason, confirmedAt, confirmedByRole, createdAt]
       properties:
         id: { type: integer }
         originalName: { type: string }
@@ -1066,6 +1287,10 @@ components:
         suggestion:
           oneOf:
             - { $ref: "#/components/schemas/DocumentSuggestion" }
+            - { type: "null" }
+        agentProposal:
+          oneOf:
+            - { $ref: "#/components/schemas/AgentDocumentProposal" }
             - { type: "null" }
         rejectedReason: { type: ["string", "null"] }
         confirmedAt: { type: ["string", "null"], format: date-time }
@@ -1533,3 +1758,222 @@ components:
             alerts:
               type: array
               items: { $ref: "#/components/schemas/AssessmentAlert" }
+
+    Agreement:
+      type: string
+      enum: [agrees, differs, only_agent, only_rules, neither]
+      description: How the agent's value compares with the rule-based suggestion from the file itself
+
+    AgentQuote:
+      type: object
+      required: [page, quote, verified]
+      properties:
+        page: { type: integer }
+        quote: { type: string }
+        verified: { type: boolean, description: Found by code on the cited page }
+
+    AgentField:
+      type: object
+      required: [value, reason, quote, agreement]
+      properties:
+        value: { type: ["string", "integer", "null"] }
+        reason: { type: string }
+        quote:
+          oneOf:
+            - { $ref: "#/components/schemas/AgentQuote" }
+            - { type: "null" }
+        agreement: { $ref: "#/components/schemas/Agreement" }
+
+    AgentDocumentProposal:
+      type: object
+      description: The Ingestion agent's proposal, checked by code. The examiner confirms or corrects it.
+      required: [status, error, model, tokensIn, tokensOut, latencyMs, requestedAt, finishedAt, docType, language, bankId, productId]
+      properties:
+        status: { type: string, enum: [running, done, failed] }
+        error: { type: ["string", "null"] }
+        model: { type: ["string", "null"] }
+        tokensIn: { type: integer }
+        tokensOut: { type: integer }
+        latencyMs: { type: ["integer", "null"] }
+        requestedAt: { type: string, format: date-time }
+        finishedAt: { type: ["string", "null"], format: date-time }
+        docType: { oneOf: [{ $ref: "#/components/schemas/AgentField" }, { type: "null" }] }
+        language: { oneOf: [{ $ref: "#/components/schemas/AgentField" }, { type: "null" }] }
+        bankId: { oneOf: [{ $ref: "#/components/schemas/AgentField" }, { type: "null" }] }
+        productId: { oneOf: [{ $ref: "#/components/schemas/AgentField" }, { type: "null" }] }
+
+    AgentMappingReason:
+      type: object
+      required: [field, required, header, reason, agreement]
+      properties:
+        field: { $ref: "#/components/schemas/RuleField" }
+        required: { type: boolean }
+        header: { type: ["string", "null"] }
+        reason: { type: string }
+        agreement: { $ref: "#/components/schemas/Agreement" }
+
+    AgentMappingProposal:
+      type: object
+      required: [mapping, reasons, model, tokensIn, tokensOut, latencyMs]
+      properties:
+        mapping: { $ref: "#/components/schemas/ColumnMapping" }
+        reasons:
+          type: array
+          items: { $ref: "#/components/schemas/AgentMappingReason" }
+        model: { type: string }
+        tokensIn: { type: integer }
+        tokensOut: { type: integer }
+        latencyMs: { type: integer }
+
+    DecisionKind:
+      type: string
+      enum: [accept, reject, modify]
+      description: accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands
+
+    Decision:
+      type: object
+      required: [id, decision, finalStatus, examinerNote, role, decidedAt]
+      properties:
+        id: { type: integer }
+        decision: { $ref: "#/components/schemas/DecisionKind" }
+        finalStatus:
+          oneOf:
+            - { $ref: "#/components/schemas/FindingStatus" }
+            - { type: "null" }
+        examinerNote: { type: ["string", "null"] }
+        role: { type: string }
+        decidedAt: { type: string, format: date-time }
+
+    DecisionInput:
+      type: object
+      required: [role, decision]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        decision: { $ref: "#/components/schemas/DecisionKind" }
+        finalStatus:
+          oneOf:
+            - { $ref: "#/components/schemas/FindingStatus" }
+            - { type: "null" }
+        examinerNote: { type: ["string", "null"], maxLength: 2000 }
+
+    ReviewItem:
+      type: object
+      required: [findingId, assessmentId, bankId, bankName, productId, productName, ruleCode, ruleTitle, proposedStatus, severity, verification, rationale, evidenceCount, decision]
+      properties:
+        findingId: { type: integer }
+        assessmentId: { type: integer }
+        bankId: { type: ["integer", "null"] }
+        bankName: { type: ["string", "null"] }
+        productId: { type: ["integer", "null"] }
+        productName: { type: ["string", "null"] }
+        ruleCode: { type: string }
+        ruleTitle: { type: string }
+        proposedStatus: { $ref: "#/components/schemas/FindingStatus" }
+        severity: { $ref: "#/components/schemas/Severity" }
+        verification: { type: string, enum: [verified, unsupported] }
+        rationale: { type: string }
+        evidenceCount: { type: integer }
+        decision:
+          oneOf:
+            - { $ref: "#/components/schemas/Decision" }
+            - { type: "null" }
+
+    ReviewProduct:
+      type: object
+      required: [productId, productName, bankName, assessmentId, finishedAt, total, undecided, bulkAcceptable]
+      properties:
+        productId: { type: ["integer", "null"] }
+        productName: { type: ["string", "null"] }
+        bankName: { type: ["string", "null"] }
+        assessmentId: { type: integer }
+        finishedAt: { type: ["string", "null"], format: date-time }
+        total: { type: integer }
+        undecided: { type: integer }
+        bulkAcceptable: { type: integer, description: Undecided, quote-verified Compliant or Not applicable proposals }
+
+    ReviewQueue:
+      type: object
+      required: [items, products, counts]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ReviewItem" }
+        products:
+          type: array
+          items: { $ref: "#/components/schemas/ReviewProduct" }
+        counts:
+          type: object
+          required: [total, undecided, decided, accepted, modified, rejected]
+          properties:
+            total: { type: integer }
+            undecided: { type: integer }
+            decided: { type: integer }
+            accepted: { type: integer }
+            modified: { type: integer }
+            rejected: { type: integer }
+
+    SourceHighlight:
+      type: object
+      required: [start, end, evidenceId]
+      properties:
+        start: { type: integer }
+        end: { type: integer }
+        evidenceId: { type: integer }
+
+    SourcePage:
+      type: object
+      required: [documentId, documentName, docType, language, pageNo, text, isGap, highlights]
+      properties:
+        documentId: { type: integer }
+        documentName: { type: string }
+        docType: { oneOf: [{ $ref: "#/components/schemas/DocType" }, { type: "null" }] }
+        language: { oneOf: [{ $ref: "#/components/schemas/DocLanguage" }, { type: "null" }] }
+        pageNo: { type: integer }
+        text: { type: string }
+        isGap: { type: boolean }
+        highlights:
+          type: array
+          items: { $ref: "#/components/schemas/SourceHighlight" }
+
+    FindingDetail:
+      allOf:
+        - $ref: "#/components/schemas/Finding"
+        - type: object
+          required: [assessmentId, assessmentStatus, assessmentFinishedAt, model, bankName, productId, productName, isLatest, decision, history, sourcePages, prevId, nextId, nextUndecidedId]
+          properties:
+            assessmentId: { type: integer }
+            assessmentStatus: { $ref: "#/components/schemas/AssessmentStatus" }
+            assessmentFinishedAt: { type: ["string", "null"], format: date-time }
+            model: { type: ["string", "null"] }
+            bankName: { type: ["string", "null"] }
+            productId: { type: ["integer", "null"] }
+            productName: { type: ["string", "null"] }
+            isLatest: { type: boolean, description: false when a newer assessment of the product exists; decisions are then closed }
+            decision:
+              oneOf:
+                - { $ref: "#/components/schemas/Decision" }
+                - { type: "null" }
+            history:
+              type: array
+              description: Every decision on this finding, newest first
+              items: { $ref: "#/components/schemas/Decision" }
+            sourcePages:
+              type: array
+              items: { $ref: "#/components/schemas/SourcePage" }
+            prevId: { type: ["integer", "null"], description: Previous finding in the review queue order }
+            nextId: { type: ["integer", "null"] }
+            nextUndecidedId: { type: ["integer", "null"], description: Next undecided finding after this one, wrapping around }
+
+    BulkAcceptInput:
+      type: object
+      required: [role, assessmentId]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        assessmentId: { type: integer }
+        examinerNote: { type: ["string", "null"], maxLength: 2000 }
+
+    BulkAcceptResult:
+      type: object
+      required: [accepted]
+      properties:
+        accepted: { type: integer }

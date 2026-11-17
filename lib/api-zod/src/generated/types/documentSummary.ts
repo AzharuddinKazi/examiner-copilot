@@ -5,6 +5,7 @@
  * Examiner Co-Pilot API. Agents propose, examiners decide.
  * OpenAPI spec version: 0.1.0
  */
+import type { AgentDocumentProposal } from './agentDocumentProposal';
 import type { DocLanguage } from './docLanguage';
 import type { DocType } from './docType';
 import type { DocumentStatus } from './documentStatus';
@@ -37,6 +38,7 @@ export interface DocumentSummary {
   sizeBytes: number;
   sha256: string;
   suggestion: DocumentSuggestion | null;
+  agentProposal: AgentDocumentProposal | null;
   /** @nullable */
   rejectedReason: string | null;
   /** @nullable */

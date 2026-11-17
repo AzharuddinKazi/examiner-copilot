@@ -74,7 +74,7 @@ export function RulebookVersionView({ id }: { id: number }) {
         <div>
           <div className="overflow-x-auto rounded-lg border border-card-border bg-card">
             <table className="w-full text-sm" data-testid="table-rules">
-              <thead><tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+              <thead><tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="px-4 py-2.5 font-medium">Code</th><th className="px-3 py-2.5 font-medium">Title</th><th className="px-3 py-2.5 font-medium">Applies to</th>
                 <th className="px-3 py-2.5 font-medium">Check</th><th className="px-3 py-2.5 font-medium">Threshold</th><th className="px-4 py-2.5 font-medium">Severity</th>
               </tr></thead>

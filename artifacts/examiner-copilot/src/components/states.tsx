@@ -34,10 +34,8 @@ export function EmptyState({
 }: { icon: LucideIcon; title: string; children?: ReactNode; action?: ReactNode; testId?: string; className?: string }) {
   return (
     <div data-testid={testId}
-      className={cn("rounded-lg border border-dashed border-border bg-card/60 px-6 py-10 text-center", className)}>
-      <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-muted text-muted-foreground">
-        <Icon className="size-5" aria-hidden />
-      </div>
+      className={cn("rounded-lg border border-dashed border-border bg-card/60 px-6 py-8 text-center", className)}>
+      <Icon className="mx-auto mb-2 size-5 text-muted-foreground" aria-hidden />
       <p className="font-medium">{title}</p>
       {children ? <div className="mx-auto mt-1.5 max-w-prose text-sm text-muted-foreground">{children}</div> : null}
       {action ? <div className="mt-4 flex justify-center">{action}</div> : null}

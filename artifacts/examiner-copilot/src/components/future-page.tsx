@@ -8,7 +8,6 @@ export type FuturePageIcon = keyof typeof ICONS;
 import { useGetWorkspaceProgress, type StepProgressKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PageFrame } from "@/components/page-frame";
 import { EmptyState, QueryError } from "@/components/states";
 import { StepCounts } from "@/components/step-counts";
@@ -29,18 +28,13 @@ export function FuturePage({
       eyebrow={eyebrow}
       question={question}
       primaryAction={
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span tabIndex={0} className="inline-block rounded-md" data-testid="wrap-primary-disabled">
-              <Button disabled data-testid="button-primary">
-                <Lock aria-hidden /> {primaryLabel}
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{unavailableReason}</TooltipContent>
-        </Tooltip>
+        <span className="inline-block rounded-md" data-testid="wrap-primary-disabled">
+          <Button disabled data-testid="button-primary" aria-describedby="unavailable-reason">
+            <Lock aria-hidden /> {primaryLabel}
+          </Button>
+        </span>
       }
-      meta={<span className="text-xs text-muted-foreground" data-testid="text-unavailable-reason">{unavailableReason}</span>}
+      meta={<span id="unavailable-reason" className="text-sm text-muted-foreground" data-testid="text-unavailable-reason">{unavailableReason}</span>}
       answer={
         <div className="space-y-4">
           {notice}
@@ -61,13 +55,8 @@ export function FuturePage({
         </div>
       }
       reason={
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {willDo.map((w, i) => (
-            <li key={i} className="flex gap-3 rounded-lg border border-card-border bg-card p-3 text-sm">
-              <span className="font-mono text-xs text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
-              <span>{w}</span>
-            </li>
-          ))}
+        <ul className="max-w-prose list-disc space-y-1 pl-5 text-sm text-muted-foreground marker:text-border">
+          {willDo.map((w, i) => <li key={i}>{w}</li>)}
         </ul>
       }
       next={next}

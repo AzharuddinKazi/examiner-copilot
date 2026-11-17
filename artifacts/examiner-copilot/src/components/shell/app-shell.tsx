@@ -18,7 +18,7 @@ function Wordmark() {
       </span>
       <span className="leading-tight">
         <span className="block text-sm font-semibold tracking-tight">Examiner Co-Pilot</span>
-        <span className="block font-mono text-[10px] text-muted-foreground">agents propose · you decide</span>
+        <span className="block text-[11px] text-muted-foreground">Agents propose, you decide</span>
       </span>
     </Link>
   );
@@ -65,9 +65,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <footer className="border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-6" data-testid="text-footer-disclaimer">
           <p>
             <strong className="font-semibold text-foreground">Not an official CBUAE system.</strong> Sample rules are not law.
-            Public or synthetic documents only. Agents propose; examiners decide and own any enforcement.{" "}
+            Public or synthetic documents only. Examiners decide and own any enforcement.{" "}
             <Link href="/assurance/limitations" className="underline underline-offset-2 hover:text-foreground" data-testid="link-footer-limitations">
-              Read the limitations
+              Limitations
             </Link>
           </p>
         </footer>

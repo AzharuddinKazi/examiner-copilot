@@ -469,6 +469,56 @@ export const ListDocumentsResponse = zod.object({
 }),
   "source": zod.enum(['rules'])
 }).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "agentProposal": zod.union([zod.object({
+  "status": zod.enum(['running', 'done', 'failed']),
+  "error": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "latencyMs": zod.int().nullable(),
+  "requestedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "docType": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "language": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "bankId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "productId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()])
+}).describe('The Ingestion agent\'s proposal, checked by code. The examiner confirms or corrects it.'),zod.null()]),
   "rejectedReason": zod.string().nullable(),
   "confirmedAt": zod.coerce.date().nullable(),
   "confirmedByRole": zod.string().nullable(),
@@ -531,6 +581,56 @@ export const UploadDocumentResponse = zod.object({
 }),
   "source": zod.enum(['rules'])
 }).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "agentProposal": zod.union([zod.object({
+  "status": zod.enum(['running', 'done', 'failed']),
+  "error": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "latencyMs": zod.int().nullable(),
+  "requestedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "docType": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "language": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "bankId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "productId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()])
+}).describe('The Ingestion agent\'s proposal, checked by code. The examiner confirms or corrects it.'),zod.null()]),
   "rejectedReason": zod.string().nullable(),
   "confirmedAt": zod.coerce.date().nullable(),
   "confirmedByRole": zod.string().nullable(),
@@ -580,6 +680,56 @@ export const GetDocumentResponse = zod.object({
 }),
   "source": zod.enum(['rules'])
 }).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "agentProposal": zod.union([zod.object({
+  "status": zod.enum(['running', 'done', 'failed']),
+  "error": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "latencyMs": zod.int().nullable(),
+  "requestedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "docType": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "language": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "bankId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "productId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()])
+}).describe('The Ingestion agent\'s proposal, checked by code. The examiner confirms or corrects it.'),zod.null()]),
   "rejectedReason": zod.string().nullable(),
   "confirmedAt": zod.coerce.date().nullable(),
   "confirmedByRole": zod.string().nullable(),
@@ -650,6 +800,56 @@ export const ConfirmDocumentResponse = zod.object({
 }),
   "source": zod.enum(['rules'])
 }).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "agentProposal": zod.union([zod.object({
+  "status": zod.enum(['running', 'done', 'failed']),
+  "error": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "latencyMs": zod.int().nullable(),
+  "requestedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "docType": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "language": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "bankId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "productId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()])
+}).describe('The Ingestion agent\'s proposal, checked by code. The examiner confirms or corrects it.'),zod.null()]),
   "rejectedReason": zod.string().nullable(),
   "confirmedAt": zod.coerce.date().nullable(),
   "confirmedByRole": zod.string().nullable(),
@@ -709,6 +909,56 @@ export const RejectDocumentResponse = zod.object({
 }),
   "source": zod.enum(['rules'])
 }).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "agentProposal": zod.union([zod.object({
+  "status": zod.enum(['running', 'done', 'failed']),
+  "error": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "latencyMs": zod.int().nullable(),
+  "requestedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "docType": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "language": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "bankId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "productId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()])
+}).describe('The Ingestion agent\'s proposal, checked by code. The examiner confirms or corrects it.'),zod.null()]),
   "rejectedReason": zod.string().nullable(),
   "confirmedAt": zod.coerce.date().nullable(),
   "confirmedByRole": zod.string().nullable(),
@@ -992,6 +1242,390 @@ export const StopAssessmentResponse = zod.object({
   "needs_review": zod.int(),
   "not_applicable": zod.int()
 })
+})
+
+
+/**
+ * @summary Ask the Ingestion agent to propose type, language, bank and product. Runs in the background; poll the document.
+ */
+export const RequestDocumentAgentProposalParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const RequestDocumentAgentProposalBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
+})
+
+export const RequestDocumentAgentProposalResponse = zod.object({
+  "id": zod.int(),
+  "originalName": zod.string(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "versionLabel": zod.string().nullable(),
+  "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
+  "pageCount": zod.int(),
+  "gapPages": zod.array(zod.int()).describe('Pages with no usable text (likely scanned). There is no OCR.'),
+  "extractionQuality": zod.number().nullable().describe('Share of pages with usable text, 0 to 1'),
+  "sizeBytes": zod.int(),
+  "sha256": zod.string(),
+  "suggestion": zod.union([zod.object({
+  "docType": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "language": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "bankId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "productId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "source": zod.enum(['rules'])
+}).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "agentProposal": zod.union([zod.object({
+  "status": zod.enum(['running', 'done', 'failed']),
+  "error": zod.string().nullable(),
+  "model": zod.string().nullable(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "latencyMs": zod.int().nullable(),
+  "requestedAt": zod.coerce.date(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "docType": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "language": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "bankId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()]),
+  "productId": zod.union([zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string(),
+  "quote": zod.union([zod.object({
+  "page": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean().describe('Found by code on the cited page')
+}),zod.null()]),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+}),zod.null()])
+}).describe('The Ingestion agent\'s proposal, checked by code. The examiner confirms or corrects it.'),zod.null()]),
+  "rejectedReason": zod.string().nullable(),
+  "confirmedAt": zod.coerce.date().nullable(),
+  "confirmedByRole": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Ask the Ingestion agent to propose a column mapping for an uploaded rulebook. Code checks the proposal.
+ */
+export const RequestRulebookAgentMappingParams = zod.object({
+  "importId": zod.coerce.number().int()
+})
+
+export const RequestRulebookAgentMappingBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
+})
+
+export const RequestRulebookAgentMappingResponse = zod.object({
+  "mapping": zod.object({
+  "code": zod.string().nullable(),
+  "title": zod.string().nullable(),
+  "text": zod.string().nullable(),
+  "category": zod.string().nullable(),
+  "appliesTo": zod.string().nullable(),
+  "checkType": zod.string().nullable(),
+  "threshold": zod.string().nullable(),
+  "severity": zod.string().nullable()
+}).describe('Which spreadsheet header feeds each rule field. null = not mapped.'),
+  "reasons": zod.array(zod.object({
+  "field": zod.enum(['code', 'title', 'text', 'category', 'appliesTo', 'checkType', 'threshold', 'severity']),
+  "required": zod.boolean(),
+  "header": zod.string().nullable(),
+  "reason": zod.string(),
+  "agreement": zod.enum(['agrees', 'differs', 'only_agent', 'only_rules', 'neither']).describe('How the agent\'s value compares with the rule-based suggestion from the file itself')
+})),
+  "model": zod.string(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "latencyMs": zod.int()
+})
+
+
+/**
+ * @summary Findings from the latest finished assessment of each product, with the latest examiner decision
+ */
+export const GetReviewQueueResponse = zod.object({
+  "items": zod.array(zod.object({
+  "findingId": zod.int(),
+  "assessmentId": zod.int(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "proposedStatus": zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "verification": zod.enum(['verified', 'unsupported']),
+  "rationale": zod.string(),
+  "evidenceCount": zod.int(),
+  "decision": zod.union([zod.object({
+  "id": zod.int(),
+  "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
+  "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
+  "examinerNote": zod.string().nullable(),
+  "role": zod.string(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()])
+})),
+  "products": zod.array(zod.object({
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "bankName": zod.string().nullable(),
+  "assessmentId": zod.int(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "total": zod.int(),
+  "undecided": zod.int(),
+  "bulkAcceptable": zod.int().describe('Undecided')
+})),
+  "counts": zod.object({
+  "total": zod.int(),
+  "undecided": zod.int(),
+  "decided": zod.int(),
+  "accepted": zod.int(),
+  "modified": zod.int(),
+  "rejected": zod.int()
+})
+})
+
+
+/**
+ * @summary One finding with its evidence, the source pages, and the decision history
+ */
+export const GetFindingParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetFindingResponse = zod.object({
+  "id": zod.int(),
+  "ruleId": zod.int().nullable(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "threshold": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "raw": zod.string()
+}),zod.null()]),
+  "proposedStatus": zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "rationale": zod.string().describe('The tool\'s plain explanation'),
+  "verification": zod.enum(['verified', 'unsupported']),
+  "proposedBy": zod.string().describe('Which agent or check produced the proposal'),
+  "evidence": zod.array(zod.object({
+  "id": zod.int(),
+  "documentId": zod.int(),
+  "documentName": zod.string(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "pageNo": zod.int(),
+  "quote": zod.string().describe('The bank\'s words'),
+  "verified": zod.enum(['exact', 'normalized', 'not_found']).describe('exact = quote found verbatim on the cited page; normalized = found after whitespace/case normalisation; not_found = not on that page (finding becomes Warning)')
+})),
+  "checks": zod.array(zod.object({
+  "label": zod.string(),
+  "result": zod.enum(['pass', 'fail', 'info']),
+  "detail": zod.string()
+}).describe('A deterministic check run by code, not by the model'))
+}).and(zod.object({
+  "assessmentId": zod.int(),
+  "assessmentStatus": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
+  "assessmentFinishedAt": zod.coerce.date().nullable(),
+  "model": zod.string().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "isLatest": zod.boolean().describe('false when a newer assessment of the product exists; decisions are then closed'),
+  "decision": zod.union([zod.object({
+  "id": zod.int(),
+  "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
+  "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
+  "examinerNote": zod.string().nullable(),
+  "role": zod.string(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()]),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
+  "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
+  "examinerNote": zod.string().nullable(),
+  "role": zod.string(),
+  "decidedAt": zod.coerce.date()
+})).describe('Every decision on this finding, newest first'),
+  "sourcePages": zod.array(zod.object({
+  "documentId": zod.int(),
+  "documentName": zod.string(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "pageNo": zod.int(),
+  "text": zod.string(),
+  "isGap": zod.boolean(),
+  "highlights": zod.array(zod.object({
+  "start": zod.int(),
+  "end": zod.int(),
+  "evidenceId": zod.int()
+}))
+})),
+  "prevId": zod.int().nullable().describe('Previous finding in the review queue order'),
+  "nextId": zod.int().nullable(),
+  "nextUndecidedId": zod.int().nullable().describe('Next undecided finding after this one')
+}))
+
+
+/**
+ * @summary Record an examiner decision. Append-only; the latest decision wins.
+ */
+export const DecideFindingParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const decideFindingBodyExaminerNoteMax = 2000;
+
+
+
+export const DecideFindingBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
+  "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
+  "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]).optional(),
+  "examinerNote": zod.string().max(decideFindingBodyExaminerNoteMax).nullish()
+})
+
+export const DecideFindingResponse = zod.object({
+  "id": zod.int(),
+  "ruleId": zod.int().nullable(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "threshold": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "raw": zod.string()
+}),zod.null()]),
+  "proposedStatus": zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "rationale": zod.string().describe('The tool\'s plain explanation'),
+  "verification": zod.enum(['verified', 'unsupported']),
+  "proposedBy": zod.string().describe('Which agent or check produced the proposal'),
+  "evidence": zod.array(zod.object({
+  "id": zod.int(),
+  "documentId": zod.int(),
+  "documentName": zod.string(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "pageNo": zod.int(),
+  "quote": zod.string().describe('The bank\'s words'),
+  "verified": zod.enum(['exact', 'normalized', 'not_found']).describe('exact = quote found verbatim on the cited page; normalized = found after whitespace/case normalisation; not_found = not on that page (finding becomes Warning)')
+})),
+  "checks": zod.array(zod.object({
+  "label": zod.string(),
+  "result": zod.enum(['pass', 'fail', 'info']),
+  "detail": zod.string()
+}).describe('A deterministic check run by code, not by the model'))
+}).and(zod.object({
+  "assessmentId": zod.int(),
+  "assessmentStatus": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
+  "assessmentFinishedAt": zod.coerce.date().nullable(),
+  "model": zod.string().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "isLatest": zod.boolean().describe('false when a newer assessment of the product exists; decisions are then closed'),
+  "decision": zod.union([zod.object({
+  "id": zod.int(),
+  "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
+  "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
+  "examinerNote": zod.string().nullable(),
+  "role": zod.string(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()]),
+  "history": zod.array(zod.object({
+  "id": zod.int(),
+  "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
+  "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
+  "examinerNote": zod.string().nullable(),
+  "role": zod.string(),
+  "decidedAt": zod.coerce.date()
+})).describe('Every decision on this finding, newest first'),
+  "sourcePages": zod.array(zod.object({
+  "documentId": zod.int(),
+  "documentName": zod.string(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "pageNo": zod.int(),
+  "text": zod.string(),
+  "isGap": zod.boolean(),
+  "highlights": zod.array(zod.object({
+  "start": zod.int(),
+  "end": zod.int(),
+  "evidenceId": zod.int()
+}))
+})),
+  "prevId": zod.int().nullable().describe('Previous finding in the review queue order'),
+  "nextId": zod.int().nullable(),
+  "nextUndecidedId": zod.int().nullable().describe('Next undecided finding after this one')
+}))
+
+
+/**
+ * @summary Accept every undecided, quote-verified Compliant or Not applicable proposal of one assessment in one step
+ */
+export const acceptCompliantFindingsBodyExaminerNoteMax = 2000;
+
+
+
+export const AcceptCompliantFindingsBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
+  "assessmentId": zod.int(),
+  "examinerNote": zod.string().max(acceptCompliantFindingsBodyExaminerNoteMax).nullish()
+})
+
+export const AcceptCompliantFindingsResponse = zod.object({
+  "accepted": zod.int()
 })
 
 

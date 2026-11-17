@@ -182,7 +182,7 @@ function Candidates({ d, onStart, pendingId }: { d: AssessmentCandidates; onStar
       <div className="hidden overflow-x-auto rounded-lg border border-card-border bg-card md:block">
         <table className="w-full text-sm" data-testid="table-candidates">
           <thead>
-            <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="px-4 py-2.5 font-medium">Product</th>
               <th className="px-3 py-2.5 font-medium">Confirmed documents</th>
               <th className="px-3 py-2.5 font-medium">Last assessment</th>
@@ -331,7 +331,7 @@ export function AssessView() {
       reason={
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>Agents read each product's confirmed documents against the active rulebook version and propose one status per rule. They cannot change documents, rules or decisions.</p>
-          <ToolText>Every proposed finding must cite a quote and page. Code checks each quote against the extracted text; a quote that cannot be found makes the finding a Warning.</ToolText>
+          <p className="max-w-prose text-sm text-muted-foreground">Every proposed finding must cite a quote and page. Code checks each quote against the extracted text; a quote that cannot be found makes the finding a Warning.</p>
         </div>
       }
       evidence={
