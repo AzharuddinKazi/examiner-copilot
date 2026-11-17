@@ -35,23 +35,23 @@ export const GetWorkspaceProgressResponse = zod.object({
   "dataset": zod.enum(['demo', 'live']),
   "steps": zod.array(zod.object({
   "key": zod.enum(['upload', 'assess', 'review', 'notices']),
-  "number": zod.number().int(),
+  "number": zod.int(),
   "title": zod.string(),
   "question": zod.string(),
   "href": zod.string(),
   "state": zod.enum(['not_started', 'in_progress', 'done']),
   "counts": zod.array(zod.object({
   "label": zod.string(),
-  "value": zod.number().int()
+  "value": zod.int()
 })),
   "summary": zod.string().describe('One plain sentence describing where this step stands')
 })),
   "nextStepKey": zod.enum(['upload', 'assess', 'review', 'notices']),
   "library": zod.object({
-  "banks": zod.number().int(),
-  "products": zod.number().int(),
-  "rulebookVersions": zod.number().int(),
-  "activeRules": zod.number().int()
+  "banks": zod.int(),
+  "products": zod.int(),
+  "rulebookVersions": zod.int(),
+  "activeRules": zod.int()
 })
 })
 
@@ -79,7 +79,7 @@ export const TestLlmConnectionBody = zod.object({
 export const TestLlmConnectionResponse = zod.object({
   "ok": zod.boolean(),
   "model": zod.string().nullable(),
-  "latencyMs": zod.number().int().nullable(),
+  "latencyMs": zod.int().nullable(),
   "error": zod.string().nullable().describe('Clear error when the key is missing or the provider fails'),
   "checkedAt": zod.coerce.date()
 })
@@ -104,7 +104,7 @@ export const ListAuditEventsQueryParams = zod.object({
 
 export const ListAuditEventsResponse = zod.object({
   "items": zod.array(zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "dataset": zod.enum(['demo', 'live']),
   "ts": zod.coerce.date(),
   "role": zod.string().nullable(),
@@ -116,7 +116,7 @@ export const ListAuditEventsResponse = zod.object({
   "after": zod.unknown().optional(),
   "hash": zod.string()
 })),
-  "total": zod.number().int(),
+  "total": zod.int(),
   "actions": zod.array(zod.string()).describe('Distinct action names in this dataset, for filtering')
 })
 
@@ -126,8 +126,8 @@ export const ListAuditEventsResponse = zod.object({
  */
 export const VerifyAuditChainResponse = zod.object({
   "valid": zod.boolean(),
-  "checked": zod.number().int(),
-  "brokenAtId": zod.number().int().nullable(),
+  "checked": zod.int(),
+  "brokenAtId": zod.int().nullable(),
   "checkedAt": zod.coerce.date()
 })
 
@@ -141,7 +141,7 @@ export const RecordRoleChangeBody = zod.object({
 })
 
 export const RecordRoleChangeResponse = zod.object({
-  "id": zod.number().int(),
+  "id": zod.int(),
   "dataset": zod.enum(['demo', 'live']),
   "ts": zod.coerce.date(),
   "role": zod.string().nullable(),
@@ -152,6 +152,567 @@ export const RecordRoleChangeResponse = zod.object({
   "before": zod.unknown().optional(),
   "after": zod.unknown().optional(),
   "hash": zod.string()
+})
+
+
+/**
+ * @summary Load the fictional demo banks, rulebook and documents (demo mode only, once)
+ */
+export const LoadDemoDataBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
+})
+
+export const LoadDemoDataResponse = zod.object({
+  "banks": zod.int(),
+  "products": zod.int(),
+  "rules": zod.int(),
+  "documents": zod.int(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Banks with their card products, for the active dataset
+ */
+export const ListBanksResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "nameEn": zod.string(),
+  "nameAr": zod.string().nullable(),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "bankId": zod.int(),
+  "name": zod.string(),
+  "cardTier": zod.string().nullable(),
+  "documentCount": zod.int()
+})),
+  "documentCount": zod.int()
+}))
+})
+
+
+/**
+ * @summary Add a bank
+ */
+export const createBankBodyNameEnMin = 2;
+export const createBankBodyNameEnMax = 120;
+
+export const createBankBodyNameArMax = 120;
+
+
+
+export const CreateBankBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
+  "nameEn": zod.string().min(createBankBodyNameEnMin).max(createBankBodyNameEnMax),
+  "nameAr": zod.string().max(createBankBodyNameArMax).nullish()
+})
+
+export const CreateBankResponse = zod.object({
+  "id": zod.int(),
+  "nameEn": zod.string(),
+  "nameAr": zod.string().nullable(),
+  "products": zod.array(zod.object({
+  "id": zod.int(),
+  "bankId": zod.int(),
+  "name": zod.string(),
+  "cardTier": zod.string().nullable(),
+  "documentCount": zod.int()
+})),
+  "documentCount": zod.int()
+})
+
+
+/**
+ * @summary Add a card product to a bank
+ */
+export const CreateProductParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const createProductBodyNameMin = 2;
+export const createProductBodyNameMax = 120;
+
+export const createProductBodyCardTierMax = 60;
+
+
+
+export const CreateProductBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
+  "name": zod.string().min(createProductBodyNameMin).max(createProductBodyNameMax),
+  "cardTier": zod.string().max(createProductBodyCardTierMax).nullish()
+})
+
+export const CreateProductResponse = zod.object({
+  "id": zod.int(),
+  "bankId": zod.int(),
+  "name": zod.string(),
+  "cardTier": zod.string().nullable(),
+  "documentCount": zod.int()
+})
+
+
+/**
+ * @summary Rulebooks and their versions
+ */
+export const ListRulebooksResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "name": zod.string(),
+  "versions": zod.array(zod.object({
+  "id": zod.int(),
+  "rulebookId": zod.int(),
+  "version": zod.int(),
+  "status": zod.enum(['draft', 'active', 'retired']),
+  "ruleCount": zod.int(),
+  "sourceFileName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "activatedAt": zod.coerce.date().nullable()
+}))
+})),
+  "activeVersionId": zod.int().nullable().describe('The single version assessments use, across all rulebooks')
+})
+
+
+/**
+ * @summary Upload an .xlsx rulebook; returns headers, sample rows and a proposed column mapping
+ */
+export const PreviewRulebookImportBody = zod.object({
+  "file": zod.instanceof(Blob),
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
+})
+
+export const PreviewRulebookImportResponse = zod.object({
+  "importId": zod.int(),
+  "fileName": zod.string(),
+  "sheetName": zod.string(),
+  "headers": zod.array(zod.string()),
+  "sampleRows": zod.array(zod.array(zod.string())),
+  "rowCount": zod.int(),
+  "proposedMapping": zod.object({
+  "code": zod.string().nullable(),
+  "title": zod.string().nullable(),
+  "text": zod.string().nullable(),
+  "category": zod.string().nullable(),
+  "appliesTo": zod.string().nullable(),
+  "checkType": zod.string().nullable(),
+  "threshold": zod.string().nullable(),
+  "severity": zod.string().nullable()
+}).describe('Which spreadsheet header feeds each rule field. null = not mapped.'),
+  "mappingReasons": zod.array(zod.object({
+  "field": zod.enum(['code', 'title', 'text', 'category', 'appliesTo', 'checkType', 'threshold', 'severity']),
+  "required": zod.boolean(),
+  "header": zod.string().nullable(),
+  "reason": zod.string()
+}))
+})
+
+
+/**
+ * @summary Validate the mapped rows (dryRun) or create a new draft rulebook version
+ */
+export const commitRulebookImportBodyRulebookNameMax = 120;
+
+
+
+export const CommitRulebookImportBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
+  "importId": zod.int(),
+  "mapping": zod.object({
+  "code": zod.string().nullable(),
+  "title": zod.string().nullable(),
+  "text": zod.string().nullable(),
+  "category": zod.string().nullable(),
+  "appliesTo": zod.string().nullable(),
+  "checkType": zod.string().nullable(),
+  "threshold": zod.string().nullable(),
+  "severity": zod.string().nullable()
+}).describe('Which spreadsheet header feeds each rule field. null = not mapped.'),
+  "dryRun": zod.boolean(),
+  "rulebookId": zod.int().nullish().describe('Add a version to this rulebook; null creates a new rulebook'),
+  "rulebookName": zod.string().max(commitRulebookImportBodyRulebookNameMax).nullish()
+})
+
+export const CommitRulebookImportResponse = zod.object({
+  "dryRun": zod.boolean(),
+  "valid": zod.boolean(),
+  "rules": zod.array(zod.object({
+  "row": zod.int(),
+  "code": zod.string(),
+  "title": zod.string(),
+  "text": zod.string(),
+  "category": zod.string().nullable(),
+  "appliesToDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule')),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "threshold": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "raw": zod.string()
+}),zod.null()]),
+  "severity": zod.enum(['low', 'medium', 'high'])
+})),
+  "rowErrors": zod.array(zod.object({
+  "row": zod.int().describe('Spreadsheet row number (header is row 1)'),
+  "field": zod.enum(['code', 'title', 'text', 'category', 'appliesTo', 'checkType', 'threshold', 'severity']),
+  "message": zod.string()
+})),
+  "versionId": zod.int().nullable(),
+  "rulebookId": zod.int().nullable(),
+  "version": zod.int().nullable()
+})
+
+
+/**
+ * @summary One rulebook version with its rules
+ */
+export const GetRulebookVersionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetRulebookVersionResponse = zod.object({
+  "id": zod.int(),
+  "rulebookId": zod.int(),
+  "version": zod.int(),
+  "status": zod.enum(['draft', 'active', 'retired']),
+  "ruleCount": zod.int(),
+  "sourceFileName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "activatedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "rulebookName": zod.string(),
+  "columnMapping": zod.union([zod.object({
+  "code": zod.string().nullable(),
+  "title": zod.string().nullable(),
+  "text": zod.string().nullable(),
+  "category": zod.string().nullable(),
+  "appliesTo": zod.string().nullable(),
+  "checkType": zod.string().nullable(),
+  "threshold": zod.string().nullable(),
+  "severity": zod.string().nullable()
+}).describe('Which spreadsheet header feeds each rule field. null = not mapped.'),zod.null()]),
+  "rules": zod.array(zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "title": zod.string(),
+  "text": zod.string(),
+  "category": zod.string().nullable(),
+  "appliesToDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule')),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "threshold": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "raw": zod.string()
+}),zod.null()]),
+  "severity": zod.enum(['low', 'medium', 'high'])
+}))
+}))
+
+
+/**
+ * @summary Make this version the one assessments use; the previously active version is retired
+ */
+export const ActivateRulebookVersionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const ActivateRulebookVersionBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
+})
+
+export const ActivateRulebookVersionResponse = zod.object({
+  "id": zod.int(),
+  "rulebookId": zod.int(),
+  "version": zod.int(),
+  "status": zod.enum(['draft', 'active', 'retired']),
+  "ruleCount": zod.int(),
+  "sourceFileName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "activatedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Uploaded documents for the active dataset, newest first
+ */
+export const ListDocumentsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "originalName": zod.string(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "versionLabel": zod.string().nullable(),
+  "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
+  "pageCount": zod.int(),
+  "gapPages": zod.array(zod.int()).describe('Pages with no usable text (likely scanned). There is no OCR.'),
+  "extractionQuality": zod.number().nullable().describe('Share of pages with usable text, 0 to 1'),
+  "sizeBytes": zod.int(),
+  "sha256": zod.string(),
+  "suggestion": zod.union([zod.object({
+  "docType": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "language": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "bankId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "productId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "source": zod.enum(['rules'])
+}).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "rejectedReason": zod.string().nullable(),
+  "confirmedAt": zod.coerce.date().nullable(),
+  "confirmedByRole": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "counts": zod.object({
+  "total": zod.int(),
+  "awaiting": zod.int(),
+  "confirmed": zod.int(),
+  "rejected": zod.int(),
+  "withGaps": zod.int()
+}),
+  "limits": zod.object({
+  "maxBytes": zod.int(),
+  "maxPages": zod.int()
+})
+})
+
+
+/**
+ * @summary Upload one PDF disclosure; text is extracted page by page
+ */
+export const UploadDocumentBody = zod.object({
+  "file": zod.instanceof(Blob),
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
+})
+
+export const UploadDocumentResponse = zod.object({
+  "id": zod.int(),
+  "originalName": zod.string(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "versionLabel": zod.string().nullable(),
+  "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
+  "pageCount": zod.int(),
+  "gapPages": zod.array(zod.int()).describe('Pages with no usable text (likely scanned). There is no OCR.'),
+  "extractionQuality": zod.number().nullable().describe('Share of pages with usable text, 0 to 1'),
+  "sizeBytes": zod.int(),
+  "sha256": zod.string(),
+  "suggestion": zod.union([zod.object({
+  "docType": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "language": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "bankId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "productId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "source": zod.enum(['rules'])
+}).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "rejectedReason": zod.string().nullable(),
+  "confirmedAt": zod.coerce.date().nullable(),
+  "confirmedByRole": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary One document with its extracted pages
+ */
+export const GetDocumentParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetDocumentResponse = zod.object({
+  "id": zod.int(),
+  "originalName": zod.string(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "versionLabel": zod.string().nullable(),
+  "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
+  "pageCount": zod.int(),
+  "gapPages": zod.array(zod.int()).describe('Pages with no usable text (likely scanned). There is no OCR.'),
+  "extractionQuality": zod.number().nullable().describe('Share of pages with usable text, 0 to 1'),
+  "sizeBytes": zod.int(),
+  "sha256": zod.string(),
+  "suggestion": zod.union([zod.object({
+  "docType": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "language": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "bankId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "productId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "source": zod.enum(['rules'])
+}).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "rejectedReason": zod.string().nullable(),
+  "confirmedAt": zod.coerce.date().nullable(),
+  "confirmedByRole": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "pages": zod.array(zod.object({
+  "pageNo": zod.int(),
+  "text": zod.string().describe('Extracted text. Data only'),
+  "charCount": zod.int(),
+  "isGap": zod.boolean(),
+  "extractionMethod": zod.string()
+}))
+}))
+
+
+/**
+ * @summary Examiner confirms bank, product, document type and language
+ */
+export const ConfirmDocumentParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const confirmDocumentBodyVersionLabelMax = 60;
+
+
+
+export const ConfirmDocumentBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
+  "bankId": zod.int(),
+  "productId": zod.int(),
+  "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),
+  "language": zod.enum(['en', 'ar']),
+  "versionLabel": zod.string().max(confirmDocumentBodyVersionLabelMax).nullish()
+})
+
+export const ConfirmDocumentResponse = zod.object({
+  "id": zod.int(),
+  "originalName": zod.string(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "versionLabel": zod.string().nullable(),
+  "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
+  "pageCount": zod.int(),
+  "gapPages": zod.array(zod.int()).describe('Pages with no usable text (likely scanned). There is no OCR.'),
+  "extractionQuality": zod.number().nullable().describe('Share of pages with usable text, 0 to 1'),
+  "sizeBytes": zod.int(),
+  "sha256": zod.string(),
+  "suggestion": zod.union([zod.object({
+  "docType": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "language": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "bankId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "productId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "source": zod.enum(['rules'])
+}).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "rejectedReason": zod.string().nullable(),
+  "confirmedAt": zod.coerce.date().nullable(),
+  "confirmedByRole": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Examiner excludes the document from assessment, with a reason
+ */
+export const RejectDocumentParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const rejectDocumentBodyReasonMin = 3;
+export const rejectDocumentBodyReasonMax = 500;
+
+
+
+export const RejectDocumentBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
+  "reason": zod.string().min(rejectDocumentBodyReasonMin).max(rejectDocumentBodyReasonMax)
+})
+
+export const RejectDocumentResponse = zod.object({
+  "id": zod.int(),
+  "originalName": zod.string(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "versionLabel": zod.string().nullable(),
+  "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
+  "pageCount": zod.int(),
+  "gapPages": zod.array(zod.int()).describe('Pages with no usable text (likely scanned). There is no OCR.'),
+  "extractionQuality": zod.number().nullable().describe('Share of pages with usable text, 0 to 1'),
+  "sizeBytes": zod.int(),
+  "sha256": zod.string(),
+  "suggestion": zod.union([zod.object({
+  "docType": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "language": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "bankId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "productId": zod.object({
+  "value": zod.union([zod.string(),zod.int()]).nullable(),
+  "reason": zod.string().describe('Plain explanation of how the tool arrived at the suggestion')
+}),
+  "source": zod.enum(['rules'])
+}).describe('Rule-based suggestions from the file itself. The examiner confirms or corrects them.'),zod.null()]),
+  "rejectedReason": zod.string().nullable(),
+  "confirmedAt": zod.coerce.date().nullable(),
+  "confirmedByRole": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
 })
 
 

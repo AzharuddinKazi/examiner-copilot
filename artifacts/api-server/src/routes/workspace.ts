@@ -12,7 +12,9 @@ import {
   decisionsTable,
   noticesTable,
 } from "@workspace/db";
-import { GetWorkspaceStatusResponse, GetWorkspaceProgressResponse } from "@workspace/api-zod";
+import { GetWorkspaceStatusResponse, GetWorkspaceProgressResponse, LoadDemoDataResponse } from "@workspace/api-zod";
+import { requireWriter } from "../lib/roles";
+import { DemoLoadError, loadDemoData } from "../lib/demo/load";
 import { getAppState, type Dataset } from "../lib/dataset";
 
 const router: IRouter = Router();
@@ -166,6 +168,22 @@ router.get("/workspace/progress", async (_req, res): Promise<void> => {
   const next = steps.find((s) => s.state !== "done") ?? steps[steps.length - 1]!;
 
   res.json(GetWorkspaceProgressResponse.parse({ dataset, steps, nextStepKey: next.key, library }));
+});
+
+router.post("/workspace/demo/load", async (req, res): Promise<void> => {
+  const role = requireWriter(req.body?.role, res);
+  if (!role) return;
+  const { mode } = await getAppState();
+  try {
+    const result = await loadDemoData(mode, role);
+    res.status(201).json(LoadDemoDataResponse.parse(result));
+  } catch (err) {
+    if (err instanceof DemoLoadError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 });
 
 export default router;

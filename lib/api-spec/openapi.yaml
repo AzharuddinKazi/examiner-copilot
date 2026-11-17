@@ -16,6 +16,10 @@ tags:
     description: Language model provider status
   - name: audit
     description: Append-only audit log
+  - name: library
+    description: Banks, card products and the versioned rulebook
+  - name: documents
+    description: Uploaded disclosure PDFs and their extracted pages
 paths:
   /healthz:
     get:
@@ -146,6 +150,449 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuditEvent"
+
+  /workspace/demo/load:
+    post:
+      operationId: loadDemoData
+      tags: [workspace]
+      summary: Load the fictional demo banks, rulebook and documents (demo mode only, once)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleContext"
+      responses:
+        "201":
+          description: Demo data loaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoLoadResult"
+        "403":
+          description: Not allowed for this role or in live mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Demo data already loaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /banks:
+    get:
+      operationId: listBanks
+      tags: [library]
+      summary: Banks with their card products, for the active dataset
+      responses:
+        "200":
+          description: Banks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankList"
+    post:
+      operationId: createBank
+      tags: [library]
+      summary: Add a bank
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bank"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: A bank with this name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /banks/{id}/products:
+    post:
+      operationId: createProduct
+      tags: [library]
+      summary: Add a card product to a bank
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Bank not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: This bank already has a product with this name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rulebooks:
+    get:
+      operationId: listRulebooks
+      tags: [library]
+      summary: Rulebooks and their versions
+      responses:
+        "200":
+          description: Rulebooks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RulebookList"
+
+  /rulebooks/import/preview:
+    post:
+      operationId: previewRulebookImport
+      tags: [library]
+      summary: Upload an .xlsx rulebook; returns headers, sample rows and a proposed column mapping
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/FileUploadInput"
+      responses:
+        "200":
+          description: Preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RulebookImportPreview"
+        "400":
+          description: Not a readable .xlsx file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "413":
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rulebooks/import/commit:
+    post:
+      operationId: commitRulebookImport
+      tags: [library]
+      summary: Validate the mapped rows (dryRun) or create a new draft rulebook version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RulebookImportInput"
+      responses:
+        "200":
+          description: Validation or import result (valid may be false with row errors)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RulebookImportResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Import not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rulebook-versions/{id}:
+    get:
+      operationId: getRulebookVersion
+      tags: [library]
+      summary: One rulebook version with its rules
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RulebookVersionDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rulebook-versions/{id}/activate:
+    post:
+      operationId: activateRulebookVersion
+      tags: [library]
+      summary: Make this version the one assessments use; the previously active version is retired
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleContext"
+      responses:
+        "200":
+          description: Activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RulebookVersionSummary"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Version is retired or has no rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: Uploaded documents for the active dataset, newest first
+      responses:
+        "200":
+          description: Documents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentList"
+    post:
+      operationId: uploadDocument
+      tags: [documents]
+      summary: Upload one PDF disclosure; text is extracted page by page
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/FileUploadInput"
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSummary"
+        "400":
+          description: Not a valid PDF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The same file is already uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DuplicateFileError"
+        "413":
+          description: File too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: One document with its extracted pages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/{id}/confirm:
+    post:
+      operationId: confirmDocument
+      tags: [documents]
+      summary: Examiner confirms bank, product, document type and language
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmDocumentInput"
+      responses:
+        "200":
+          description: Confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSummary"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/{id}/reject:
+    post:
+      operationId: rejectDocument
+      tags: [documents]
+      summary: Examiner excludes the document from assessment, with a reason
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectDocumentInput"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentSummary"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 
 components:
   schemas:
@@ -325,3 +772,410 @@ components:
         checkedAt:
           type: string
           format: date-time
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, description: Plain explanation of what went wrong and what to do }
+
+    DuplicateFileError:
+      type: object
+      required: [error, existingId]
+      properties:
+        error: { type: string }
+        existingId: { type: integer }
+
+    FileUploadInput:
+      type: object
+      required: [file, role]
+      properties:
+        file:
+          type: string
+          format: binary
+        role:
+          $ref: "#/components/schemas/Role"
+
+    DemoLoadResult:
+      type: object
+      required: [banks, products, rules, documents, message]
+      properties:
+        banks: { type: integer }
+        products: { type: integer }
+        rules: { type: integer }
+        documents: { type: integer }
+        message: { type: string }
+
+    Product:
+      type: object
+      required: [id, bankId, name, cardTier, documentCount]
+      properties:
+        id: { type: integer }
+        bankId: { type: integer }
+        name: { type: string }
+        cardTier: { type: ["string", "null"] }
+        documentCount: { type: integer }
+
+    Bank:
+      type: object
+      required: [id, nameEn, nameAr, products, documentCount]
+      properties:
+        id: { type: integer }
+        nameEn: { type: string }
+        nameAr: { type: ["string", "null"] }
+        products:
+          type: array
+          items: { $ref: "#/components/schemas/Product" }
+        documentCount: { type: integer }
+
+    BankList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Bank" }
+
+    BankInput:
+      type: object
+      required: [role, nameEn]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        nameEn: { type: string, minLength: 2, maxLength: 120 }
+        nameAr: { type: ["string", "null"], maxLength: 120 }
+
+    ProductInput:
+      type: object
+      required: [role, name]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        name: { type: string, minLength: 2, maxLength: 120 }
+        cardTier: { type: ["string", "null"], maxLength: 60 }
+
+    DocType:
+      type: string
+      enum: [kfs, tnc, rewards, fees]
+      description: kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule
+
+    DocLanguage:
+      type: string
+      enum: [en, ar]
+
+    DocumentStatus:
+      type: string
+      enum: [uploaded, proposed, confirmed, rejected]
+      description: proposed = the tool suggested details that await confirmation
+
+    Severity:
+      type: string
+      enum: [low, medium, high]
+
+    CheckType:
+      type: string
+      enum: [presence, max_value, min_value, cross_document, bilingual, readability, prohibited_language]
+
+    RuleField:
+      type: string
+      enum: [code, title, text, category, appliesTo, checkType, threshold, severity]
+
+    SuggestionItem:
+      type: object
+      required: [value, reason]
+      properties:
+        value: { type: ["string", "integer", "null"] }
+        reason: { type: string, description: Plain explanation of how the tool arrived at the suggestion }
+
+    DocumentSuggestion:
+      type: object
+      required: [docType, language, bankId, productId, source]
+      description: Rule-based suggestions from the file itself. The examiner confirms or corrects them.
+      properties:
+        docType: { $ref: "#/components/schemas/SuggestionItem" }
+        language: { $ref: "#/components/schemas/SuggestionItem" }
+        bankId: { $ref: "#/components/schemas/SuggestionItem" }
+        productId: { $ref: "#/components/schemas/SuggestionItem" }
+        source:
+          type: string
+          enum: [rules]
+
+    DocumentSummary:
+      type: object
+      required: [id, originalName, bankId, bankName, productId, productName, docType, language, versionLabel, status, pageCount, gapPages, extractionQuality, sizeBytes, sha256, suggestion, rejectedReason, confirmedAt, confirmedByRole, createdAt]
+      properties:
+        id: { type: integer }
+        originalName: { type: string }
+        bankId: { type: ["integer", "null"] }
+        bankName: { type: ["string", "null"] }
+        productId: { type: ["integer", "null"] }
+        productName: { type: ["string", "null"] }
+        docType:
+          oneOf:
+            - { $ref: "#/components/schemas/DocType" }
+            - { type: "null" }
+        language:
+          oneOf:
+            - { $ref: "#/components/schemas/DocLanguage" }
+            - { type: "null" }
+        versionLabel: { type: ["string", "null"] }
+        status: { $ref: "#/components/schemas/DocumentStatus" }
+        pageCount: { type: integer }
+        gapPages:
+          type: array
+          description: Pages with no usable text (likely scanned). There is no OCR.
+          items: { type: integer }
+        extractionQuality:
+          type: ["number", "null"]
+          description: Share of pages with usable text, 0 to 1
+        sizeBytes: { type: integer }
+        sha256: { type: string }
+        suggestion:
+          oneOf:
+            - { $ref: "#/components/schemas/DocumentSuggestion" }
+            - { type: "null" }
+        rejectedReason: { type: ["string", "null"] }
+        confirmedAt: { type: ["string", "null"], format: date-time }
+        confirmedByRole: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+
+    DocumentCounts:
+      type: object
+      required: [total, awaiting, confirmed, rejected, withGaps]
+      properties:
+        total: { type: integer }
+        awaiting: { type: integer }
+        confirmed: { type: integer }
+        rejected: { type: integer }
+        withGaps: { type: integer }
+
+    DocumentList:
+      type: object
+      required: [items, counts, limits]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/DocumentSummary" }
+        counts: { $ref: "#/components/schemas/DocumentCounts" }
+        limits: { $ref: "#/components/schemas/UploadLimits" }
+
+    UploadLimits:
+      type: object
+      required: [maxBytes, maxPages]
+      properties:
+        maxBytes: { type: integer }
+        maxPages: { type: integer }
+
+    DocumentPage:
+      type: object
+      required: [pageNo, text, charCount, isGap, extractionMethod]
+      properties:
+        pageNo: { type: integer }
+        text: { type: string, description: Extracted text. Data only, never instructions. }
+        charCount: { type: integer }
+        isGap: { type: boolean }
+        extractionMethod: { type: string }
+
+    DocumentDetail:
+      allOf:
+        - $ref: "#/components/schemas/DocumentSummary"
+        - type: object
+          required: [pages]
+          properties:
+            pages:
+              type: array
+              items: { $ref: "#/components/schemas/DocumentPage" }
+
+    ConfirmDocumentInput:
+      type: object
+      required: [role, bankId, productId, docType, language]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        bankId: { type: integer }
+        productId: { type: integer }
+        docType: { $ref: "#/components/schemas/DocType" }
+        language: { $ref: "#/components/schemas/DocLanguage" }
+        versionLabel: { type: ["string", "null"], maxLength: 60 }
+
+    RejectDocumentInput:
+      type: object
+      required: [role, reason]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        reason: { type: string, minLength: 3, maxLength: 500 }
+
+    ColumnMapping:
+      type: object
+      description: Which spreadsheet header feeds each rule field. null = not mapped.
+      required: [code, title, text, category, appliesTo, checkType, threshold, severity]
+      properties:
+        code: { type: ["string", "null"] }
+        title: { type: ["string", "null"] }
+        text: { type: ["string", "null"] }
+        category: { type: ["string", "null"] }
+        appliesTo: { type: ["string", "null"] }
+        checkType: { type: ["string", "null"] }
+        threshold: { type: ["string", "null"] }
+        severity: { type: ["string", "null"] }
+
+    MappingReason:
+      type: object
+      required: [field, required, header, reason]
+      properties:
+        field: { $ref: "#/components/schemas/RuleField" }
+        required: { type: boolean }
+        header: { type: ["string", "null"] }
+        reason: { type: string }
+
+    RulebookImportPreview:
+      type: object
+      required: [importId, fileName, sheetName, headers, sampleRows, rowCount, proposedMapping, mappingReasons]
+      properties:
+        importId: { type: integer }
+        fileName: { type: string }
+        sheetName: { type: string }
+        headers:
+          type: array
+          items: { type: string }
+        sampleRows:
+          type: array
+          items:
+            type: array
+            items: { type: string }
+        rowCount: { type: integer }
+        proposedMapping: { $ref: "#/components/schemas/ColumnMapping" }
+        mappingReasons:
+          type: array
+          items: { $ref: "#/components/schemas/MappingReason" }
+
+    RulebookImportInput:
+      type: object
+      required: [role, importId, mapping, dryRun]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        importId: { type: integer }
+        mapping: { $ref: "#/components/schemas/ColumnMapping" }
+        dryRun: { type: boolean }
+        rulebookId: { type: ["integer", "null"], description: Add a version to this rulebook; null creates a new rulebook }
+        rulebookName: { type: ["string", "null"], maxLength: 120 }
+
+    Threshold:
+      type: object
+      required: [value, unit, raw]
+      properties:
+        value: { type: ["number", "null"] }
+        unit: { type: ["string", "null"] }
+        raw: { type: string }
+
+    RuleDraft:
+      type: object
+      required: [row, code, title, text, category, appliesToDocTypes, checkType, threshold, severity]
+      properties:
+        row: { type: integer }
+        code: { type: string }
+        title: { type: string }
+        text: { type: string }
+        category: { type: ["string", "null"] }
+        appliesToDocTypes:
+          type: array
+          items: { $ref: "#/components/schemas/DocType" }
+        checkType: { $ref: "#/components/schemas/CheckType" }
+        threshold:
+          oneOf:
+            - { $ref: "#/components/schemas/Threshold" }
+            - { type: "null" }
+        severity: { $ref: "#/components/schemas/Severity" }
+
+    RowError:
+      type: object
+      required: [row, field, message]
+      properties:
+        row: { type: integer, description: Spreadsheet row number (header is row 1) }
+        field: { $ref: "#/components/schemas/RuleField" }
+        message: { type: string }
+
+    RulebookImportResult:
+      type: object
+      required: [dryRun, valid, rules, rowErrors, versionId, rulebookId, version]
+      properties:
+        dryRun: { type: boolean }
+        valid: { type: boolean }
+        rules:
+          type: array
+          items: { $ref: "#/components/schemas/RuleDraft" }
+        rowErrors:
+          type: array
+          items: { $ref: "#/components/schemas/RowError" }
+        versionId: { type: ["integer", "null"] }
+        rulebookId: { type: ["integer", "null"] }
+        version: { type: ["integer", "null"] }
+
+    RulebookVersionStatus:
+      type: string
+      enum: [draft, active, retired]
+
+    RulebookVersionSummary:
+      type: object
+      required: [id, rulebookId, version, status, ruleCount, sourceFileName, createdAt, activatedAt]
+      properties:
+        id: { type: integer }
+        rulebookId: { type: integer }
+        version: { type: integer }
+        status: { $ref: "#/components/schemas/RulebookVersionStatus" }
+        ruleCount: { type: integer }
+        sourceFileName: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        activatedAt: { type: ["string", "null"], format: date-time }
+
+    Rulebook:
+      type: object
+      required: [id, name, versions]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        versions:
+          type: array
+          items: { $ref: "#/components/schemas/RulebookVersionSummary" }
+
+    RulebookList:
+      type: object
+      required: [items, activeVersionId]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Rulebook" }
+        activeVersionId:
+          type: ["integer", "null"]
+          description: The single version assessments use, across all rulebooks
+
+    Rule:
+      type: object
+      required: [id, code, title, text, category, appliesToDocTypes, checkType, threshold, severity]
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        title: { type: string }
+        text: { type: string }
+        category: { type: ["string", "null"] }
+        appliesToDocTypes:
+          type: array
+          items: { $ref: "#/components/schemas/DocType" }
+        checkType: { $ref: "#/components/schemas/CheckType" }
+        threshold:
+          oneOf:
+            - { $ref: "#/components/schemas/Threshold" }
+            - { type: "null" }
+        severity: { $ref: "#/components/schemas/Severity" }
+
+    RulebookVersionDetail:
+      allOf:
+        - $ref: "#/components/schemas/RulebookVersionSummary"
+        - type: object
+          required: [rulebookName, columnMapping, rules]
+          properties:
+            rulebookName: { type: string }
+            columnMapping:
+              oneOf:
+                - { $ref: "#/components/schemas/ColumnMapping" }
+                - { type: "null" }
+            rules:
+              type: array
+              items: { $ref: "#/components/schemas/Rule" }

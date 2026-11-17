@@ -45,6 +45,7 @@ export const rulesTable = pgTable("rules", {
   id: serial("id").primaryKey(),
   dataset: datasetEnum("dataset").notNull(),
   versionId: integer("version_id").notNull().references(() => rulebookVersionsTable.id, { onDelete: "cascade" }),
+  rowNo: integer("row_no").notNull().default(0),
   code: text("code").notNull(),
   title: text("title").notNull(),
   text: text("text").notNull(),
@@ -75,3 +76,8 @@ export const holidaysTable = pgTable(
   },
   (t) => [uniqueIndex("holidays_calendar_date_uq").on(t.calendarId, t.date)],
 );
+
+export type BankRow = typeof banksTable.$inferSelect;
+export type ProductRow = typeof productsTable.$inferSelect;
+export type RulebookVersionRow = typeof rulebookVersionsTable.$inferSelect;
+export type RuleRow = typeof rulesTable.$inferSelect;

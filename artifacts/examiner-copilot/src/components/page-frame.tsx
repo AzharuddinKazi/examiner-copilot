@@ -36,7 +36,7 @@ export function PageFrame({
       <header className="rise mb-8 flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
           <p className="mb-1.5 font-mono text-xs text-muted-foreground" data-testid="text-eyebrow">{eyebrow}</p>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]" data-testid="text-page-question">
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-[28px]" data-testid="text-page-question">
             {question}
           </h1>
           {meta ? <div className="mt-3 flex flex-wrap items-center gap-2">{meta}</div> : null}

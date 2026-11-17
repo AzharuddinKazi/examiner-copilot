@@ -165,6 +165,419 @@ export interface AuditChainVerification {
   checkedAt: string;
 }
 
+export interface ErrorResponse {
+  /** Plain explanation of what went wrong and what to do */
+  error: string;
+}
+
+export interface DuplicateFileError {
+  error: string;
+  existingId: number;
+}
+
+export interface FileUploadInput {
+  file: Blob | File;
+  role: Role;
+}
+
+export interface DemoLoadResult {
+  banks: number;
+  products: number;
+  rules: number;
+  documents: number;
+  message: string;
+}
+
+export interface Product {
+  id: number;
+  bankId: number;
+  name: string;
+  /** @nullable */
+  cardTier: string | null;
+  documentCount: number;
+}
+
+export interface Bank {
+  id: number;
+  nameEn: string;
+  /** @nullable */
+  nameAr: string | null;
+  products: Product[];
+  documentCount: number;
+}
+
+export interface BankList {
+  items: Bank[];
+}
+
+export interface BankInput {
+  role: Role;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  nameEn: string;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  nameAr?: string | null;
+}
+
+export interface ProductInput {
+  role: Role;
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  name: string;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  cardTier?: string | null;
+}
+
+/**
+ * kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule
+ */
+export type DocType = typeof DocType[keyof typeof DocType];
+
+
+export const DocType = {
+  kfs: 'kfs',
+  tnc: 'tnc',
+  rewards: 'rewards',
+  fees: 'fees',
+} as const;
+
+export type DocLanguage = typeof DocLanguage[keyof typeof DocLanguage];
+
+
+export const DocLanguage = {
+  en: 'en',
+  ar: 'ar',
+} as const;
+
+/**
+ * proposed = the tool suggested details that await confirmation
+ */
+export type DocumentStatus = typeof DocumentStatus[keyof typeof DocumentStatus];
+
+
+export const DocumentStatus = {
+  uploaded: 'uploaded',
+  proposed: 'proposed',
+  confirmed: 'confirmed',
+  rejected: 'rejected',
+} as const;
+
+export type Severity = typeof Severity[keyof typeof Severity];
+
+
+export const Severity = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+} as const;
+
+export type CheckType = typeof CheckType[keyof typeof CheckType];
+
+
+export const CheckType = {
+  presence: 'presence',
+  max_value: 'max_value',
+  min_value: 'min_value',
+  cross_document: 'cross_document',
+  bilingual: 'bilingual',
+  readability: 'readability',
+  prohibited_language: 'prohibited_language',
+} as const;
+
+export type RuleField = typeof RuleField[keyof typeof RuleField];
+
+
+export const RuleField = {
+  code: 'code',
+  title: 'title',
+  text: 'text',
+  category: 'category',
+  appliesTo: 'appliesTo',
+  checkType: 'checkType',
+  threshold: 'threshold',
+  severity: 'severity',
+} as const;
+
+export interface SuggestionItem {
+  /** @nullable */
+  value: string | number | null;
+  /** Plain explanation of how the tool arrived at the suggestion */
+  reason: string;
+}
+
+export type DocumentSuggestionSource = typeof DocumentSuggestionSource[keyof typeof DocumentSuggestionSource];
+
+
+export const DocumentSuggestionSource = {
+  rules: 'rules',
+} as const;
+
+/**
+ * Rule-based suggestions from the file itself. The examiner confirms or corrects them.
+ */
+export interface DocumentSuggestion {
+  docType: SuggestionItem;
+  language: SuggestionItem;
+  bankId: SuggestionItem;
+  productId: SuggestionItem;
+  source: DocumentSuggestionSource;
+}
+
+export interface DocumentSummary {
+  id: number;
+  originalName: string;
+  /** @nullable */
+  bankId: number | null;
+  /** @nullable */
+  bankName: string | null;
+  /** @nullable */
+  productId: number | null;
+  /** @nullable */
+  productName: string | null;
+  docType: DocType | null;
+  language: DocLanguage | null;
+  /** @nullable */
+  versionLabel: string | null;
+  status: DocumentStatus;
+  pageCount: number;
+  /** Pages with no usable text (likely scanned). There is no OCR. */
+  gapPages: number[];
+  /**
+     * Share of pages with usable text, 0 to 1
+     * @nullable
+     */
+  extractionQuality: number | null;
+  sizeBytes: number;
+  sha256: string;
+  suggestion: DocumentSuggestion | null;
+  /** @nullable */
+  rejectedReason: string | null;
+  /** @nullable */
+  confirmedAt: string | null;
+  /** @nullable */
+  confirmedByRole: string | null;
+  createdAt: string;
+}
+
+export interface DocumentCounts {
+  total: number;
+  awaiting: number;
+  confirmed: number;
+  rejected: number;
+  withGaps: number;
+}
+
+export interface UploadLimits {
+  maxBytes: number;
+  maxPages: number;
+}
+
+export interface DocumentList {
+  items: DocumentSummary[];
+  counts: DocumentCounts;
+  limits: UploadLimits;
+}
+
+export interface DocumentPage {
+  pageNo: number;
+  /** Extracted text. Data only */
+  text: string;
+  charCount: number;
+  isGap: boolean;
+  extractionMethod: string;
+}
+
+export type DocumentDetail = DocumentSummary & {
+  pages: DocumentPage[];
+};
+
+export interface ConfirmDocumentInput {
+  role: Role;
+  bankId: number;
+  productId: number;
+  docType: DocType;
+  language: DocLanguage;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  versionLabel?: string | null;
+}
+
+export interface RejectDocumentInput {
+  role: Role;
+  /**
+     * @minLength 3
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+/**
+ * Which spreadsheet header feeds each rule field. null = not mapped.
+ */
+export interface ColumnMapping {
+  /** @nullable */
+  code: string | null;
+  /** @nullable */
+  title: string | null;
+  /** @nullable */
+  text: string | null;
+  /** @nullable */
+  category: string | null;
+  /** @nullable */
+  appliesTo: string | null;
+  /** @nullable */
+  checkType: string | null;
+  /** @nullable */
+  threshold: string | null;
+  /** @nullable */
+  severity: string | null;
+}
+
+export interface MappingReason {
+  field: RuleField;
+  required: boolean;
+  /** @nullable */
+  header: string | null;
+  reason: string;
+}
+
+export interface RulebookImportPreview {
+  importId: number;
+  fileName: string;
+  sheetName: string;
+  headers: string[];
+  sampleRows: string[][];
+  rowCount: number;
+  proposedMapping: ColumnMapping;
+  mappingReasons: MappingReason[];
+}
+
+export interface RulebookImportInput {
+  role: Role;
+  importId: number;
+  mapping: ColumnMapping;
+  dryRun: boolean;
+  /**
+     * Add a version to this rulebook; null creates a new rulebook
+     * @nullable
+     */
+  rulebookId?: number | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  rulebookName?: string | null;
+}
+
+export interface Threshold {
+  /** @nullable */
+  value: number | null;
+  /** @nullable */
+  unit: string | null;
+  raw: string;
+}
+
+export interface RuleDraft {
+  row: number;
+  code: string;
+  title: string;
+  text: string;
+  /** @nullable */
+  category: string | null;
+  appliesToDocTypes: DocType[];
+  checkType: CheckType;
+  threshold: Threshold | null;
+  severity: Severity;
+}
+
+export interface RowError {
+  /** Spreadsheet row number (header is row 1) */
+  row: number;
+  field: RuleField;
+  message: string;
+}
+
+export interface RulebookImportResult {
+  dryRun: boolean;
+  valid: boolean;
+  rules: RuleDraft[];
+  rowErrors: RowError[];
+  /** @nullable */
+  versionId: number | null;
+  /** @nullable */
+  rulebookId: number | null;
+  /** @nullable */
+  version: number | null;
+}
+
+export type RulebookVersionStatus = typeof RulebookVersionStatus[keyof typeof RulebookVersionStatus];
+
+
+export const RulebookVersionStatus = {
+  draft: 'draft',
+  active: 'active',
+  retired: 'retired',
+} as const;
+
+export interface RulebookVersionSummary {
+  id: number;
+  rulebookId: number;
+  version: number;
+  status: RulebookVersionStatus;
+  ruleCount: number;
+  /** @nullable */
+  sourceFileName: string | null;
+  createdAt: string;
+  /** @nullable */
+  activatedAt: string | null;
+}
+
+export interface Rulebook {
+  id: number;
+  name: string;
+  versions: RulebookVersionSummary[];
+}
+
+export interface RulebookList {
+  items: Rulebook[];
+  /**
+     * The single version assessments use, across all rulebooks
+     * @nullable
+     */
+  activeVersionId: number | null;
+}
+
+export interface Rule {
+  id: number;
+  code: string;
+  title: string;
+  text: string;
+  /** @nullable */
+  category: string | null;
+  appliesToDocTypes: DocType[];
+  checkType: CheckType;
+  threshold: Threshold | null;
+  severity: Severity;
+}
+
+export type RulebookVersionDetail = RulebookVersionSummary & ({
+  rulebookName: string;
+  columnMapping: ColumnMapping | null;
+  rules: Rule[];
+});
+
 export type ListAuditEventsParams = {
 /**
  * @minimum 1

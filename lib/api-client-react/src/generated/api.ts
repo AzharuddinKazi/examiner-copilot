@@ -23,12 +23,32 @@ import type {
   AuditChainVerification,
   AuditEvent,
   AuditEventPage,
+  Bank,
+  BankInput,
+  BankList,
+  ConfirmDocumentInput,
+  DemoLoadResult,
+  DocumentDetail,
+  DocumentList,
+  DocumentSummary,
+  DuplicateFileError,
+  ErrorResponse,
+  FileUploadInput,
   HealthStatus,
   ListAuditEventsParams,
   LlmStatus,
   LlmTestResult,
+  Product,
+  ProductInput,
+  RejectDocumentInput,
   RoleChangeInput,
   RoleContext,
+  RulebookImportInput,
+  RulebookImportPreview,
+  RulebookImportResult,
+  RulebookList,
+  RulebookVersionDetail,
+  RulebookVersionSummary,
   WorkspaceProgress,
   WorkspaceStatus
 } from './api.schemas';
@@ -704,5 +724,1164 @@ export const useRecordRoleChange = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getRecordRoleChangeMutationOptions(options));
+    }
+
+export const getLoadDemoDataUrl = () => {
+
+
+
+
+  return `/api/workspace/demo/load`
+}
+
+/**
+ * @summary Load the fictional demo banks, rulebook and documents (demo mode only, once)
+ */
+export const loadDemoData = async (roleContext: RoleContext, options?: Parameters<typeof customFetch>[1]): Promise<DemoLoadResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DemoLoadResult>(getLoadDemoDataUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(roleContext)
+  }
+);}
+
+
+
+
+
+export const getLoadDemoDataMutationKey = () => ['loadDemoData'] as const;
+
+export const getLoadDemoDataMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loadDemoData>>, TError,LoadDemoDataMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof loadDemoData>>, TError,LoadDemoDataMutationVariables, TContext> => {
+
+const mutationKey = getLoadDemoDataMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loadDemoData>>, LoadDemoDataMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  loadDemoData(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoadDemoDataMutationResult = NonNullable<Awaited<ReturnType<typeof loadDemoData>>>
+    export type LoadDemoDataMutationBody = BodyType<RoleContext>
+    export type LoadDemoDataMutationError = ErrorType<ErrorResponse>
+    export type LoadDemoDataMutationVariables = {data: BodyType<RoleContext>}
+
+    /**
+ * @summary Load the fictional demo banks, rulebook and documents (demo mode only, once)
+ */
+export const useLoadDemoData = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loadDemoData>>, TError,LoadDemoDataMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof loadDemoData>>,
+        TError,
+        LoadDemoDataMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLoadDemoDataMutationOptions(options));
+    }
+
+export const getListBanksUrl = () => {
+
+
+
+
+  return `/api/banks`
+}
+
+/**
+ * @summary Banks with their card products, for the active dataset
+ */
+export const listBanks = async ( options?: Parameters<typeof customFetch>[1]): Promise<BankList> => {
+
+  return customFetch<BankList>(getListBanksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBanksQueryKey = () => {
+    return [
+    `/api/banks`
+    ] as const;
+    }
+
+
+export const getListBanksQueryOptions = <TData = Awaited<ReturnType<typeof listBanks>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBanks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBanksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBanks>>> = ({ signal }) => listBanks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBanks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBanksQueryResult = NonNullable<Awaited<ReturnType<typeof listBanks>>>
+export type ListBanksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Banks with their card products, for the active dataset
+ */
+
+export function useListBanks<TData = Awaited<ReturnType<typeof listBanks>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBanks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBanksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBankUrl = () => {
+
+
+
+
+  return `/api/banks`
+}
+
+/**
+ * @summary Add a bank
+ */
+export const createBank = async (bankInput: BankInput, options?: Parameters<typeof customFetch>[1]): Promise<Bank> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Bank>(getCreateBankUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bankInput)
+  }
+);}
+
+
+
+
+
+export const getCreateBankMutationKey = () => ['createBank'] as const;
+
+export const getCreateBankMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBank>>, TError,CreateBankMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBank>>, TError,CreateBankMutationVariables, TContext> => {
+
+const mutationKey = getCreateBankMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBank>>, CreateBankMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBank(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBankMutationResult = NonNullable<Awaited<ReturnType<typeof createBank>>>
+    export type CreateBankMutationBody = BodyType<BankInput>
+    export type CreateBankMutationError = ErrorType<ErrorResponse>
+    export type CreateBankMutationVariables = {data: BodyType<BankInput>}
+
+    /**
+ * @summary Add a bank
+ */
+export const useCreateBank = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBank>>, TError,CreateBankMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBank>>,
+        TError,
+        CreateBankMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateBankMutationOptions(options));
+    }
+
+export const getCreateProductUrl = (id: number,) => {
+
+
+
+
+  return `/api/banks/${id}/products`
+}
+
+/**
+ * @summary Add a card product to a bank
+ */
+export const createProduct = async (id: number,
+    productInput: ProductInput, options?: Parameters<typeof customFetch>[1]): Promise<Product> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Product>(getCreateProductUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(productInput)
+  }
+);}
+
+
+
+
+
+export const getCreateProductMutationKey = () => ['createProduct'] as const;
+
+export const getCreateProductMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProduct>>, TError,CreateProductMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createProduct>>, TError,CreateProductMutationVariables, TContext> => {
+
+const mutationKey = getCreateProductMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createProduct>>, CreateProductMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createProduct(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateProductMutationResult = NonNullable<Awaited<ReturnType<typeof createProduct>>>
+    export type CreateProductMutationBody = BodyType<ProductInput>
+    export type CreateProductMutationError = ErrorType<ErrorResponse>
+    export type CreateProductMutationVariables = {id: number;data: BodyType<ProductInput>}
+
+    /**
+ * @summary Add a card product to a bank
+ */
+export const useCreateProduct = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createProduct>>, TError,CreateProductMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createProduct>>,
+        TError,
+        CreateProductMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateProductMutationOptions(options));
+    }
+
+export const getListRulebooksUrl = () => {
+
+
+
+
+  return `/api/rulebooks`
+}
+
+/**
+ * @summary Rulebooks and their versions
+ */
+export const listRulebooks = async ( options?: Parameters<typeof customFetch>[1]): Promise<RulebookList> => {
+
+  return customFetch<RulebookList>(getListRulebooksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRulebooksQueryKey = () => {
+    return [
+    `/api/rulebooks`
+    ] as const;
+    }
+
+
+export const getListRulebooksQueryOptions = <TData = Awaited<ReturnType<typeof listRulebooks>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRulebooks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRulebooksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRulebooks>>> = ({ signal }) => listRulebooks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRulebooks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRulebooksQueryResult = NonNullable<Awaited<ReturnType<typeof listRulebooks>>>
+export type ListRulebooksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Rulebooks and their versions
+ */
+
+export function useListRulebooks<TData = Awaited<ReturnType<typeof listRulebooks>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRulebooks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRulebooksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getPreviewRulebookImportUrl = () => {
+
+
+
+
+  return `/api/rulebooks/import/preview`
+}
+
+/**
+ * @summary Upload an .xlsx rulebook; returns headers, sample rows and a proposed column mapping
+ */
+export const previewRulebookImport = async (fileUploadInput: FileUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<RulebookImportPreview> => {
+    const formData = new FormData();
+formData.append(`file`, fileUploadInput.file);
+formData.append(`role`, fileUploadInput.role);
+
+  return customFetch<RulebookImportPreview>(getPreviewRulebookImportUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getPreviewRulebookImportMutationKey = () => ['previewRulebookImport'] as const;
+
+export const getPreviewRulebookImportMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewRulebookImport>>, TError,PreviewRulebookImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof previewRulebookImport>>, TError,PreviewRulebookImportMutationVariables, TContext> => {
+
+const mutationKey = getPreviewRulebookImportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof previewRulebookImport>>, PreviewRulebookImportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  previewRulebookImport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PreviewRulebookImportMutationResult = NonNullable<Awaited<ReturnType<typeof previewRulebookImport>>>
+    export type PreviewRulebookImportMutationBody = BodyType<FileUploadInput>
+    export type PreviewRulebookImportMutationError = ErrorType<ErrorResponse>
+    export type PreviewRulebookImportMutationVariables = {data: BodyType<FileUploadInput>}
+
+    /**
+ * @summary Upload an .xlsx rulebook; returns headers, sample rows and a proposed column mapping
+ */
+export const usePreviewRulebookImport = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof previewRulebookImport>>, TError,PreviewRulebookImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof previewRulebookImport>>,
+        TError,
+        PreviewRulebookImportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPreviewRulebookImportMutationOptions(options));
+    }
+
+export const getCommitRulebookImportUrl = () => {
+
+
+
+
+  return `/api/rulebooks/import/commit`
+}
+
+/**
+ * @summary Validate the mapped rows (dryRun) or create a new draft rulebook version
+ */
+export const commitRulebookImport = async (rulebookImportInput: RulebookImportInput, options?: Parameters<typeof customFetch>[1]): Promise<RulebookImportResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RulebookImportResult>(getCommitRulebookImportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(rulebookImportInput)
+  }
+);}
+
+
+
+
+
+export const getCommitRulebookImportMutationKey = () => ['commitRulebookImport'] as const;
+
+export const getCommitRulebookImportMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commitRulebookImport>>, TError,CommitRulebookImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof commitRulebookImport>>, TError,CommitRulebookImportMutationVariables, TContext> => {
+
+const mutationKey = getCommitRulebookImportMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof commitRulebookImport>>, CommitRulebookImportMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  commitRulebookImport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CommitRulebookImportMutationResult = NonNullable<Awaited<ReturnType<typeof commitRulebookImport>>>
+    export type CommitRulebookImportMutationBody = BodyType<RulebookImportInput>
+    export type CommitRulebookImportMutationError = ErrorType<ErrorResponse>
+    export type CommitRulebookImportMutationVariables = {data: BodyType<RulebookImportInput>}
+
+    /**
+ * @summary Validate the mapped rows (dryRun) or create a new draft rulebook version
+ */
+export const useCommitRulebookImport = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof commitRulebookImport>>, TError,CommitRulebookImportMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof commitRulebookImport>>,
+        TError,
+        CommitRulebookImportMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCommitRulebookImportMutationOptions(options));
+    }
+
+export const getGetRulebookVersionUrl = (id: number,) => {
+
+
+
+
+  return `/api/rulebook-versions/${id}`
+}
+
+/**
+ * @summary One rulebook version with its rules
+ */
+export const getRulebookVersion = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<RulebookVersionDetail> => {
+
+  return customFetch<RulebookVersionDetail>(getGetRulebookVersionUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRulebookVersionQueryKey = (id: number,) => {
+    return [
+    `/api/rulebook-versions/${id}`
+    ] as const;
+    }
+
+
+export const getGetRulebookVersionQueryOptions = <TData = Awaited<ReturnType<typeof getRulebookVersion>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRulebookVersion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRulebookVersionQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRulebookVersion>>> = ({ signal }) => getRulebookVersion(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRulebookVersion>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRulebookVersionQueryResult = NonNullable<Awaited<ReturnType<typeof getRulebookVersion>>>
+export type GetRulebookVersionQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary One rulebook version with its rules
+ */
+
+export function useGetRulebookVersion<TData = Awaited<ReturnType<typeof getRulebookVersion>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRulebookVersion>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRulebookVersionQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getActivateRulebookVersionUrl = (id: number,) => {
+
+
+
+
+  return `/api/rulebook-versions/${id}/activate`
+}
+
+/**
+ * @summary Make this version the one assessments use; the previously active version is retired
+ */
+export const activateRulebookVersion = async (id: number,
+    roleContext: RoleContext, options?: Parameters<typeof customFetch>[1]): Promise<RulebookVersionSummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<RulebookVersionSummary>(getActivateRulebookVersionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(roleContext)
+  }
+);}
+
+
+
+
+
+export const getActivateRulebookVersionMutationKey = () => ['activateRulebookVersion'] as const;
+
+export const getActivateRulebookVersionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateRulebookVersion>>, TError,ActivateRulebookVersionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof activateRulebookVersion>>, TError,ActivateRulebookVersionMutationVariables, TContext> => {
+
+const mutationKey = getActivateRulebookVersionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof activateRulebookVersion>>, ActivateRulebookVersionMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  activateRulebookVersion(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ActivateRulebookVersionMutationResult = NonNullable<Awaited<ReturnType<typeof activateRulebookVersion>>>
+    export type ActivateRulebookVersionMutationBody = BodyType<RoleContext>
+    export type ActivateRulebookVersionMutationError = ErrorType<ErrorResponse>
+    export type ActivateRulebookVersionMutationVariables = {id: number;data: BodyType<RoleContext>}
+
+    /**
+ * @summary Make this version the one assessments use; the previously active version is retired
+ */
+export const useActivateRulebookVersion = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof activateRulebookVersion>>, TError,ActivateRulebookVersionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof activateRulebookVersion>>,
+        TError,
+        ActivateRulebookVersionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getActivateRulebookVersionMutationOptions(options));
+    }
+
+export const getListDocumentsUrl = () => {
+
+
+
+
+  return `/api/documents`
+}
+
+/**
+ * @summary Uploaded documents for the active dataset, newest first
+ */
+export const listDocuments = async ( options?: Parameters<typeof customFetch>[1]): Promise<DocumentList> => {
+
+  return customFetch<DocumentList>(getListDocumentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListDocumentsQueryKey = () => {
+    return [
+    `/api/documents`
+    ] as const;
+    }
+
+
+export const getListDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listDocuments>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDocumentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDocuments>>> = ({ signal }) => listDocuments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listDocuments>>>
+export type ListDocumentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Uploaded documents for the active dataset, newest first
+ */
+
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListDocumentsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUploadDocumentUrl = () => {
+
+
+
+
+  return `/api/documents`
+}
+
+/**
+ * @summary Upload one PDF disclosure; text is extracted page by page
+ */
+export const uploadDocument = async (fileUploadInput: FileUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<DocumentSummary> => {
+    const formData = new FormData();
+formData.append(`file`, fileUploadInput.file);
+formData.append(`role`, fileUploadInput.role);
+
+  return customFetch<DocumentSummary>(getUploadDocumentUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadDocumentMutationKey = () => ['uploadDocument'] as const;
+
+export const getUploadDocumentMutationOptions = <TError = ErrorType<ErrorResponse | DuplicateFileError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadDocument>>, TError,UploadDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadDocument>>, TError,UploadDocumentMutationVariables, TContext> => {
+
+const mutationKey = getUploadDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadDocument>>, UploadDocumentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadDocument(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadDocument>>>
+    export type UploadDocumentMutationBody = BodyType<FileUploadInput>
+    export type UploadDocumentMutationError = ErrorType<ErrorResponse | DuplicateFileError>
+    export type UploadDocumentMutationVariables = {data: BodyType<FileUploadInput>}
+
+    /**
+ * @summary Upload one PDF disclosure; text is extracted page by page
+ */
+export const useUploadDocument = <TError = ErrorType<ErrorResponse | DuplicateFileError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadDocument>>, TError,UploadDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadDocument>>,
+        TError,
+        UploadDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadDocumentMutationOptions(options));
+    }
+
+export const getGetDocumentUrl = (id: number,) => {
+
+
+
+
+  return `/api/documents/${id}`
+}
+
+/**
+ * @summary One document with its extracted pages
+ */
+export const getDocument = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<DocumentDetail> => {
+
+  return customFetch<DocumentDetail>(getGetDocumentUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDocumentQueryKey = (id: number,) => {
+    return [
+    `/api/documents/${id}`
+    ] as const;
+    }
+
+
+export const getGetDocumentQueryOptions = <TData = Awaited<ReturnType<typeof getDocument>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDocumentQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocument>>> = ({ signal }) => getDocument(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDocument>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof getDocument>>>
+export type GetDocumentQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary One document with its extracted pages
+ */
+
+export function useGetDocument<TData = Awaited<ReturnType<typeof getDocument>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDocument>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDocumentQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getConfirmDocumentUrl = (id: number,) => {
+
+
+
+
+  return `/api/documents/${id}/confirm`
+}
+
+/**
+ * @summary Examiner confirms bank, product, document type and language
+ */
+export const confirmDocument = async (id: number,
+    confirmDocumentInput: ConfirmDocumentInput, options?: Parameters<typeof customFetch>[1]): Promise<DocumentSummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DocumentSummary>(getConfirmDocumentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(confirmDocumentInput)
+  }
+);}
+
+
+
+
+
+export const getConfirmDocumentMutationKey = () => ['confirmDocument'] as const;
+
+export const getConfirmDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmDocument>>, TError,ConfirmDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmDocument>>, TError,ConfirmDocumentMutationVariables, TContext> => {
+
+const mutationKey = getConfirmDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmDocument>>, ConfirmDocumentMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  confirmDocument(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof confirmDocument>>>
+    export type ConfirmDocumentMutationBody = BodyType<ConfirmDocumentInput>
+    export type ConfirmDocumentMutationError = ErrorType<ErrorResponse>
+    export type ConfirmDocumentMutationVariables = {id: number;data: BodyType<ConfirmDocumentInput>}
+
+    /**
+ * @summary Examiner confirms bank, product, document type and language
+ */
+export const useConfirmDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmDocument>>, TError,ConfirmDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof confirmDocument>>,
+        TError,
+        ConfirmDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmDocumentMutationOptions(options));
+    }
+
+export const getRejectDocumentUrl = (id: number,) => {
+
+
+
+
+  return `/api/documents/${id}/reject`
+}
+
+/**
+ * @summary Examiner excludes the document from assessment, with a reason
+ */
+export const rejectDocument = async (id: number,
+    rejectDocumentInput: RejectDocumentInput, options?: Parameters<typeof customFetch>[1]): Promise<DocumentSummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DocumentSummary>(getRejectDocumentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(rejectDocumentInput)
+  }
+);}
+
+
+
+
+
+export const getRejectDocumentMutationKey = () => ['rejectDocument'] as const;
+
+export const getRejectDocumentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectDocument>>, TError,RejectDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectDocument>>, TError,RejectDocumentMutationVariables, TContext> => {
+
+const mutationKey = getRejectDocumentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectDocument>>, RejectDocumentMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  rejectDocument(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof rejectDocument>>>
+    export type RejectDocumentMutationBody = BodyType<RejectDocumentInput>
+    export type RejectDocumentMutationError = ErrorType<ErrorResponse>
+    export type RejectDocumentMutationVariables = {id: number;data: BodyType<RejectDocumentInput>}
+
+    /**
+ * @summary Examiner excludes the document from assessment, with a reason
+ */
+export const useRejectDocument = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectDocument>>, TError,RejectDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectDocument>>,
+        TError,
+        RejectDocumentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRejectDocumentMutationOptions(options));
     }
 
