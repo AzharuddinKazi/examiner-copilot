@@ -12,7 +12,7 @@ const arabic = Noto_Naskh_Arabic({ subsets: ["arabic"], weight: ["400", "600"], 
 export const metadata: Metadata = {
   title: { default: "Examiner Co-Pilot", template: "%s · Examiner Co-Pilot" },
   description:
-    "Supervisory workbench comparing credit-card disclosures against an examiner-supplied rulebook. Agents propose; examiners decide. Not an official CBUAE system.",
+    "Supervisory workbench comparing credit-card disclosures against an examiner-supplied rulebook. Agents propose; examiners decide.",
   robots: { index: false, follow: false },
   icons: { icon: "/favicon.svg" },
 };

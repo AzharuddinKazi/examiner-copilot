@@ -116,7 +116,7 @@ function DecisionForm({ f, onDone }: { f: FindingDetail; onDone: (next: number |
       {
         onSuccess: (r) => {
           invalidate(f.id);
-          toast({ title: `${DECISION_LABELS[kind]}: ${f.ruleCode}`, description: "Recorded in the audit log." });
+          toast({ title: `${DECISION_LABELS[kind]}: ${f.ruleCode}`, description: `${f.productName ?? "Product removed"} · recorded in the audit log.` });
           onDone(r.nextUndecidedId);
         },
         onError: (e) => setError(parseApiError(e).message),
@@ -243,7 +243,7 @@ export function FindingView({ id }: { id: number }) {
       reason={
         <div className="space-y-3">
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Proposed by {f.proposedBy} · {CHECK_TYPE_LABELS[f.checkType]}{f.model ? ` · ${f.model}` : ""}</p>
+            <p className="text-xs text-muted-foreground">Proposed by {f.proposedBy} · {CHECK_TYPE_LABELS[f.checkType]}</p>
             <ToolText data-testid="text-rationale">{f.rationale}</ToolText>
           </div>
           {f.checks.length ? (

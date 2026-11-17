@@ -11,7 +11,6 @@ import { PageFrame } from "@/components/page-frame";
 import { EmptyState, QueryError } from "@/components/states";
 import { StatusPill, type StatusVariant } from "@/components/voice";
 import { ImportWizard } from "@/components/rulebook/import-wizard";
-import { DemoLoadButton } from "@/components/pages/upload";
 import { useCanWrite, ViewerReason } from "@/lib/write-access";
 
 export const VERSION_PILL: Record<RulebookVersionStatus, { variant: StatusVariant; label: string }> = {
@@ -21,9 +20,6 @@ export const VERSION_PILL: Record<RulebookVersionStatus, { variant: StatusVarian
 };
 const fmt = (d: string | null) => (d ? format(new Date(d), "d MMM yyyy") : "—");
 
-export function RulesFooterNote() {
-  return <p className="mt-6 text-xs italic text-muted-foreground" data-testid="text-rules-not-law">Sample rules are not law. Examiners interpret rules; the tool does not.</p>;
-}
 
 export function RulebookView() {
   const { canWrite } = useCanWrite();
@@ -41,7 +37,7 @@ export function RulebookView() {
         primaryAction={
           <div className="flex flex-col items-start gap-1.5 md:items-end">
             <Button onClick={() => setOpen(true)} disabled={!canWrite} data-testid="button-import-rulebook"><FileSpreadsheet aria-hidden /> Import rulebook (.xlsx)</Button>
-            <a href="/api/rulebooks/sample.xlsx" className="inline-flex items-center gap-1 text-xs underline underline-offset-2" data-testid="link-sample-rulebook"><Download className="size-3" aria-hidden /> Download sample rulebook</a>
+            <a href="/api/rulebooks/template.xlsx" className="inline-flex items-center gap-1 text-xs underline underline-offset-2" data-testid="link-sample-rulebook"><Download className="size-3" aria-hidden /> Download empty template</a>
             <ViewerReason className="max-w-xs md:text-right" />
           </div>
         }
@@ -64,8 +60,7 @@ export function RulebookView() {
         reason={<p className="text-sm text-muted-foreground">The rulebook is supplied by examiners. Only one version is active at a time, so every assessment can say exactly which rules it used.</p>}
         evidence={q.isLoading ? <Skeleton className="h-40 w-full" /> : q.isError ? null : books.length === 0 ? (
           <EmptyState icon={BookOpen} title="No rulebooks yet" testId="empty-rulebooks">
-            <p>Import an .xlsx with one rule per row. Start from the sample if you need a template.</p>
-            <DemoLoadButton />
+            <p>Import an .xlsx with one rule per row. Download the empty template if you need the column layout.</p>
           </EmptyState>
         ) : (
           <div className="space-y-4">
@@ -86,7 +81,7 @@ export function RulebookView() {
                 </ul>
               </section>
             ))}
-            <RulesFooterNote />
+            
           </div>
         )}
         next={{ href: "/upload", label: "Upload documents" }}

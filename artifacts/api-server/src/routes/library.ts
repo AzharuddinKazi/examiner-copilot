@@ -38,8 +38,7 @@ import { activateVersion, createRulebookVersion, versionSummaries } from "../lib
 import { proposeMappingWithAgent } from "../lib/ingest/agent";
 import { llmReady } from "../lib/ingest/run";
 import { LlmError } from "../lib/llm/adapter";
-import { renderSampleRulebook } from "../lib/demo/generate";
-import { DEMO_RULEBOOK_FILE } from "../lib/demo/content";
+import { renderRulebookTemplate, RULEBOOK_TEMPLATE_FILE } from "../lib/rulebook-template";
 
 const router: IRouter = Router();
 
@@ -160,10 +159,10 @@ router.get("/rulebooks", async (_req, res): Promise<void> => {
   );
 });
 
-router.get("/rulebooks/sample.xlsx", async (_req, res): Promise<void> => {
-  const buf = await renderSampleRulebook();
+router.get("/rulebooks/template.xlsx", async (_req, res): Promise<void> => {
+  const buf = await renderRulebookTemplate();
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename="${DEMO_RULEBOOK_FILE}"`);
+  res.setHeader("Content-Disposition", `attachment; filename="${RULEBOOK_TEMPLATE_FILE}"`);
   res.send(buf);
 });
 

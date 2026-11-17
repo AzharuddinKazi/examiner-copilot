@@ -6,7 +6,10 @@ const devDomain = process.env.REPLIT_DEV_DOMAIN;
 
 const nextConfig = {
   basePath: basePath === "" ? undefined : basePath,
+  // Local verification builds set NEXT_DIST_DIR so they do not overwrite the dev server's .next folder.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   reactStrictMode: true,
+  devIndicators: false,
   transpilePackages: ["@workspace/api-client-react"],
   // The Replit preview is served through a proxied iframe on another origin.
   allowedDevOrigins: [

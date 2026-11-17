@@ -4,10 +4,10 @@ import { useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
 import {
   getListBanksQueryKey, getListDocumentsQueryKey, getListRulebooksQueryKey,
-  useGetWorkspaceStatus, useListBanks, useListDocuments, useLoadDemoData, useUploadDocument,
+  useListDocuments, useUploadDocument,
   type DocumentSummary,
 } from "@workspace/api-client-react";
-import { AlertTriangle, CheckCircle2, Database, FileText, FileUp, Loader2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, FileUp, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
@@ -139,37 +139,6 @@ function DocumentTable({ docs, onConfirm, onReject }: {
   );
 }
 
-export function DemoLoadButton() {
-  const { role, canWrite } = useCanWrite();
-  const ws = useGetWorkspaceStatus();
-  const banks = useListBanks();
-  const load = useLoadDemoData();
-  const invalidate = useInvalidate();
-  const { toast } = useToast();
-  const [error, setError] = useState<string | null>(null);
-  if (ws.data?.mode !== "demo" || !banks.isSuccess || banks.data.items.length > 0) return null;
-  return (
-    <div className="mt-5 space-y-2 border-t border-dashed border-border pt-5" data-testid="block-demo-load">
-      <Button variant="outline" className="bg-card" disabled={!canWrite || load.isPending} data-testid="button-load-demo"
-        onClick={() => {
-          setError(null);
-          load.mutate({ data: { role } }, {
-            onSuccess: (r) => {
-              invalidate([getListDocumentsQueryKey(), getListBanksQueryKey(), getListRulebooksQueryKey()]);
-              toast({ title: "Demo data loaded", description: r.message });
-            },
-            onError: (e) => setError(parseApiError(e).message),
-          });
-        }}>
-        <Database aria-hidden /> {load.isPending ? "Loading demo data…" : "Load demo data"}
-      </Button>
-      <p className="text-xs text-muted-foreground">Adds 3 fictional banks, a 12-rule sample rulebook and 12 synthetic PDFs, once.</p>
-      {error ? <p role="alert" className="text-xs text-[hsl(var(--tone-bad))]" data-testid="text-demo-error">{error}</p> : null}
-      <ViewerReason className="justify-center" />
-    </div>
-  );
-}
-
 export function UploadView() {
   const { role, canWrite } = useCanWrite();
   const docs = useListDocuments({
@@ -258,7 +227,7 @@ export function UploadView() {
       reason={
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>Each document needs a bank, a card product, a type and a language before it can be assessed. The tool suggests these from the file; you confirm or correct them.</p>
-          <p className="max-w-prose text-sm text-muted-foreground">Text is extracted page by page so every quote can be traced to its page. Pages without text are flagged as gaps; there is no OCR.</p>
+          <p className="max-w-prose text-sm text-muted-foreground">Pages without a text layer (scans) are flagged as gaps; there is no OCR.</p>
         </div>
       }
       evidence={
@@ -275,8 +244,6 @@ export function UploadView() {
                 </li>
               ))}
             </ul>
-            <p className="mt-3 font-medium text-foreground">Public or synthetic documents only.</p>
-            <DemoLoadButton />
           </EmptyState>
         ) : (
           <DocumentTable docs={items} onConfirm={setConfirmDoc} onReject={setRejectDoc} />
@@ -329,7 +296,6 @@ export function UploadView() {
               ))}
             </ul>
           ) : null}
-          {items.length > 0 ? <p className="text-xs text-muted-foreground">Public or synthetic documents only.</p> : null}
         </div>
       }
       next={{ href: "/assess", label: "Assess" }}

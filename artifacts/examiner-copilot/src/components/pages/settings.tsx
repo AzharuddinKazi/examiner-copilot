@@ -1,8 +1,8 @@
 "use client";
 
 import { format } from "date-fns";
-import { Cpu, Database, Lock, PlugZap } from "lucide-react";
-import { useGetLlmStatus, useGetWorkspaceStatus, useTestLlmConnection } from "@workspace/api-client-react";
+import { Cpu, PlugZap } from "lucide-react";
+import { useGetLlmStatus, useTestLlmConnection } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
@@ -22,7 +22,6 @@ function Row({ k, v, testId }: { k: string; v: React.ReactNode; testId: string }
 export function SettingsView() {
   const { role } = useRole();
   const llm = useGetLlmStatus();
-  const ws = useGetWorkspaceStatus();
   const test = useTestLlmConnection();
   const result = test.data;
 
@@ -51,7 +50,7 @@ export function SettingsView() {
                 <ToolText as="span" className="text-xs text-muted-foreground">checked {format(new Date(result.checkedAt), "HH:mm:ss")}</ToolText>
               </div>
               <ToolText className="mt-2" data-testid="text-test-detail">
-                {result.ok ? `${result.model ?? "model"} answered in ${result.latencyMs ?? "?"} ms.` : result.error ?? "The provider returned an error without detail."}
+                {result.ok ? `The model answered in ${result.latencyMs ?? "?"} ms.` : result.error ?? "The provider returned an error without detail."}
               </ToolText>
             </div>
           ) : null}
@@ -61,7 +60,7 @@ export function SettingsView() {
         </div>
       }
       evidence={
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="max-w-md">
           <section className="rounded-lg border border-card-border bg-card p-4" data-testid="card-provider">
             <div className="mb-3 flex items-center gap-2">
               <Cpu className="size-4 text-muted-foreground" aria-hidden />
@@ -73,39 +72,9 @@ export function SettingsView() {
             ) : (
               <>
                 <dl>
-                  <Row k="Provider" v={llm.data.provider} testId="text-provider" />
                   <Row k="API key present" v={llm.data.keyPresent ? "yes" : "no"} testId="text-key-present" />
-                  <Row k="Model" v={llm.data.model ?? "not set"} testId="text-model" />
                 </dl>
                 <ToolText className="mt-3 text-xs" data-testid="text-provider-message">{llm.data.message}</ToolText>
-              </>
-            )}
-          </section>
-          <section className="rounded-lg border border-card-border bg-card p-4" data-testid="card-workspace-mode">
-            <div className="mb-3 flex items-center gap-2">
-              <Database className="size-4 text-muted-foreground" aria-hidden />
-              <h3 className="text-sm font-medium">Workspace mode</h3>
-            </div>
-            {ws.isLoading ? <Skeleton className="h-24 w-full" /> : ws.isError || !ws.data ? (
-              <QueryError title="Could not read workspace mode" error={ws.error} onRetry={() => ws.refetch()} retrying={ws.isFetching} testId="error-workspace" />
-            ) : (
-              <>
-                <dl>
-                  <Row k="Dataset" v={ws.data.mode === "live" ? "Live data" : "Demo data"} testId="text-mode" />
-                  <Row k="Switched" v={ws.data.switchedAt ? format(new Date(ws.data.switchedAt), "d MMM yyyy, HH:mm") : "never"} testId="text-switched-at" />
-                  <Row k="Switched by (unverified)" v={ws.data.switchedByRole ?? "—"} testId="text-switched-by" />
-                </dl>
-                {ws.data.oneWay ? (
-                  <p className="mt-3 rounded-md bg-[hsl(var(--tone-warn-bg))] p-2.5 text-xs text-[hsl(var(--tone-warn))]" data-testid="text-one-way">
-                    Switching to live is one-way. Once live, the workspace cannot return to demo data.
-                  </p>
-                ) : null}
-                {ws.data.mode === "demo" ? (
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button variant="outline" size="sm" disabled data-testid="button-switch-live"><Lock aria-hidden /> Switch to live data</Button>
-                    <span className="text-xs text-muted-foreground">Live switch is enabled in a later milestone</span>
-                  </div>
-                ) : null}
               </>
             )}
           </section>

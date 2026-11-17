@@ -276,7 +276,7 @@ export function AssessmentDetailView({ id }: { id: number }) {
         <>
           <StatusPill variant={pill.variant} label={pill.label} data-testid="status-assessment" />
           {a.bankName ? <span className="text-xs text-muted-foreground">{a.bankName}</span> : null}
-          <span className="font-mono text-xs text-muted-foreground">{a.model ?? "no model"}{dur ? ` · ${dur}` : ""}</span>
+          <span className="font-mono text-xs text-muted-foreground">{dur ?? ""}</span>
         </>
       }
       primaryAction={

@@ -1,129 +1,288 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
-import { ArrowRight, Settings } from "lucide-react";
-import { useGetLlmStatus, useGetWorkspaceProgress } from "@workspace/api-client-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  useGetReviewQueue, useGetWorkspaceProgress,
+  type ReviewItem, type ReviewProduct, type WorkspaceProgress,
+} from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PageFrame } from "@/components/page-frame";
 import { QueryError } from "@/components/states";
-import { StepCounts } from "@/components/step-counts";
-import { StatusPill, ToolText } from "@/components/voice";
+import { StatusPill } from "@/components/voice";
+import { FINDING_STATUS_LABELS, SEVERITY_PILL } from "@/lib/labels";
 import { cn } from "@/lib/utils";
+
+/* ---------- data shaping ---------- */
+
+type Outcome = "breach" | "warning" | "needs_review" | "compliant" | "not_applicable" | "rejected";
+const OUTCOMES: Outcome[] = ["breach", "warning", "needs_review", "compliant", "not_applicable", "rejected"];
+const OUTCOME_LABEL: Record<Outcome, string> = { ...FINDING_STATUS_LABELS, rejected: "Rejected" };
+const OUTCOME_FILL: Record<Outcome, string> = {
+  breach: "bg-[hsl(var(--tone-bad))]",
+  warning: "bg-[hsl(var(--tone-warn))]",
+  needs_review: "bg-[hsl(var(--tone-info))]",
+  compliant: "bg-[hsl(var(--tone-ok))]",
+  not_applicable: "bg-[hsl(var(--tone-neutral)/0.45)]",
+  rejected: "bg-[hsl(var(--tone-neutral)/0.25)]",
+};
+const SERIOUS = new Set(["breach", "warning", "needs_review"]);
+
+/** What the record says now: the examiner's decision if there is one, else the agents' proposal. */
+function outcome(i: ReviewItem): Outcome {
+  if (i.decision) return i.decision.finalStatus ?? "rejected";
+  return i.proposedStatus;
+}
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const pct = (n: number, d: number) => (d ? Math.round((n / d) * 100) : 0);
+
+function useDashboard(q: { items: ReviewItem[]; products: ReviewProduct[] } | undefined, p: WorkspaceProgress | undefined) {
+  return useMemo(() => {
+    if (!q || !p) return null;
+    const items = q.items;
+    const decided = items.filter((i) => i.decision);
+    const undecided = items.filter((i) => !i.decision);
+    const outcomes = items.map(outcome);
+    const applicable = outcomes.filter((o) => o !== "not_applicable" && o !== "rejected");
+    const compliant = outcomes.filter((o) => o === "compliant").length;
+    const confirmedBreach = decided.filter((i) => i.decision!.finalStatus === "breach").length;
+    const confirmedWarning = decided.filter((i) => i.decision!.finalStatus === "warning").length;
+    const openSerious = undecided.filter((i) => SERIOUS.has(i.proposedStatus));
+    const openHigh = openSerious.filter((i) => i.severity === "high").length;
+    const agreed = decided.filter((i) => i.decision!.decision === "accept").length;
+    const docs = p.steps.find((s) => s.key === "upload")?.counts.find((c) => /confirmed/i.test(c.label))?.value ?? 0;
+    const notices = p.steps.find((s) => s.key === "notices")?.counts[0]?.value ?? 0;
+
+    const rules = [...new Map(items.map((i) => [i.ruleCode, i.ruleTitle])).entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { numeric: true }));
+    const byProduct = q.products.map((prod) => {
+      const mine = items.filter((i) => i.assessmentId === prod.assessmentId);
+      const counts = Object.fromEntries(OUTCOMES.map((o) => [o, 0])) as Record<Outcome, number>;
+      for (const i of mine) counts[outcome(i)]++;
+      return { prod, mine, counts, cells: new Map(mine.map((i) => [i.ruleCode, i])) };
+    });
+
+    return {
+      total: items.length, decided: decided.length, undecided: undecided.length,
+      compliant, applicable: applicable.length,
+      confirmedBreach, confirmedWarning, openSerious, openHigh, agreed,
+      products: q.products.length, productsInLibrary: p.library.products, docs, rules, notices, byProduct,
+      activeRules: p.library.activeRules,
+      firstUndecided: undecided[0]?.findingId ?? null,
+    };
+  }, [q, p]);
+}
+
+/* ---------- building blocks ---------- */
+
+type D = NonNullable<ReturnType<typeof useDashboard>>;
+
+function Section({ title, aside, children, testId }: { title: string; aside?: React.ReactNode; children: React.ReactNode; testId?: string }) {
+  return (
+    <section className="min-w-0 space-y-2" data-testid={testId}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>
+        {aside}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Kpi({ label, value, sub, tone, testId }: { label: string; value: string; sub: string; tone?: "bad" | "warn"; testId: string }) {
+  return (
+    <div className="border-b border-r border-border px-3.5 py-2.5" data-testid={testId}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={cn("mt-0.5 font-mono text-xl tabular-nums",
+        tone === "bad" && "text-[hsl(var(--tone-bad))]", tone === "warn" && "text-[hsl(var(--tone-warn))]")} data-testid={`${testId}-value`}>{value}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+
+function Matrix({ d }: { d: D }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-card-border bg-card" data-testid="card-matrix">
+      <table className="w-full border-separate border-spacing-x-1 border-spacing-y-1.5 px-3 py-2 text-xs">
+        <thead>
+          <tr>
+            <th className="sticky left-0 z-10 bg-card pr-3 text-left font-medium text-muted-foreground" scope="col">Card</th>
+            {d.rules.map(([code, title]) => (
+              <th key={code} scope="col" title={`${code} ${title}`} className="min-w-6 font-mono text-[10px] font-normal text-muted-foreground">{code.replace(/^[A-Z]+-/, "")}</th>
+            ))}
+            <th className="pl-3 text-right font-medium text-muted-foreground" scope="col">Decided</th>
+          </tr>
+        </thead>
+        <tbody>
+          {d.byProduct.map(({ prod, mine, cells }) => (
+            <tr key={prod.assessmentId} data-testid={`matrix-row-${prod.assessmentId}`}>
+              <th scope="row" className="sticky left-0 z-10 max-w-[200px] bg-card pr-3 text-left font-normal">
+                <span className="block truncate text-[13px] font-medium" title={prod.productName ?? ""}>{prod.productName ?? "Deleted product"}</span>
+                <span className="block truncate text-[11px] text-muted-foreground">{prod.bankName}</span>
+              </th>
+              {d.rules.map(([code, title]) => {
+                const i = cells.get(code);
+                if (!i) return <td key={code}><span className="block h-6 rounded-sm border border-dashed border-border" title={`${code}: not assessed`} /></td>;
+                const o = outcome(i);
+                const label = `${code} ${title}: ${OUTCOME_LABEL[o]}${i.decision ? ", decided" : ", proposed by agents, not decided"}`;
+                return (
+                  <td key={code}>
+                    <Link href={`/review/${i.findingId}`} aria-label={label} title={label} data-testid={`matrix-cell-${i.findingId}`}
+                      className={cn("block h-6 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        i.decision ? OUTCOME_FILL[o] : cn(OUTCOME_FILL[o], "opacity-30 hover:opacity-60"))} />
+                  </td>
+                );
+              })}
+              <td className="pl-3 text-right font-mono text-[11px] text-muted-foreground">{mine.filter((i) => i.decision).length}/{mine.length}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
+        {OUTCOMES.map((o) => <span key={o} className="flex items-center gap-1.5"><span className={cn("size-2 rounded-[2px]", OUTCOME_FILL[o])} aria-hidden />{OUTCOME_LABEL[o]}</span>)}
+        <span className="ml-auto">Faded: agent proposal you have not decided</span>
+      </div>
+    </div>
+  );
+}
+
+function DecisionList({ d }: { d: D }) {
+  const list = d.openSerious.slice(0, 6);
+  if (!list.length) {
+    return <p className="flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 className="size-4" aria-hidden /> No possible problems are waiting.</p>;
+  }
+  return (
+    <ul className="divide-y divide-border rounded-lg border border-card-border bg-card" data-testid="card-needs-decision">
+      {list.map((i) => (
+        <li key={i.findingId}>
+          <Link href={`/review/${i.findingId}`} className="block px-4 py-2.5 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" data-testid={`link-decide-${i.findingId}`}>
+            <span className="flex items-center justify-between gap-2">
+              <span className="truncate text-sm font-medium">{i.ruleTitle}</span>
+              <StatusPill variant={i.proposedStatus} className="shrink-0" />
+            </span>
+            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+              <span className="font-mono">{i.ruleCode}</span> · {i.productName} · {SEVERITY_PILL[i.severity].label.toLowerCase()} severity
+            </span>
+          </Link>
+        </li>
+      ))}
+      {d.openSerious.length > list.length ? (
+        <li className="px-4 py-2"><Link href="/review" className="text-xs underline underline-offset-2">All {d.openSerious.length} in the review queue</Link></li>
+      ) : null}
+    </ul>
+  );
+}
+
+function GetStarted({ p }: { p: WorkspaceProgress }) {
+  const docs = p.steps.find((s) => s.key === "upload")?.counts.find((c) => /confirmed/i.test(c.label))?.value ?? 0;
+  const runs = p.steps.find((s) => s.key === "assess")?.counts[0]?.value ?? 0;
+  const items = [
+    { done: p.library.banks > 0 && p.library.products > 0, label: "Add the banks and their card products", detail: `${plural(p.library.banks, "bank", "banks")}, ${plural(p.library.products, "card product", "card products")}`, href: "/library/banks" },
+    { done: p.library.activeRules > 0, label: "Import your rulebook (.xlsx) and make it active", detail: plural(p.library.activeRules, "active rule", "active rules"), href: "/library/rulebook" },
+    { done: docs > 0, label: "Upload the card disclosures (PDF) and confirm each one", detail: plural(docs, "confirmed document", "confirmed documents"), href: "/upload" },
+    { done: runs > 0, label: "Run an assessment for a card product", detail: plural(runs, "assessment", "assessments"), href: "/assess" },
+  ];
+  return (
+    <ol className="divide-y divide-border rounded-lg border border-card-border bg-card" data-testid="list-get-started">
+      {items.map((it, n) => (
+        <li key={it.href}>
+          <Link href={it.href} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" data-testid={`link-start-${n + 1}`}>
+            <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border font-mono text-[11px]",
+              it.done ? "border-[hsl(var(--tone-ok))] bg-[hsl(var(--tone-ok))] text-card" : "border-border text-muted-foreground")} aria-hidden>
+              {it.done ? <CheckCircle2 className="size-3.5" /> : n + 1}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">{it.label}</span>
+              <span className="block text-xs text-muted-foreground">{it.done ? "Done · " : ""}{it.detail}</span>
+            </span>
+            <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/* ---------- page ---------- */
 
 export function Overview() {
   const progress = useGetWorkspaceProgress();
-  const llm = useGetLlmStatus();
-  const data = progress.data;
-  const nextStep = data?.steps.find((s) => s.key === data.nextStepKey);
-  const firstRun = !!data && data.steps.every((s) => s.state === "not_started") && data.library.banks === 0 && data.library.rulebookVersions === 0;
+  const queue = useGetReviewQueue();
+  const d = useDashboard(queue.data, progress.data);
+  const loading = progress.isLoading || queue.isLoading;
+  const failed = !loading && (progress.isError || queue.isError || !d);
+  const nextStep = progress.data?.steps.find((s) => s.key === progress.data!.nextStepKey);
 
-  const lib = data
-    ? [
-        { label: "Banks", value: data.library.banks, href: "/library/banks" },
-        { label: "Products", value: data.library.products, href: "/library/banks" },
-        { label: "Rulebook versions", value: data.library.rulebookVersions, href: "/library/rulebook" },
-        { label: "Active rules", value: data.library.activeRules, href: "/library/rulebook" },
-      ]
-    : [];
+  const confirmedParts = d ? [d.confirmedBreach && plural(d.confirmedBreach, "breach", "breaches"), d.confirmedWarning && plural(d.confirmedWarning, "warning", "warnings")].filter(Boolean) : [];
+  const headline = !d ? "" : d.total === 0
+    ? "Nothing has been assessed yet. Set up the workspace in four steps; results appear here after the first assessment."
+    : `${plural(d.openSerious.length, "possible problem waits", "possible problems wait")} for your decision${d.openHigh ? `, ${d.openHigh} of them high severity` : ""}. ${
+        confirmedParts.length ? `You have confirmed ${confirmedParts.join(" and ")}.` : "You have not confirmed any problem yet."}`;
+
+  const cta = d?.openSerious[0]
+    ? { href: `/review/${d.openSerious[0].findingId}`, label: "Review possible problems" }
+    : d?.firstUndecided ? { href: `/review/${d.firstUndecided}`, label: "Continue review" }
+    : d?.total ? { href: "/review", label: "Open the review queue" }
+    : !progress.data?.library.products ? { href: "/library/banks", label: "Add a bank" }
+    : !progress.data.library.activeRules ? { href: "/library/rulebook", label: "Import a rulebook" }
+    : { href: nextStep?.href ?? "/upload", label: nextStep?.key === "assess" ? "Run an assessment" : "Upload documents" };
 
   return (
-    <PageFrame
-      eyebrow="Overview"
-      question="Where do we stand?"
-      primaryAction={
-        progress.isLoading ? (
-          <Skeleton className="h-9 w-56" />
-        ) : (
-          <Button asChild disabled={!nextStep} data-testid="button-continue">
-            <Link href={nextStep?.href ?? "/upload"}>
-              Continue where you left off <ArrowRight aria-hidden />
-            </Link>
+    <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
+      <header className="rise mb-5 flex flex-col gap-3 border-b border-border pb-4 md:flex-row md:items-end md:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl" data-testid="text-page-question">What needs your attention?</h1>
+          {loading ? <Skeleton className="mt-3 h-5 w-96 max-w-full" /> : d ? (
+            <p className="mt-1 max-w-2xl text-sm" data-testid="text-answer">{headline}</p>
+          ) : null}
+        </div>
+        {loading ? <Skeleton className="h-9 w-52" /> : (
+          <Button asChild className="shrink-0" data-testid="button-continue">
+            <Link href={cta.href}>{cta.label} <ArrowRight aria-hidden /></Link>
           </Button>
-        )
-      }
-      answer={
-        progress.isLoading ? (
-          <div className="space-y-2">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
-        ) : progress.isError || !data ? (
-          <QueryError title="Could not load workspace progress" error={progress.error} onRetry={() => progress.refetch()} retrying={progress.isFetching} />
-        ) : (
-          <div className="space-y-4">
-            {firstRun ? (
-              <div className="rounded-lg border border-card-border bg-card p-5" data-testid="card-first-run">
-                <p className="font-medium">Nothing has been examined yet.</p>
-                <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-                  A review runs in four steps. You bring the documents and the rulebook; the agents read and propose; you decide;
-                  and the tool drafts a notice that is never sent. Start by adding documents.
-                </p>
-                <div className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
-                  <div className="rounded-md bg-paper p-3 font-serif text-sm" data-testid="legend-first-run-bank">The bank's words</div>
-                  <div className="rounded-md bg-muted p-3 font-mono" data-testid="legend-first-run-tool">The tool's analysis</div>
-                  <div className="rounded-md border border-pen/30 p-3 font-serif text-sm italic text-pen" data-testid="legend-first-run-examiner">Your judgement</div>
-                </div>
-              </div>
-            ) : null}
-            <ol className="overflow-hidden rounded-lg border border-card-border bg-card">
-              {data.steps.map((s) => {
-                const isNext = s.key === data.nextStepKey;
-                return (
-                  <li key={s.key} className={cn("border-b border-border last:border-0", isNext && "bg-[hsl(var(--tone-info-bg)/0.5)]")}>
-                    <Link href={s.href} className="group flex gap-4 p-4 hover:bg-muted/50" data-testid={`link-step-${s.key}`}>
-                      <span className="font-mono text-2xl font-light leading-none text-muted-foreground">{s.number}</span>
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="flex flex-wrap items-baseline gap-x-3">
-                          <span className="font-medium">{s.title}</span>
-                          <span className="text-sm text-muted-foreground">{s.question}</span>
-                          {isNext ? <span className="text-xs font-medium text-[hsl(var(--tone-info))]">Next</span> : null}
-                        </div>
-                        <StepCounts step={s} />
-                        <ToolText data-testid={`text-step-summary-${s.key}`}>{s.summary}</ToolText>
-                      </div>
-                      <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-        )
-      }
-      reason={
-        data ? (
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            {lib.map((l) => (
-              <Link key={l.label} href={l.href} className="rounded-lg border border-card-border bg-card p-3 hover:bg-muted/40"
-                data-testid={`link-library-${l.label.replace(/\s+/g, "-").toLowerCase()}`}>
-                <p className="font-mono text-2xl">{l.value}</p>
-                <p className="text-xs text-muted-foreground">{l.label}</p>
-              </Link>
-            ))}
-          </div>
-        ) : progress.isLoading ? <Skeleton className="h-20 w-full" /> : null
-      }
-      evidence={
-        llm.isLoading ? (
-          <Skeleton className="h-20 w-full" />
-        ) : llm.isError || !llm.data ? (
-          <QueryError title="Could not read model provider status" error={llm.error} onRetry={() => llm.refetch()} retrying={llm.isFetching} testId="error-llm" />
-        ) : (
-          <div className="flex flex-col gap-3 rounded-lg border border-card-border bg-card p-4 sm:flex-row sm:items-center" data-testid="card-llm-status">
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium">Model provider</span>
-                <StatusPill variant={llm.data.configured ? "done" : "warning"} label={llm.data.configured ? "Configured" : "Not configured"} data-testid="status-llm" />
-              </div>
-              <ToolText>{llm.data.provider}{llm.data.model ? ` · ${llm.data.model}` : ""} — {llm.data.message}</ToolText>
+        )}
+      </header>
+
+      {loading ? (
+        <div className="space-y-8"><Skeleton className="h-24 w-full" /><Skeleton className="h-56 w-full" /></div>
+      ) : failed || !d ? (
+        <QueryError title="Could not load the overview" error={progress.error ?? queue.error}
+          onRetry={() => { progress.refetch(); queue.refetch(); }} retrying={progress.isFetching || queue.isFetching} />
+      ) : (
+        d.total === 0 && progress.data ? <GetStarted p={progress.data} /> : (
+        <div className="space-y-6">
+          <div className="rise overflow-hidden rounded-lg border border-card-border bg-card" data-testid="grid-kpis">
+            <div className="-mb-px -mr-px grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+              <Kpi label="Confirmed breaches" value={String(d.confirmedBreach)} tone={d.confirmedBreach ? "bad" : undefined} testId="kpi-breaches"
+                sub={`plus ${plural(d.confirmedWarning, "warning", "warnings")}`} />
+              <Kpi label="Possible problems" value={String(d.openSerious.length)} tone={d.openSerious.length ? "warn" : undefined} testId="kpi-possible"
+                sub={d.openHigh ? `${d.openHigh} high severity, undecided` : "undecided"} />
+              <Kpi label="Rule checks passing" value={`${pct(d.compliant, d.applicable)}%`} testId="kpi-compliance"
+                sub={`${d.compliant} of ${d.applicable} applicable`} />
+              <Kpi label="Findings decided" value={`${d.decided}/${d.total}`} testId="kpi-decided"
+                sub={`${d.undecided} left`} />
+              <Kpi label="Agent proposals kept" value={d.decided ? `${pct(d.agreed, d.decided)}%` : "–"} testId="kpi-agreement"
+                sub={d.decided ? `${d.agreed} of ${d.decided} accepted as proposed` : "after your first decision"} />
+              <Kpi label="Cards assessed" value={`${d.products}/${d.productsInLibrary}`} testId="kpi-coverage"
+                sub={plural(d.docs, "confirmed document", "confirmed documents")} />
             </div>
-            {!llm.data.configured ? (
-              <Button asChild variant="outline" size="sm" className="bg-card" data-testid="link-llm-settings">
-                <Link href="/settings"><Settings aria-hidden /> Settings</Link>
-              </Button>
-            ) : null}
           </div>
+
+          {d.total ? (
+            <div className="rise grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <Section title="Every rule, every card" testId="section-matrix"
+                aside={<span className="text-xs text-muted-foreground">Your decision where made, otherwise the agents&apos; proposal</span>}>
+                <Matrix d={d} />
+              </Section>
+              <Section title="Needs your decision" testId="section-needs-decision">
+                <DecisionList d={d} />
+              </Section>
+            </div>
+          ) : null}
+        </div>
         )
-      }
-      next={{ href: nextStep?.href ?? "/upload", label: nextStep?.title ?? "Upload documents" }}
-    />
+      )}
+    </div>
   );
 }

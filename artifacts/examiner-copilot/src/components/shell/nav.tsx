@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 function itemCls(active: boolean) {
   return cn(
-    "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+    "flex items-center gap-2 rounded-md px-2 py-1 text-[13px] transition-colors",
     active ? "bg-card font-medium text-foreground shadow-sm ring-1 ring-border" : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
   );
 }
@@ -21,14 +21,14 @@ export function Nav({ onNavigate }: { onNavigate?: () => void }) {
   const exact = (href: string) => path === href;
 
   return (
-    <nav aria-label="Main" className="flex flex-col gap-6 text-sm">
+    <nav aria-label="Main" className="flex flex-col gap-4 text-sm">
       <div>
         <Link href="/" onClick={onNavigate} className={itemCls(isActive("/"))} aria-current={isActive("/") ? "page" : undefined} data-testid="link-nav-overview">
-          <LayoutGrid className="size-4" aria-hidden /> Overview
+          <LayoutGrid className="size-4" aria-hidden /> Dashboard
         </Link>
       </div>
       <div>
-        <p className="mb-1.5 px-2.5 text-xs font-medium text-muted-foreground">Review flow</p>
+        <p className="mb-1 px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Review flow</p>
         <ol className="space-y-0.5">
           {FLOW.map((s) => {
             const step = data?.steps.find((x) => x.key === s.key);
@@ -64,20 +64,20 @@ export function Nav({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       {GROUPS.map((g) => (
         <div key={g.title}>
-          <p className="mb-1.5 px-2.5 text-xs font-medium text-muted-foreground">{g.title}</p>
+          <p className="mb-1 px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{g.title}</p>
           <ul className="space-y-0.5">
             {g.items.map((it) => (
               <li key={it.href}>
                 <Link href={it.href} onClick={onNavigate} className={itemCls(exact(it.href))} aria-current={exact(it.href) ? "page" : undefined}
                   data-testid={`link-nav-${it.href.replace(/\//g, "-").slice(1)}`}>
-                  <span className="pl-[30px]">{it.label}</span>
+                  <it.icon className="size-4 opacity-70" aria-hidden /><span className="pl-0.5">{it.label}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </div>
       ))}
-      <div className="border-t border-sidebar-border pt-3">
+      <div>
         <Link href="/settings" onClick={onNavigate} className={itemCls(exact("/settings"))} aria-current={exact("/settings") ? "page" : undefined} data-testid="link-nav-settings">
           <Settings className="size-4" aria-hidden /> Settings
         </Link>

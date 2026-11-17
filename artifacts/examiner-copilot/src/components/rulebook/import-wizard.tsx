@@ -118,7 +118,7 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
               <input id="rb-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only"
                 onChange={(e) => { setFile(e.target.files?.[0] ?? null); setError(null); }} data-testid="input-file-xlsx" />
             </label>
-            <a href="/api/rulebooks/sample.xlsx" className="text-xs underline underline-offset-2" data-testid="link-sample-wizard">Download sample rulebook</a>
+            <a href="/api/rulebooks/template.xlsx" className="text-xs underline underline-offset-2" data-testid="link-sample-wizard">Download empty template</a>
           </div>
         ) : step === 1 && pv && mapping ? (
           <div className="space-y-4">

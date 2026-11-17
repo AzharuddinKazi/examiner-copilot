@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
 import { EmptyState, QueryError } from "@/components/states";
-import { DemoLoadButton } from "@/components/pages/upload";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
 import { useCanWrite, useInvalidate, ViewerReason } from "@/lib/write-access";
@@ -39,7 +38,7 @@ function BankDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: b
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setError(null); }}>
       <DialogContent className="sm:max-w-md" data-testid="dialog-add-bank">
-        <DialogHeader><DialogTitle>Add bank</DialogTitle><DialogDescription>Use the bank's published name. Fictional names are fine for demos.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Add bank</DialogTitle><DialogDescription>Use the bank's published name.</DialogDescription></DialogHeader>
         <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <div>
             <Label htmlFor="bk-en">Name in English</Label>
@@ -157,7 +156,6 @@ export function BanksView() {
         ) : q.isError ? null : banks.length === 0 ? (
           <EmptyState icon={Building2} title="No banks yet" testId="empty-banks">
             <p>Add the banks whose card disclosures you are examining.</p>
-            <DemoLoadButton />
           </EmptyState>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">{banks.map((b) => <BankCard key={b.id} bank={b} />)}</div>

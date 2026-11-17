@@ -3,7 +3,7 @@
  * demonstration. Sample rules are not law. Each document is built so that later
  * milestones have source-traceable cases (document, page, exact quote).
  */
-import type { DocType } from "../suggest";
+import type { DocType } from "../../lib/suggest";
 import { FALCONRIDGE_AR_KFS_BASE64, MERIDIAN_AR_KFS_BASE64 } from "./arabic-pdfs";
 
 export interface DemoBank {

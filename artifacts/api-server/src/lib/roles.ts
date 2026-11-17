@@ -25,7 +25,7 @@ export function requireWriter(value: unknown, res: Response): Role | null {
   }
   if (role === "viewer") {
     res.status(403).json({
-      error: "Viewer can look but not change anything. Switch role in the header (self-selected, not verified).",
+      error: "Viewer can look but not change anything. Change your role at the bottom of the sidebar (self-selected, not verified).",
     });
     return null;
   }

@@ -156,22 +156,6 @@ export const RecordRoleChangeResponse = zod.object({
 
 
 /**
- * @summary Load the fictional demo banks, rulebook and documents (demo mode only, once)
- */
-export const LoadDemoDataBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
-})
-
-export const LoadDemoDataResponse = zod.object({
-  "banks": zod.int(),
-  "products": zod.int(),
-  "rules": zod.int(),
-  "documents": zod.int(),
-  "message": zod.string()
-})
-
-
-/**
  * @summary Banks with their card products, for the active dataset
  */
 export const ListBanksResponse = zod.object({

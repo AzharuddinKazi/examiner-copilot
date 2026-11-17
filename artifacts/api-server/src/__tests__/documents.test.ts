@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { extractPdf, PdfValidationError, PDF_LIMITS } from "../lib/pdf";
 import { suggestDocType, suggestLanguage, suggestBankAndProduct } from "../lib/suggest";
-import { renderDemoPdf } from "../lib/demo/generate";
-import { DEMO_DOCUMENTS } from "../lib/demo/content";
+import { renderDemoPdf } from "./fixtures/generate";
+import { DEMO_DOCUMENTS } from "./fixtures/content";
 
 async function pdfWith(pages: string[]): Promise<Buffer> {
   const pdf = await PDFDocument.create();

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseWorkbook, proposeMapping, buildRules, parseAppliesTo, parseThreshold, WorkbookError } from "../lib/rulebook-import";
-import { renderSampleRulebook } from "../lib/demo/generate";
+import { renderSampleRulebook } from "./fixtures/generate";
 import ExcelJS from "exceljs";
 
 async function xlsx(rows: string[][]): Promise<Buffer> {

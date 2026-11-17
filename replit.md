@@ -1,6 +1,6 @@
 # Examiner Co-Pilot
 
-A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards, Fees Schedule) against an examiner-supplied, versioned rulebook. Agents propose; examiners decide. Public or synthetic documents only. Not an official CBUAE system; sample rules are not law.
+A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards, Fees Schedule) against an examiner-supplied, versioned rulebook. Agents propose; examiners decide. The workspace holds production data only (no demo data).
 
 ## Run & Operate
 
@@ -26,17 +26,18 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 - Dataset scoping: `artifacts/api-server/src/lib/dataset.ts`
 - Audit hash chain: `artifacts/api-server/src/lib/audit.ts`
 - LLM adapter (the only place that calls a model): `artifacts/api-server/src/lib/llm/`
-- Uploaded files (PDFs, .xlsx): `stored_files` table (bytea), so demo purge is one transaction
+- Uploaded files (PDFs, .xlsx): `stored_files` table (bytea)
 - PDF checks and page-by-page extraction (no OCR; pages with little text are gaps): `artifacts/api-server/src/lib/pdf.ts`
 - Rule-based upload suggestions (type, language, bank, product, each with a reason): `artifacts/api-server/src/lib/suggest.ts`
 - Rulebook .xlsx import (column mapping, row validation): `artifacts/api-server/src/lib/rulebook-import.ts`
-- Fictional demo content and generators (3 banks, 12 rules, 12 PDFs): `artifacts/api-server/src/lib/demo/`
+- Fictional test fixtures (3 banks, 12 rules, 12 PDFs), used only by unit tests: `artifacts/api-server/src/__tests__/fixtures/`
+- Empty rulebook template download: `GET /api/rulebooks/template.xlsx`
 - Voice components (bank / tool / examiner) and StatusPill: `artifacts/examiner-copilot/src/components/voice/`
 
 ## Architecture decisions
 
 - Next.js is the UI only; all server logic lives in the shared Express API at `/api` (the proxy routes `/api` there, so Next route handlers must not use `/api`).
-- Demo and live data are separated by a `dataset` column on every business table; the active dataset comes from the singleton `app_state` row. Demo → live is one-way and deletes demo data in one transaction (built in a later milestone).
+- Every business table has a `dataset` column; the workspace is always `live`. On API startup `removeDemoData()` deletes any leftover `demo` rows in one transaction and sets `app_state` to live (idempotent). There is no demo loader.
 - Audit log is append-only with a per-dataset sha256 hash chain, so purging demo data leaves the live chain intact.
 - Write endpoints take `role` in the body (a form field for uploads); Viewer gets 403. This prevents accidents only; roles are unverified.
 - Exactly one active rulebook version per dataset; activating one retires the previous one. Retired versions cannot be reactivated.
@@ -51,7 +52,7 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 
 - Stack: Next.js (user chose to keep it over the default Vite).
 - Push to GitHub at the end of each milestone, after tests pass.
-- Demo data is deleted when switching to live.
+- No demo data; the user wants a clean workspace for production data. Keep the UI free of model names and filler text; the role (sign-in) selector sits at the bottom of the sidebar.
 - Statuses: Compliant, Breach, Warning, Needs review, Not applicable; severity separate (Low/Medium/High).
 - Roles: Examiner, Senior examiner, Viewer (self-selected, unverified). Viewer cannot record decisions or draft notices.
 - 14 business days count from an examiner-entered reference date; day 1 is the next business day; weekend Sat–Sun.
@@ -87,7 +88,7 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 - Arabic PDF text often comes out of reading order, so a bilingual 'difference' where the English figure also appears in the same Arabic quote is treated as a pairing error, not a breach.
 
 - Free OpenRouter models are often rate-limited upstream (429), and reasoning models return empty content if `max_tokens` is too small. The Nemotron model needs ~10k max_tokens per agent call; 6k sometimes ran out before answering.
-- Running `next build` while the dev server runs breaks the preview (blank page); restart the web workflow afterwards.
+- Running `next build` into `.next` while the dev server runs breaks the preview. For local checks build with `NEXT_DIST_DIR=.next-check pnpm --filter @workspace/examiner-copilot run build`.
 
 ## Pointers
 

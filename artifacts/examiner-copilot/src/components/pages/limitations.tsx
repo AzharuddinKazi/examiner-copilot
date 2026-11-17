@@ -6,12 +6,11 @@ import { BankQuote, ExaminerNote, StatusPill, ToolText, type StatusVariant } fro
 
 const LIMITS: { title: string; body: string }[] = [
   { title: "Not an official CBUAE system", body: "This is an independent workbench. It has no standing with the Central Bank of the UAE or any regulator." },
-  { title: "Sample rules are not law", body: "Rules in the rulebook are examiner-supplied or illustrative. You interpret them; the tool does not." },
-  { title: "Public or synthetic documents only", body: "Do not upload confidential or customer data." },
+  { title: "Rules are examiner-supplied", body: "The tool applies the active rulebook as written. You interpret the rules; the tool does not." },
   { title: "Agents are read-only and only propose", body: "They cannot edit documents, rules, findings or decisions." },
   { title: "Examiners decide and own enforcement", body: "Approval of findings and any action against a bank rest with you." },
   { title: "Notices are drafts and never sent", body: "The tool has no channel to contact a bank." },
-  { title: "Role is self-selected and unverified", body: "The role in the header is a label for the audit log, not authentication or access control." },
+  { title: "Role is self-selected and unverified", body: "The role at the bottom of the sidebar is a label for the audit log, not authentication or access control." },
   { title: "Document text is data, never instructions", body: "Anything written inside an uploaded document is analysed, not obeyed." },
   { title: "No OCR for scanned pages", body: "Pages without extractable text are flagged as extraction gaps and are not read." },
   { title: "Arabic extraction can be imperfect", body: "Right-to-left text, ligatures and mixed scripts may extract out of order. Check against the original." },

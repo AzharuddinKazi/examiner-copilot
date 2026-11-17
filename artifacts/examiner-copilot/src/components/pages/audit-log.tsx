@@ -110,7 +110,7 @@ export function AuditLog() {
             <QueryError title="Could not load audit events" error={events.error} onRetry={() => events.refetch()} retrying={events.isFetching} />
           ) : page.items.length === 0 ? (
             <EmptyState icon={ScrollText} title={action === ALL ? "No events recorded yet" : "No events for this action"} testId="empty-audit">
-              {action === ALL ? "Changing your role in the header is the first thing that will appear here." : "Choose another action or show all."}
+              {action === ALL ? "Changing your role is the first thing that will appear here." : "Choose another action or show all."}
             </EmptyState>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-card-border bg-card">

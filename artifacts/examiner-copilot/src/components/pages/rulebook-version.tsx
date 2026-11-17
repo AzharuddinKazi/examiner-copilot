@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
 import { QueryError } from "@/components/states";
 import { StatusPill } from "@/components/voice";
-import { RulesFooterNote, VERSION_PILL } from "@/components/pages/rulebook";
+import { VERSION_PILL } from "@/components/pages/rulebook";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
 import { CHECK_TYPE_LABELS, DOC_TYPE_SHORT, SEVERITY_PILL } from "@/lib/labels";
@@ -108,7 +108,7 @@ export function RulebookVersionView({ id }: { id: number }) {
               </tbody>
             </table>
           </div>
-          <RulesFooterNote />
+          
         </div>
       }
       next={{ href: "/library/rulebook", label: "All rulebooks" }}

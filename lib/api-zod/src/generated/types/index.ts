@@ -43,7 +43,6 @@ export * from './dataset';
 export * from './decision';
 export * from './decisionInput';
 export * from './decisionKind';
-export * from './demoLoadResult';
 export * from './docLanguage';
 export * from './docType';
 export * from './documentCounts';

@@ -24,5 +24,5 @@ export function describeConfig(c: LlmConfig): string {
   }
   if (!c.apiKey) return "The OpenRouter key is missing from Secrets (OPENROUTER_API_KEY or OPENAI_API_KEY). Agents cannot run until it is added.";
   if (!c.model) return "OPENROUTER_MODEL is missing from Secrets. Add the model id (for example a model that supports tool calling and JSON-schema output).";
-  return `Configured to use ${c.model} through OpenRouter (key from ${c.keySource}). Use "Test connection" to confirm the key and model work.`;
+  return `The model connection is configured. Use "Test connection" to confirm it works.`;
 }

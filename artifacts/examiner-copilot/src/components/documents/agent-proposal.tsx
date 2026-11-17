@@ -111,9 +111,6 @@ export function AgentProposalPanel({ doc }: { doc: DocumentSummary }) {
               );
             })}
           </ul>
-          <ToolText className="text-[11px] text-muted-foreground">
-            {p.model} · {p.tokensIn.toLocaleString()} in / {p.tokensOut.toLocaleString()} out{p.latencyMs !== null ? ` · ${p.latencyMs.toLocaleString()} ms` : ""}
-          </ToolText>
         </>
       )}
     </div>

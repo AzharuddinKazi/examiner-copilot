@@ -255,7 +255,7 @@ function HistoryList({ items }: { items: AssessmentSummary[] }) {
               </div>
               <CountPills c={a.counts} />
               <ToolText as="span" className="shrink-0 text-[11px] text-muted-foreground md:w-44 md:text-right">
-                {format(new Date(a.createdAt), "d MMM, HH:mm")}{dur ? ` · ${dur}` : ""}<br />{a.model ?? "no model"}
+                {format(new Date(a.createdAt), "d MMM, HH:mm")}{dur ? ` · ${dur}` : ""}
               </ToolText>
             </Link>
           </li>

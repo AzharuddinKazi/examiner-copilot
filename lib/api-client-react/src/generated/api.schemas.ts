@@ -180,14 +180,6 @@ export interface FileUploadInput {
   role: Role;
 }
 
-export interface DemoLoadResult {
-  banks: number;
-  products: number;
-  rules: number;
-  documents: number;
-  message: string;
-}
-
 export interface Product {
   id: number;
   bankId: number;
