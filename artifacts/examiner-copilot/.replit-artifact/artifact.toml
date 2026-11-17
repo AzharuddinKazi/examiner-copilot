@@ -1,0 +1,35 @@
+kind = "web"
+previewPath = "/"
+title = "Examiner Co-Pilot"
+description = "A supervisory workbench for examiners that compares credit-card disclosures (KFS, T&C, Rewards, Fees Schedule) against an examiner-supplied, versioned rulebook. AI agents propose findings with exact quotes; examiners review and decide; notices are drafted, never sent. Public or synthetic documents only; not an official CBUAE system."
+version = "1.0.0"
+id = "artifacts/examiner-copilot"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22872
+
+[services.development]
+run = "pnpm --filter @workspace/examiner-copilot run dev"
+
+[services.production]
+
+[services.production.build]
+args = [ "pnpm", "--filter", "@workspace/examiner-copilot", "run", "build" ]
+
+[services.production.build.env]
+NODE_ENV = "production"
+
+[services.production.run]
+args = [ "pnpm", "--filter", "@workspace/examiner-copilot", "run", "start" ]
+
+[services.production.run.env]
+PORT = "22872"
+NODE_ENV = "production"
+BASE_PATH = "/"
+
+[services.env]
+PORT = "22872"
+BASE_PATH = "/"

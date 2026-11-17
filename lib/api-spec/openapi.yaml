@@ -1,0 +1,327 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Examiner Co-Pilot API. Agents propose, examiners decide.
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: workspace
+    description: Workspace mode (demo or live) and progress through the review steps
+  - name: llm
+    description: Language model provider status
+  - name: audit
+    description: Append-only audit log
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /workspace/status:
+    get:
+      operationId: getWorkspaceStatus
+      tags: [workspace]
+      summary: Current workspace mode and dataset
+      responses:
+        "200":
+          description: Workspace status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceStatus"
+
+  /workspace/progress:
+    get:
+      operationId: getWorkspaceProgress
+      tags: [workspace]
+      summary: Progress through the four review steps, with counts, for the active dataset
+      responses:
+        "200":
+          description: Step progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceProgress"
+
+  /llm/status:
+    get:
+      operationId: getLlmStatus
+      tags: [llm]
+      summary: Whether the model provider is configured (no call is made)
+      responses:
+        "200":
+          description: Provider configuration status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LlmStatus"
+
+  /llm/test:
+    post:
+      operationId: testLlmConnection
+      tags: [llm]
+      summary: Make one minimal call to the provider to check the key and model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleContext"
+      responses:
+        "200":
+          description: Result of the connection test (ok may be false with a clear error)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LlmTestResult"
+
+  /audit/events:
+    get:
+      operationId: listAuditEvents
+      tags: [audit]
+      summary: Audit events for the active dataset, newest first
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: action
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Page of audit events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEventPage"
+
+  /audit/verify:
+    get:
+      operationId: verifyAuditChain
+      tags: [audit]
+      summary: Recompute the hash chain and report whether any event was altered
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditChainVerification"
+
+  /audit/role-change:
+    post:
+      operationId: recordRoleChange
+      tags: [audit]
+      summary: Record that the self-selected (unverified) role changed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleChangeInput"
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditEvent"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    Dataset:
+      type: string
+      enum: [demo, live]
+
+    Role:
+      type: string
+      enum: [examiner, senior_examiner, viewer]
+      description: Self-selected and unverified. Never treated as authentication.
+
+    WorkspaceStatus:
+      type: object
+      required: [mode, switchedAt, switchedByRole, oneWay]
+      properties:
+        mode:
+          $ref: "#/components/schemas/Dataset"
+        switchedAt:
+          type: ["string", "null"]
+          format: date-time
+        switchedByRole:
+          type: ["string", "null"]
+        oneWay:
+          type: boolean
+          description: Always true. Live cannot switch back to demo.
+
+    StepState:
+      type: string
+      enum: [not_started, in_progress, done]
+
+    StepCount:
+      type: object
+      required: [label, value]
+      properties:
+        label: { type: string }
+        value: { type: integer }
+
+    StepProgress:
+      type: object
+      required: [key, number, title, question, href, state, counts, summary]
+      properties:
+        key:
+          type: string
+          enum: [upload, assess, review, notices]
+        number: { type: integer }
+        title: { type: string }
+        question: { type: string }
+        href: { type: string }
+        state:
+          $ref: "#/components/schemas/StepState"
+        counts:
+          type: array
+          items:
+            $ref: "#/components/schemas/StepCount"
+        summary:
+          type: string
+          description: One plain sentence describing where this step stands
+
+    WorkspaceProgress:
+      type: object
+      required: [dataset, steps, nextStepKey, library]
+      properties:
+        dataset:
+          $ref: "#/components/schemas/Dataset"
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/StepProgress"
+        nextStepKey:
+          type: string
+          enum: [upload, assess, review, notices]
+        library:
+          $ref: "#/components/schemas/LibraryCounts"
+
+    LibraryCounts:
+      type: object
+      required: [banks, products, rulebookVersions, activeRules]
+      properties:
+        banks: { type: integer }
+        products: { type: integer }
+        rulebookVersions: { type: integer }
+        activeRules: { type: integer }
+
+    LlmStatus:
+      type: object
+      required: [configured, keyPresent, modelPresent, model, provider, message]
+      properties:
+        configured: { type: boolean }
+        keyPresent: { type: boolean }
+        modelPresent: { type: boolean }
+        model: { type: ["string", "null"] }
+        provider: { type: string }
+        message:
+          type: string
+          description: Plain explanation of the current state, including what to do if not configured
+
+    LlmTestResult:
+      type: object
+      required: [ok, model, latencyMs, error, checkedAt]
+      properties:
+        ok: { type: boolean }
+        model: { type: ["string", "null"] }
+        latencyMs: { type: ["integer", "null"] }
+        error:
+          type: ["string", "null"]
+          description: Clear error when the key is missing or the provider fails
+        checkedAt:
+          type: string
+          format: date-time
+
+    RoleContext:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: "#/components/schemas/Role"
+
+    RoleChangeInput:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: "#/components/schemas/Role"
+        previousRole:
+          type: ["string", "null"]
+
+    AuditEvent:
+      type: object
+      required: [id, dataset, ts, role, action, entityType, entityId, summary, hash]
+      properties:
+        id: { type: integer }
+        dataset:
+          $ref: "#/components/schemas/Dataset"
+        ts:
+          type: string
+          format: date-time
+        role:
+          type: ["string", "null"]
+        action: { type: string }
+        entityType: { type: string }
+        entityId: { type: ["string", "null"] }
+        summary: { type: string }
+        before: {}
+        after: {}
+        hash: { type: string }
+
+    AuditEventPage:
+      type: object
+      required: [items, total, actions]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEvent"
+        total: { type: integer }
+        actions:
+          type: array
+          description: Distinct action names in this dataset, for filtering
+          items: { type: string }
+
+    AuditChainVerification:
+      type: object
+      required: [valid, checked, brokenAtId, checkedAt]
+      properties:
+        valid: { type: boolean }
+        checked: { type: integer }
+        brokenAtId: { type: ["integer", "null"] }
+        checkedAt:
+          type: string
+          format: date-time
