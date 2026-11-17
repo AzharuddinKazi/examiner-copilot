@@ -20,6 +20,8 @@ const nextConfig = {
   ],
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
+    // Development preview only: the API acts as the workspace owner without a Clerk session.
+    NEXT_PUBLIC_PREVIEW_AUTO_SIGNIN: process.env.NODE_ENV === "development" && process.env.PREVIEW_AUTO_SIGNIN !== "false" ? "true" : "",
     // Clerk sign-in. The proxy URL is empty in development and set automatically when published.
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY ?? process.env.VITE_CLERK_PUBLISHABLE_KEY ?? "",
     NEXT_PUBLIC_CLERK_PROXY_URL: process.env.VITE_CLERK_PROXY_URL ?? process.env.CLERK_PROXY_URL ?? "",

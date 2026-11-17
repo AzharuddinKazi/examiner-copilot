@@ -11,6 +11,9 @@ export const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/,
 export const SIGN_IN_PATH = `${basePath}/sign-in`;
 export const SIGN_UP_PATH = `${basePath}/sign-up`;
 
+/** Development preview only: no sign-in needed; the API acts as the workspace owner. */
+export const PREVIEW_AUTO_SIGNIN = process.env.NEXT_PUBLIC_PREVIEW_AUTO_SIGNIN === "true";
+
 const clerkProxyUrl = process.env.NEXT_PUBLIC_CLERK_PROXY_URL || undefined;
 
 function clerkPubKey() {

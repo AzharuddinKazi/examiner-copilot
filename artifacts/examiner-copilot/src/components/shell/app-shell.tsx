@@ -11,6 +11,7 @@ import { Nav } from "./nav";
 import { UserMenu } from "./user-menu";
 import { Welcome } from "./welcome";
 import { ThemeToggle } from "./theme-toggle";
+import { PREVIEW_AUTO_SIGNIN } from "@/lib/auth";
 
 function Wordmark() {
   return (
@@ -40,8 +41,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { isLoaded, isSignedIn } = useAuth();
   if (AUTH_PAGES.test(pathname)) return <>{children}</>;
-  if (!isLoaded) return <div className="min-h-[100dvh] bg-background" aria-busy="true" />;
-  if (!isSignedIn) return <Welcome />;
+  if (!isLoaded && !PREVIEW_AUTO_SIGNIN) return <div className="min-h-[100dvh] bg-background" aria-busy="true" />;
+  if (!isSignedIn && !PREVIEW_AUTO_SIGNIN) return <Welcome />;
   return <SignedInShell>{children}</SignedInShell>;
 }
 

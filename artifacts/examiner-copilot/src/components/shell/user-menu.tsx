@@ -6,7 +6,7 @@ import { useClerk, useUser } from "@clerk/react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { basePath } from "@/lib/auth";
+import { basePath, PREVIEW_AUTO_SIGNIN } from "@/lib/auth";
 import { ROLE_LABELS, useRole } from "@/lib/role";
 
 function initials(name: string) {
@@ -21,6 +21,7 @@ export function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
   const { role, me } = useRole();
   const email = me?.email ?? user?.primaryEmailAddress?.emailAddress ?? "";
   const name = me?.name ?? user?.fullName ?? email;
+  const previewOnly = PREVIEW_AUTO_SIGNIN && !user;
 
   return (
     <DropdownMenu>
@@ -51,9 +52,13 @@ export function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
         <DropdownMenuItem asChild>
           <Link href="/settings" onClick={onNavigate} data-testid="link-menu-settings"><Settings aria-hidden /> Settings</Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => signOut({ redirectUrl: basePath || "/" })} data-testid="button-sign-out">
-          <LogOut aria-hidden /> Sign out
-        </DropdownMenuItem>
+        {previewOnly ? (
+          <p className="px-2 py-1.5 text-xs text-muted-foreground" data-testid="text-preview-signin">Signed in automatically in the preview. The published app asks everyone to sign in.</p>
+        ) : (
+          <DropdownMenuItem onSelect={() => signOut({ redirectUrl: basePath || "/" })} data-testid="button-sign-out">
+            <LogOut aria-hidden /> Sign out
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

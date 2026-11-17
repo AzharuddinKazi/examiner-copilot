@@ -31,7 +31,8 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 - Rule-based upload suggestions (type, language, bank, product, each with a reason): `artifacts/api-server/src/lib/suggest.ts`
 - Rulebook .xlsx import (column mapping, row validation): `artifacts/api-server/src/lib/rulebook-import.ts`
 - Fictional test fixtures (3 banks, 12 rules, 12 PDFs), used only by unit tests: `artifacts/api-server/src/__tests__/fixtures/`
-- Banks in scope: ADCB, ADIB, CBD, Mashreq, for credit card product documents only. Official logos are in `artifacts/examiner-copilot/public/banks/` and matched to a bank by name (English or Arabic, short or full) in `artifacts/api-server/src/lib/bank-logos.ts`, so a bank re-added under the same name gets its logo. `src/scripts/add-uae-banks.ts` adds the four banks to an environment (idempotent, audited as "Setup script").
+- Banks in scope: ADCB, ADIB, CBD, Mashreq, for credit card product documents only. Official logos are in `artifacts/examiner-copilot/public/banks/` and matched to a bank by name (English or Arabic, short or full) in `artifacts/api-server/src/lib/bank-logos.ts`, so a bank re-added under the same name gets its logo. On API startup, `ensureScopeBanks` adds the four banks when the library is empty (so the published app gets them; audited as "Setup script"); once any bank exists it does nothing.
+- Preview auto sign-in: in development only (NODE_ENV=development), a request with no Clerk session acts as the earliest senior examiner, and the web app skips the welcome screen. Production always requires sign-in. Set `PREVIEW_AUTO_SIGNIN=false` to test the real sign-in flow in the preview.
 - Empty rulebook template download: `GET /api/rulebooks/template.xlsx`
 - Voice components (bank / tool / examiner) and StatusPill: `artifacts/examiner-copilot/src/components/voice/`
 

@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { NextFunction, Request, Response } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
 import { db, usersTable, type UserRow } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { parseRole, type Role } from "./roles";
 
 export interface CurrentUser {
@@ -63,15 +63,30 @@ async function ensureUser(clerkUserId: string): Promise<UserRow> {
   });
 }
 
+/**
+ * Development preview only: with no Clerk session, act as the workspace owner
+ * (the earliest senior examiner) so the preview does not ask for sign-in on every
+ * reload. Never active in production (NODE_ENV=production there).
+ */
+export const PREVIEW_AUTO_SIGNIN = process.env.NODE_ENV === "development" && process.env.PREVIEW_AUTO_SIGNIN !== "false";
+
+async function previewOwner(): Promise<UserRow | undefined> {
+  const [owner] = await db.select().from(usersTable).where(eq(usersTable.role, "senior_examiner")).orderBy(asc(usersTable.id)).limit(1);
+  return owner;
+}
+
 /** Every /api route except the health check needs a signed-in user. */
 export async function requireUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   const auth = getAuth(req);
   const clerkUserId = (auth?.sessionClaims?.userId as string | undefined) || auth?.userId;
-  if (!clerkUserId) {
+  let row: UserRow | undefined;
+  if (clerkUserId) row = await ensureUser(clerkUserId);
+  else if (PREVIEW_AUTO_SIGNIN) row = await previewOwner();
+  if (!row) {
     res.status(401).json({ error: "Sign in to continue." });
     return;
   }
-  const user = toCurrent(await ensureUser(clerkUserId));
+  const user = toCurrent(row);
   req.user = user;
   store.run(user, () => next());
 }

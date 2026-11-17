@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { recoverInterruptedRuns } from "./lib/assess/run";
 import { recoverInterruptedProposals } from "./lib/ingest/run";
 import { removeDemoData } from "./lib/dataset";
+import { ensureScopeBanks } from "./lib/scope-banks";
 
 const rawPort = process.env["PORT"];
 
@@ -27,7 +28,10 @@ app.listen(port, (err) => {
   logger.info({ port }, "Server listening");
   removeDemoData()
     .then((r) => { if (r.removed) logger.info("demo data removed; workspace is live"); })
-    .catch((e) => logger.error({ err: e }, "could not remove demo data"));
+    .catch((e) => logger.error({ err: e }, "could not remove demo data"))
+    .then(() => ensureScopeBanks())
+    .then((added) => { if (added?.length) logger.info({ added }, "added in-scope banks to an empty library"); })
+    .catch((e) => logger.error({ err: e }, "could not add in-scope banks"));
   recoverInterruptedProposals().catch((e) => logger.error({ err: e }, "could not recover interrupted ingestion proposals"));
   recoverInterruptedRuns().catch((e) => logger.error({ err: e }, "could not recover interrupted assessments"));
 });
