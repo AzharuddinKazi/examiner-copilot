@@ -7,7 +7,7 @@
  */
 
 /**
- * Self-selected and unverified. Never treated as authentication.
+ * Assigned to each signed-in person by a senior examiner.
  */
 export type Role = typeof Role[keyof typeof Role];
 

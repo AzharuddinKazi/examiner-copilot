@@ -82,7 +82,7 @@ function ProductRow({ p, onBulk, canWrite }: { p: ReviewProduct; onBulk: (p: Rev
 }
 
 export function ReviewView() {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const q = useGetReviewQueue();
   const bulk = useAcceptCompliantFindings();
   const invalidate = useReviewInvalidate();
@@ -113,7 +113,7 @@ export function ReviewView() {
 
   const runBulk = () => {
     if (!bulkFor) return;
-    bulk.mutate({ data: { role, assessmentId: bulkFor.assessmentId } }, {
+    bulk.mutate({ data: { assessmentId: bulkFor.assessmentId } }, {
       onSuccess: (r) => {
         invalidate();
         toast({ title: `Accepted ${r.accepted} proposal${r.accepted === 1 ? "" : "s"}`, description: `${bulkFor.productName}. Each is recorded in the audit log.` });

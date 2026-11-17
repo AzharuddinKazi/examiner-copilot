@@ -32,7 +32,7 @@ router.get("/findings/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/findings/:id/decisions", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const params = DecideFindingParams.safeParse(req.params);
   const body = DecideFindingBody.safeParse(req.body);
@@ -54,7 +54,7 @@ router.post("/findings/:id/decisions", async (req, res): Promise<void> => {
 });
 
 router.post("/review/accept-compliant", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const body = AcceptCompliantFindingsBody.safeParse(req.body);
   if (!body.success) {

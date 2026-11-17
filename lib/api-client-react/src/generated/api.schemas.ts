@@ -18,7 +18,7 @@ export const Dataset = {
 } as const;
 
 /**
- * Self-selected and unverified. Never treated as authentication.
+ * Assigned to each signed-in person by a senior examiner.
  */
 export type Role = typeof Role[keyof typeof Role];
 
@@ -124,14 +124,28 @@ export interface LlmTestResult {
   checkedAt: string;
 }
 
-export interface RoleContext {
+/**
+ * Empty body. Who acts comes from the signed-in session.
+ */
+export interface RoleContext { [key: string]: unknown }
+
+export interface User {
+  id: number;
+  /** @nullable */
+  name: string | null;
+  /** @nullable */
+  email: string | null;
   role: Role;
+  createdAt: string;
+  lastSeenAt: string;
 }
 
-export interface RoleChangeInput {
+export interface UserList {
+  items: User[];
+}
+
+export interface UserRoleInput {
   role: Role;
-  /** @nullable */
-  previousRole?: string | null;
 }
 
 export interface AuditEvent {
@@ -140,6 +154,8 @@ export interface AuditEvent {
   ts: string;
   /** @nullable */
   role: string | null;
+  /** @nullable */
+  actor: string | null;
   action: string;
   entityType: string;
   /** @nullable */
@@ -177,7 +193,6 @@ export interface DuplicateFileError {
 
 export interface FileUploadInput {
   file: Blob | File;
-  role: Role;
 }
 
 export interface Product {
@@ -203,7 +218,6 @@ export interface BankList {
 }
 
 export interface BankInput {
-  role: Role;
   /**
      * @minLength 2
      * @maxLength 120
@@ -217,7 +231,6 @@ export interface BankInput {
 }
 
 export interface ProductInput {
-  role: Role;
   /**
      * @minLength 2
      * @maxLength 120
@@ -455,7 +468,6 @@ export type DocumentDetail = DocumentSummary & {
 };
 
 export interface ConfirmDocumentInput {
-  role: Role;
   bankId: number;
   productId: number;
   docType: DocType;
@@ -468,7 +480,6 @@ export interface ConfirmDocumentInput {
 }
 
 export interface RejectDocumentInput {
-  role: Role;
   /**
      * @minLength 3
      * @maxLength 500
@@ -518,7 +529,6 @@ export interface RulebookImportPreview {
 }
 
 export interface RulebookImportInput {
-  role: Role;
   importId: number;
   mapping: ColumnMapping;
   dryRun: boolean;
@@ -735,7 +745,6 @@ export interface AssessmentList {
 }
 
 export interface StartAssessmentInput {
-  role: Role;
   productId: number;
 }
 
@@ -935,11 +944,12 @@ export interface Decision {
   /** @nullable */
   examinerNote: string | null;
   role: string;
+  /** @nullable */
+  actor: string | null;
   decidedAt: string;
 }
 
 export interface DecisionInput {
-  role: Role;
   decision: DecisionKind;
   finalStatus?: FindingStatus | null;
   /**
@@ -1060,7 +1070,6 @@ export type FindingDetail = Finding & ({
 });
 
 export interface BulkAcceptInput {
-  role: Role;
   assessmentId: number;
   /**
      * @maxLength 2000

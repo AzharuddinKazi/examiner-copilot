@@ -2,10 +2,13 @@ import { createHash } from "node:crypto";
 import { db, auditLogTable, type AuditLogRow } from "@workspace/db";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { Dataset } from "./dataset";
+import { actorLabel, currentUser } from "./auth";
 
 export interface AuditInput {
   dataset: Dataset;
   role: string | null;
+  /** Defaults to the signed-in person of the current request. */
+  actor?: string | null;
   action: string;
   entityType: string;
   entityId?: string | null;
@@ -27,13 +30,15 @@ export function canonicalJson(value: unknown): string {
 
 export function computeAuditHash(
   prevHash: string | null,
-  e: { dataset: string; ts: Date; role: string | null; action: string; entityType: string; entityId: string | null; summary: string; before: unknown; after: unknown },
+  e: { dataset: string; ts: Date; role: string | null; actor?: string | null; action: string; entityType: string; entityId: string | null; summary: string; before: unknown; after: unknown },
 ): string {
   const payload = canonicalJson({
     prevHash,
     dataset: e.dataset,
     ts: e.ts.toISOString(),
     role: e.role,
+    // Only part of the payload when set, so events written before sign-in existed still verify.
+    ...(e.actor ? { actor: e.actor } : {}),
     action: e.action,
     entityType: e.entityType,
     entityId: e.entityId,
@@ -63,6 +68,7 @@ export async function appendAudit(input: AuditInput, tx?: Tx): Promise<AuditLogR
       dataset: input.dataset,
       ts,
       role: input.role,
+      actor: input.actor !== undefined ? input.actor : actorLabel(currentUser()),
       action: input.action,
       entityType: input.entityType,
       entityId: input.entityId ?? null,

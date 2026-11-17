@@ -53,7 +53,7 @@ router.get("/documents", async (_req, res): Promise<void> => {
 
 router.post("/documents", async (req, res): Promise<void> => {
   if (!(await receiveFile(req, res, PDF_LIMITS.maxBytes, "PDF"))) return;
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const file = req.file!;
   const dataset = await getActiveDataset();
@@ -142,7 +142,7 @@ router.get("/documents/:id/file", async (req, res): Promise<void> => {
 });
 
 router.post("/documents/:id/confirm", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const params = ConfirmDocumentParams.safeParse(req.params);
   const body = ConfirmDocumentBody.safeParse(req.body);
@@ -193,7 +193,7 @@ router.post("/documents/:id/confirm", async (req, res): Promise<void> => {
 });
 
 router.post("/documents/:id/agent-proposal", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const params = RequestDocumentAgentProposalParams.safeParse(req.params);
   const dataset = await getActiveDataset();
@@ -212,7 +212,7 @@ router.post("/documents/:id/agent-proposal", async (req, res): Promise<void> => 
 });
 
 router.post("/documents/:id/reject", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const params = RejectDocumentParams.safeParse(req.params);
   const body = RejectDocumentBody.safeParse(req.body);

@@ -77,7 +77,7 @@ function Preconditions({ d }: { d: AssessmentCandidates }) {
 }
 
 function LivePanel({ run }: { run: AssessmentSummary }) {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const stop = useStopAssessment();
   const refresh = useAssessInvalidate();
   const { toast } = useToast();
@@ -93,7 +93,7 @@ function LivePanel({ run }: { run: AssessmentSummary }) {
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button variant="outline" size="sm" className="bg-card" disabled={!canWrite || stop.isPending} data-testid="button-stop-live"
-            onClick={() => stop.mutate({ id: run.id, data: { role } }, {
+            onClick={() => stop.mutate({ id: run.id, data: {} }, {
               onSuccess: () => { refresh(); toast({ title: "Stop requested", description: "The run will stop after its current step." }); },
               onError: (e) => toast({ title: "Could not stop", description: parseApiError(e).message, variant: "destructive" }),
             })}>
@@ -267,7 +267,6 @@ function HistoryList({ items }: { items: AssessmentSummary[] }) {
 
 export function AssessView() {
   const router = useRouter();
-  const { role } = useCanWrite();
   const refresh = useAssessInvalidate();
   const cand = useListAssessmentCandidates({
     query: { queryKey: getListAssessmentCandidatesQueryKey(), refetchInterval: (q) => (q.state.data?.runningId ? POLL : false) },
@@ -281,7 +280,7 @@ export function AssessView() {
 
   const onStart = (productId: number) => {
     setStartError(null); setPendingId(productId);
-    start.mutate({ data: { role, productId } }, {
+    start.mutate({ data: { productId } }, {
       onSuccess: (a) => { refresh(); router.push(`/assess/${a.id}`); },
       onError: (e) => {
         const pe = parseApiError(e);

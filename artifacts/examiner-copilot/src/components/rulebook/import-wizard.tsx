@@ -23,7 +23,7 @@ const NONE = "__none";
 const STEPS = ["Upload", "Map columns", "Check rows", "Import"];
 
 export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const rulebooks = useListRulebooks();
   const preview = usePreviewRulebookImport();
   const commit = useCommitRulebookImport();
@@ -48,7 +48,7 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".xlsx")) { setError("Choose an .xlsx file."); return; }
     setError(null);
-    preview.mutate({ data: { file, role } }, {
+    preview.mutate({ data: { file } }, {
       onSuccess: (r) => { setPv(r); setMapping(r.proposedMapping); setName(r.fileName.replace(/\.xlsx$/i, "")); setStep(1); },
       onError: (e) => setError(parseApiError(e).message),
     });
@@ -56,7 +56,7 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
   const doAskAgent = () => {
     if (!pv) return;
     setAgentError(null);
-    askAgent.mutate({ importId: pv.importId, data: { role } }, {
+    askAgent.mutate({ importId: pv.importId, data: {} }, {
       onSuccess: (r) => setAgent(r),
       onError: (e) => setAgentError(parseApiError(e).message),
     });
@@ -66,7 +66,7 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
   const doCheck = () => {
     if (!pv || !mapping) return;
     setError(null);
-    commit.mutate({ data: { role, importId: pv.importId, mapping, dryRun: true } }, {
+    commit.mutate({ data: { importId: pv.importId, mapping, dryRun: true } }, {
       onSuccess: (r) => { setCheck(r); setStep(2); },
       onError: (e) => setError(parseApiError(e).message),
     });
@@ -75,7 +75,7 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
     if (!pv || !mapping) return;
     setError(null);
     const isNew = target === "new";
-    commit.mutate({ data: { role, importId: pv.importId, mapping, dryRun: false, rulebookId: isNew ? null : Number(target), rulebookName: isNew ? name.trim() : null } }, {
+    commit.mutate({ data: { importId: pv.importId, mapping, dryRun: false, rulebookId: isNew ? null : Number(target), rulebookName: isNew ? name.trim() : null } }, {
       onSuccess: (r) => {
         if (!r.valid || !r.versionId) { setCheck(r); setStep(2); setError("The rows did not pass the check. Fix the spreadsheet or the mapping and try again."); return; }
         invalidate([getListRulebooksQueryKey()]);

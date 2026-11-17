@@ -216,7 +216,7 @@ function Trace({ a }: { a: AssessmentDetail }) {
 
 export function AssessmentDetailView({ id }: { id: number }) {
   const router = useRouter();
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const { toast } = useToast();
   const refresh = useAssessInvalidate();
   const q = useGetAssessment(id, {
@@ -258,12 +258,12 @@ export function AssessmentDetailView({ id }: { id: number }) {
 
   const runAgain = () => {
     if (!a.productId) return;
-    start.mutate({ data: { role, productId: a.productId } }, {
+    start.mutate({ data: { productId: a.productId } }, {
       onSuccess: (n) => { refresh(); router.push(`/assess/${n.id}`); },
       onError: (e) => { const pe = parseApiError(e); toast({ title: pe.status === 409 ? "Another run is in progress" : "Could not start", description: pe.message, variant: "destructive" }); },
     });
   };
-  const doStop = () => stop.mutate({ id: a.id, data: { role } }, {
+  const doStop = () => stop.mutate({ id: a.id, data: {} }, {
     onSuccess: () => { refresh(); q.refetch(); toast({ title: "Stop requested", description: "The run will stop after its current step." }); },
     onError: (e) => toast({ title: "Could not stop", description: parseApiError(e).message, variant: "destructive" }),
   });

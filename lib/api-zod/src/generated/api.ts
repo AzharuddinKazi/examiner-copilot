@@ -72,9 +72,9 @@ export const GetLlmStatusResponse = zod.object({
 /**
  * @summary Make one minimal call to the provider to check the key and model
  */
-export const TestLlmConnectionBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
-})
+export const TestLlmConnectionBody = zod.looseObject({
+
+}).describe('Empty body. Who acts comes from the signed-in session.')
 
 export const TestLlmConnectionResponse = zod.object({
   "ok": zod.boolean(),
@@ -108,6 +108,7 @@ export const ListAuditEventsResponse = zod.object({
   "dataset": zod.enum(['demo', 'live']),
   "ts": zod.coerce.date(),
   "role": zod.string().nullable(),
+  "actor": zod.string().nullable(),
   "action": zod.string(),
   "entityType": zod.string(),
   "entityId": zod.string().nullable(),
@@ -133,25 +134,51 @@ export const VerifyAuditChainResponse = zod.object({
 
 
 /**
- * @summary Record that the self-selected (unverified) role changed
+ * @summary The signed-in person and their role
  */
-export const RecordRoleChangeBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
-  "previousRole": zod.string().nullish()
+export const GetMeResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Assigned to each signed-in person by a senior examiner.'),
+  "createdAt": zod.coerce.date(),
+  "lastSeenAt": zod.coerce.date()
 })
 
-export const RecordRoleChangeResponse = zod.object({
+
+/**
+ * @summary Everyone who has signed in
+ */
+export const ListUsersResponse = zod.object({
+  "items": zod.array(zod.object({
   "id": zod.int(),
-  "dataset": zod.enum(['demo', 'live']),
-  "ts": zod.coerce.date(),
-  "role": zod.string().nullable(),
-  "action": zod.string(),
-  "entityType": zod.string(),
-  "entityId": zod.string().nullable(),
-  "summary": zod.string(),
-  "before": zod.unknown().optional(),
-  "after": zod.unknown().optional(),
-  "hash": zod.string()
+  "name": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Assigned to each signed-in person by a senior examiner.'),
+  "createdAt": zod.coerce.date(),
+  "lastSeenAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Change a person's role (senior examiners only)
+ */
+export const SetUserRoleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SetUserRoleBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Assigned to each signed-in person by a senior examiner.')
+})
+
+export const SetUserRoleResponse = zod.object({
+  "id": zod.int(),
+  "name": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Assigned to each signed-in person by a senior examiner.'),
+  "createdAt": zod.coerce.date(),
+  "lastSeenAt": zod.coerce.date()
 })
 
 
@@ -186,7 +213,6 @@ export const createBankBodyNameArMax = 120;
 
 
 export const CreateBankBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
   "nameEn": zod.string().min(createBankBodyNameEnMin).max(createBankBodyNameEnMax),
   "nameAr": zod.string().max(createBankBodyNameArMax).nullish()
 })
@@ -221,7 +247,6 @@ export const createProductBodyCardTierMax = 60;
 
 
 export const CreateProductBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
   "name": zod.string().min(createProductBodyNameMin).max(createProductBodyNameMax),
   "cardTier": zod.string().max(createProductBodyCardTierMax).nullish()
 })
@@ -261,8 +286,7 @@ export const ListRulebooksResponse = zod.object({
  * @summary Upload an .xlsx rulebook; returns headers, sample rows and a proposed column mapping
  */
 export const PreviewRulebookImportBody = zod.object({
-  "file": zod.instanceof(Blob),
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
+  "file": zod.instanceof(Blob)
 })
 
 export const PreviewRulebookImportResponse = zod.object({
@@ -299,7 +323,6 @@ export const commitRulebookImportBodyRulebookNameMax = 120;
 
 
 export const CommitRulebookImportBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
   "importId": zod.int(),
   "mapping": zod.object({
   "code": zod.string().nullable(),
@@ -398,9 +421,9 @@ export const ActivateRulebookVersionParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
-export const ActivateRulebookVersionBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
-})
+export const ActivateRulebookVersionBody = zod.looseObject({
+
+}).describe('Empty body. Who acts comes from the signed-in session.')
 
 export const ActivateRulebookVersionResponse = zod.object({
   "id": zod.int(),
@@ -526,8 +549,7 @@ export const ListDocumentsResponse = zod.object({
  * @summary Upload one PDF disclosure; text is extracted page by page
  */
 export const UploadDocumentBody = zod.object({
-  "file": zod.instanceof(Blob),
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
+  "file": zod.instanceof(Blob)
 })
 
 export const UploadDocumentResponse = zod.object({
@@ -741,7 +763,6 @@ export const confirmDocumentBodyVersionLabelMax = 60;
 
 
 export const ConfirmDocumentBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
   "bankId": zod.int(),
   "productId": zod.int(),
   "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),
@@ -854,7 +875,6 @@ export const rejectDocumentBodyReasonMax = 500;
 
 
 export const RejectDocumentBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
   "reason": zod.string().min(rejectDocumentBodyReasonMin).max(rejectDocumentBodyReasonMax)
 })
 
@@ -1053,7 +1073,6 @@ export const ListAssessmentsResponse = zod.object({
  * @summary Start an assessment of one card product against the active rulebook version. Runs in the background.
  */
 export const StartAssessmentBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
   "productId": zod.int()
 })
 
@@ -1194,9 +1213,9 @@ export const StopAssessmentParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
-export const StopAssessmentBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
-})
+export const StopAssessmentBody = zod.looseObject({
+
+}).describe('Empty body. Who acts comes from the signed-in session.')
 
 export const StopAssessmentResponse = zod.object({
   "id": zod.int(),
@@ -1236,9 +1255,9 @@ export const RequestDocumentAgentProposalParams = zod.object({
   "id": zod.coerce.number().int()
 })
 
-export const RequestDocumentAgentProposalBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
-})
+export const RequestDocumentAgentProposalBody = zod.looseObject({
+
+}).describe('Empty body. Who acts comes from the signed-in session.')
 
 export const RequestDocumentAgentProposalResponse = zod.object({
   "id": zod.int(),
@@ -1339,9 +1358,9 @@ export const RequestRulebookAgentMappingParams = zod.object({
   "importId": zod.coerce.number().int()
 })
 
-export const RequestRulebookAgentMappingBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
-})
+export const RequestRulebookAgentMappingBody = zod.looseObject({
+
+}).describe('Empty body. Who acts comes from the signed-in session.')
 
 export const RequestRulebookAgentMappingResponse = zod.object({
   "mapping": zod.object({
@@ -1392,6 +1411,7 @@ export const GetReviewQueueResponse = zod.object({
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
   "examinerNote": zod.string().nullable(),
   "role": zod.string(),
+  "actor": zod.string().nullable(),
   "decidedAt": zod.coerce.date()
 }),zod.null()])
 })),
@@ -1470,6 +1490,7 @@ export const GetFindingResponse = zod.object({
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
   "examinerNote": zod.string().nullable(),
   "role": zod.string(),
+  "actor": zod.string().nullable(),
   "decidedAt": zod.coerce.date()
 }),zod.null()]),
   "history": zod.array(zod.object({
@@ -1478,6 +1499,7 @@ export const GetFindingResponse = zod.object({
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
   "examinerNote": zod.string().nullable(),
   "role": zod.string(),
+  "actor": zod.string().nullable(),
   "decidedAt": zod.coerce.date()
 })).describe('Every decision on this finding, newest first'),
   "sourcePages": zod.array(zod.object({
@@ -1512,7 +1534,6 @@ export const decideFindingBodyExaminerNoteMax = 2000;
 
 
 export const DecideFindingBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
   "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]).optional(),
   "examinerNote": zod.string().max(decideFindingBodyExaminerNoteMax).nullish()
@@ -1565,6 +1586,7 @@ export const DecideFindingResponse = zod.object({
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
   "examinerNote": zod.string().nullable(),
   "role": zod.string(),
+  "actor": zod.string().nullable(),
   "decidedAt": zod.coerce.date()
 }),zod.null()]),
   "history": zod.array(zod.object({
@@ -1573,6 +1595,7 @@ export const DecideFindingResponse = zod.object({
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
   "examinerNote": zod.string().nullable(),
   "role": zod.string(),
+  "actor": zod.string().nullable(),
   "decidedAt": zod.coerce.date()
 })).describe('Every decision on this finding, newest first'),
   "sourcePages": zod.array(zod.object({
@@ -1603,7 +1626,6 @@ export const acceptCompliantFindingsBodyExaminerNoteMax = 2000;
 
 
 export const AcceptCompliantFindingsBody = zod.object({
-  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
   "assessmentId": zod.int(),
   "examinerNote": zod.string().max(acceptCompliantFindingsBodyExaminerNoteMax).nullish()
 })

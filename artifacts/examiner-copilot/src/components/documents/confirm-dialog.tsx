@@ -45,7 +45,7 @@ function sugStr(item: SuggestionItem | undefined, agent?: AgentField | null) {
 export function ConfirmDocumentDialog({
   doc, open, onOpenChange,
 }: { doc: DocumentSummary; open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const banks = useListBanks();
   const confirm = useConfirmDocument();
   const invalidate = useInvalidate();
@@ -82,7 +82,7 @@ export function ConfirmDocumentDialog({
       {
         id: doc.id,
         data: {
-          role, bankId: Number(bankId), productId: Number(productId),
+          bankId: Number(bankId), productId: Number(productId),
           docType: docType as DocType, language: language as DocLanguage,
           versionLabel: versionLabel.trim() || null,
         },

@@ -7,10 +7,15 @@ import libraryRouter from "./library";
 import documentsRouter from "./documents";
 import assessmentsRouter from "./assessments";
 import reviewRouter from "./review";
+import usersRouter from "./users";
+import { requireUser } from "../lib/auth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+// Everything below needs a signed-in person.
+router.use(requireUser);
+router.use(usersRouter);
 router.use(workspaceRouter);
 router.use(llmRouter);
 router.use(auditRouter);

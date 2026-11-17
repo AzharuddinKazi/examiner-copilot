@@ -43,7 +43,7 @@ export function useAgentNames() {
 /** The Ingestion agent's checked proposal, shown next to (never instead of) the rule-based suggestion. */
 export function AgentProposalPanel({ doc }: { doc: DocumentSummary }) {
   const p = doc.agentProposal;
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const ask = useRequestDocumentAgentProposal();
   const invalidate = useInvalidate();
   const { toast } = useToast();
@@ -51,7 +51,7 @@ export function AgentProposalPanel({ doc }: { doc: DocumentSummary }) {
   const running = p?.status === "running" || ask.isPending;
 
   const askAgain = () =>
-    ask.mutate({ id: doc.id, data: { role } }, {
+    ask.mutate({ id: doc.id, data: {} }, {
       onSuccess: () => invalidate([getGetDocumentQueryKey(doc.id), getListDocumentsQueryKey()]),
       onError: (e) => toast({ title: "Could not ask the Ingestion agent", description: parseApiError(e).message, variant: "destructive" }),
     });

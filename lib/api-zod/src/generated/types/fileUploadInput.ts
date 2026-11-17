@@ -5,9 +5,7 @@
  * Examiner Co-Pilot API. Agents propose, examiners decide.
  * OpenAPI spec version: 0.1.0
  */
-import type { Role } from './role';
 
 export interface FileUploadInput {
   file: Blob | File;
-  role: Role;
 }

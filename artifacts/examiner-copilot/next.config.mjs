@@ -20,6 +20,9 @@ const nextConfig = {
   ],
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
+    // Clerk sign-in. The proxy URL is empty in development and set automatically when published.
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY ?? process.env.VITE_CLERK_PUBLISHABLE_KEY ?? "",
+    NEXT_PUBLIC_CLERK_PROXY_URL: process.env.VITE_CLERK_PROXY_URL ?? process.env.CLERK_PROXY_URL ?? "",
   },
 };
 

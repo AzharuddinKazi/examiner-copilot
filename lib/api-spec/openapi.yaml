@@ -14,6 +14,8 @@ tags:
     description: Workspace mode (demo or live) and progress through the review steps
   - name: llm
     description: Language model provider status
+  - name: users
+    description: Signed-in people and their roles
   - name: audit
     description: Append-only audit log
   - name: library
@@ -136,24 +138,55 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuditChainVerification"
 
-  /audit/role-change:
-    post:
-      operationId: recordRoleChange
-      tags: [audit]
-      summary: Record that the self-selected (unverified) role changed
+  /me:
+    get:
+      operationId: getMe
+      tags: [users]
+      summary: The signed-in person and their role
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: Everyone who has signed in
+      responses:
+        "200":
+          description: People
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserList"
+
+  /users/{id}/role:
+    patch:
+      operationId: setUserRole
+      tags: [users]
+      summary: Change a person's role (senior examiners only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/RoleChangeInput"
+              $ref: "#/components/schemas/UserRoleInput"
       responses:
-        "201":
-          description: Recorded
+        "200":
+          description: Updated person
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuditEvent"
+                $ref: "#/components/schemas/User"
 
   /banks:
     get:
@@ -936,7 +969,7 @@ components:
     Role:
       type: string
       enum: [examiner, senior_examiner, viewer]
-      description: Self-selected and unverified. Never treated as authentication.
+      description: Assigned to each signed-in person by a senior examiner.
 
     WorkspaceStatus:
       type: object
@@ -1039,23 +1072,39 @@ components:
 
     RoleContext:
       type: object
-      required: [role]
+      description: Empty body. Who acts comes from the signed-in session.
+      properties: {}
+
+    User:
+      type: object
+      required: [id, name, email, role, createdAt, lastSeenAt]
       properties:
+        id: { type: integer }
+        name: { type: ["string", "null"] }
+        email: { type: ["string", "null"] }
         role:
           $ref: "#/components/schemas/Role"
+        createdAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
 
-    RoleChangeInput:
+    UserList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/User" }
+
+    UserRoleInput:
       type: object
       required: [role]
       properties:
         role:
           $ref: "#/components/schemas/Role"
-        previousRole:
-          type: ["string", "null"]
 
     AuditEvent:
       type: object
-      required: [id, dataset, ts, role, action, entityType, entityId, summary, hash]
+      required: [id, dataset, ts, role, actor, action, entityType, entityId, summary, hash]
       properties:
         id: { type: integer }
         dataset:
@@ -1064,6 +1113,8 @@ components:
           type: string
           format: date-time
         role:
+          type: ["string", "null"]
+        actor:
           type: ["string", "null"]
         action: { type: string }
         entityType: { type: string }
@@ -1113,13 +1164,11 @@ components:
 
     FileUploadInput:
       type: object
-      required: [file, role]
+      required: [file]
       properties:
         file:
           type: string
           format: binary
-        role:
-          $ref: "#/components/schemas/Role"
 
     Product:
       type: object
@@ -1153,17 +1202,15 @@ components:
 
     BankInput:
       type: object
-      required: [role, nameEn]
+      required: [nameEn]
       properties:
-        role: { $ref: "#/components/schemas/Role" }
         nameEn: { type: string, minLength: 2, maxLength: 120 }
         nameAr: { type: ["string", "null"], maxLength: 120 }
 
     ProductInput:
       type: object
-      required: [role, name]
+      required: [name]
       properties:
-        role: { $ref: "#/components/schemas/Role" }
         name: { type: string, minLength: 2, maxLength: 120 }
         cardTier: { type: ["string", "null"], maxLength: 60 }
 
@@ -1305,9 +1352,8 @@ components:
 
     ConfirmDocumentInput:
       type: object
-      required: [role, bankId, productId, docType, language]
+      required: [bankId, productId, docType, language]
       properties:
-        role: { $ref: "#/components/schemas/Role" }
         bankId: { type: integer }
         productId: { type: integer }
         docType: { $ref: "#/components/schemas/DocType" }
@@ -1316,9 +1362,8 @@ components:
 
     RejectDocumentInput:
       type: object
-      required: [role, reason]
+      required: [reason]
       properties:
-        role: { $ref: "#/components/schemas/Role" }
         reason: { type: string, minLength: 3, maxLength: 500 }
 
     ColumnMapping:
@@ -1367,9 +1412,8 @@ components:
 
     RulebookImportInput:
       type: object
-      required: [role, importId, mapping, dryRun]
+      required: [importId, mapping, dryRun]
       properties:
-        role: { $ref: "#/components/schemas/Role" }
         importId: { type: integer }
         mapping: { $ref: "#/components/schemas/ColumnMapping" }
         dryRun: { type: boolean }
@@ -1560,9 +1604,8 @@ components:
 
     StartAssessmentInput:
       type: object
-      required: [role, productId]
+      required: [productId]
       properties:
-        role: { $ref: "#/components/schemas/Role" }
         productId: { type: integer }
 
     CandidateDocument:
@@ -1791,7 +1834,7 @@ components:
 
     Decision:
       type: object
-      required: [id, decision, finalStatus, examinerNote, role, decidedAt]
+      required: [id, decision, finalStatus, examinerNote, role, actor, decidedAt]
       properties:
         id: { type: integer }
         decision: { $ref: "#/components/schemas/DecisionKind" }
@@ -1801,13 +1844,13 @@ components:
             - { type: "null" }
         examinerNote: { type: ["string", "null"] }
         role: { type: string }
+        actor: { type: ["string", "null"] }
         decidedAt: { type: string, format: date-time }
 
     DecisionInput:
       type: object
-      required: [role, decision]
+      required: [decision]
       properties:
-        role: { $ref: "#/components/schemas/Role" }
         decision: { $ref: "#/components/schemas/DecisionKind" }
         finalStatus:
           oneOf:
@@ -1925,9 +1968,8 @@ components:
 
     BulkAcceptInput:
       type: object
-      required: [role, assessmentId]
+      required: [assessmentId]
       properties:
-        role: { $ref: "#/components/schemas/Role" }
         assessmentId: { type: integer }
         examinerNote: { type: ["string", "null"], maxLength: 2000 }
 

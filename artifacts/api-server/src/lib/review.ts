@@ -1,3 +1,4 @@
+import { actorLabel, currentUser } from "./auth";
 /**
  * Review and decide (M3). The queue holds findings from the latest finished assessment of each
  * product. Decisions are append-only; the latest row per finding wins. Older assessments stay
@@ -59,7 +60,7 @@ export async function latestFinished(dataset: Dataset): Promise<AssessmentRow[]>
 }
 
 function toDecision(d: typeof decisionsTable.$inferSelect) {
-  return { id: d.id, decision: d.decision, finalStatus: d.finalStatus, examinerNote: d.examinerNote, role: d.role, decidedAt: d.decidedAt };
+  return { id: d.id, decision: d.decision, finalStatus: d.finalStatus, examinerNote: d.examinerNote, role: d.role, actor: d.actor, decidedAt: d.decidedAt };
 }
 
 async function latestDecisions(findingIds: number[]) {
@@ -279,7 +280,7 @@ export async function recordDecision(
         ? `Changed ${code} from ${STATUS_LABEL[f.proposedStatus]} to ${STATUS_LABEL[finalStatus!]}.`
         : `Rejected the proposed ${STATUS_LABEL[f.proposedStatus]} for ${code}.`;
   await db.transaction(async (tx) => {
-    await tx.insert(decisionsTable).values({ dataset, findingId: f.id, decision: input.decision, finalStatus, examinerNote: note, role });
+    await tx.insert(decisionsTable).values({ dataset, findingId: f.id, decision: input.decision, finalStatus, examinerNote: note, role, actor: actorLabel(currentUser()) });
     await appendAudit(
       {
         dataset,
@@ -310,7 +311,7 @@ export async function bulkAccept(dataset: Dataset, assessmentId: number, role: s
   const note = examinerNote?.trim() || null;
   const [product] = a.productId ? await db.select().from(productsTable).where(eq(productsTable.id, a.productId)) : [];
   await db.transaction(async (tx) => {
-    await tx.insert(decisionsTable).values(eligible.map((f) => ({ dataset, findingId: f.id, decision: "accept" as const, finalStatus: f.proposedStatus, examinerNote: note, role })));
+    await tx.insert(decisionsTable).values(eligible.map((f) => ({ dataset, findingId: f.id, decision: "accept" as const, finalStatus: f.proposedStatus, examinerNote: note, role, actor: actorLabel(currentUser()) })));
     await appendAudit(
       {
         dataset,

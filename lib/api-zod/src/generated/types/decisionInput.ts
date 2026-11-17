@@ -7,10 +7,8 @@
  */
 import type { DecisionKind } from './decisionKind';
 import type { FindingStatus } from './findingStatus';
-import type { Role } from './role';
 
 export interface DecisionInput {
-  role: Role;
   decision: DecisionKind;
   finalStatus?: FindingStatus | null;
   /**

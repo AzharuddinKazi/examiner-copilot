@@ -7,10 +7,8 @@
  */
 import type { DocLanguage } from './docLanguage';
 import type { DocType } from './docType';
-import type { Role } from './role';
 
 export interface ConfirmDocumentInput {
-  role: Role;
   bankId: number;
   productId: number;
   docType: DocType;

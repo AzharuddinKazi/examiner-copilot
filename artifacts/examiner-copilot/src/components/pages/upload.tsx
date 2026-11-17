@@ -140,7 +140,7 @@ function DocumentTable({ docs, onConfirm, onReject }: {
 }
 
 export function UploadView() {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const docs = useListDocuments({
     query: { queryKey: getListDocumentsQueryKey(), refetchInterval: (qq) => (qq.state.data?.items.some((d) => d.agentProposal?.status === "running") ? 3000 : false) },
   });
@@ -173,7 +173,7 @@ export function UploadView() {
       if (r.state !== "queued") continue;
       patch(r.key, { state: "uploading" });
       try {
-        const d = await upload.mutateAsync({ data: { file: r.file, role } });
+        const d = await upload.mutateAsync({ data: { file: r.file } });
         patch(r.key, {
           state: "done", docId: d.id,
           message: d.gapPages.length ? `Uploaded, ${d.pageCount} pages. ${gapText(d.gapPages.length)}.` : `Uploaded, ${d.pageCount} pages with text.`,

@@ -7,8 +7,13 @@
  */
 import type { Role } from './role';
 
-export interface RoleChangeInput {
-  role: Role;
+export interface User {
+  id: number;
   /** @nullable */
-  previousRole?: string | null;
+  name: string | null;
+  /** @nullable */
+  email: string | null;
+  role: Role;
+  createdAt: Date;
+  lastSeenAt: Date;
 }

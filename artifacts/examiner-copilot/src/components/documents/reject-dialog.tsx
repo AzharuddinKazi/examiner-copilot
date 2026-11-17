@@ -15,7 +15,7 @@ import { useCanWrite, useInvalidate, ViewerReason } from "@/lib/write-access";
 export function RejectDocumentDialog({
   doc, open, onOpenChange,
 }: { doc: DocumentSummary; open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const reject = useRejectDocument();
   const invalidate = useInvalidate();
   const { toast } = useToast();
@@ -27,7 +27,7 @@ export function RejectDocumentDialog({
 
   const submit = () => {
     if (!valid) return;
-    reject.mutate({ id: doc.id, data: { role, reason: trimmed } }, {
+    reject.mutate({ id: doc.id, data: { reason: trimmed } }, {
       onSuccess: () => {
         invalidate([getListDocumentsQueryKey(), getGetDocumentQueryKey(doc.id), getListBanksQueryKey()]);
         toast({ title: "Document rejected", description: "It will be left out of assessment." });

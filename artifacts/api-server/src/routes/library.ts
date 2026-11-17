@@ -74,7 +74,7 @@ router.get("/banks", async (_req, res): Promise<void> => {
 });
 
 router.post("/banks", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const parsed = CreateBankBody.safeParse(req.body);
   if (!parsed.success) {
@@ -101,7 +101,7 @@ router.post("/banks", async (req, res): Promise<void> => {
 });
 
 router.post("/banks/:id/products", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const params = CreateProductParams.safeParse(req.params);
   const body = CreateProductBody.safeParse(req.body);
@@ -168,7 +168,7 @@ router.get("/rulebooks/template.xlsx", async (_req, res): Promise<void> => {
 
 router.post("/rulebooks/import/preview", async (req, res): Promise<void> => {
   if (!(await receiveFile(req, res, XLSX_LIMITS.maxBytes, ".xlsx rulebook"))) return;
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const file = req.file!;
   if (!/\.xlsx$/i.test(file.originalname)) {
@@ -209,7 +209,7 @@ router.post("/rulebooks/import/preview", async (req, res): Promise<void> => {
 });
 
 router.post("/rulebooks/import/:importId/agent-mapping", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const params = RequestRulebookAgentMappingParams.safeParse(req.params);
   const dataset = await getActiveDataset();
@@ -256,7 +256,7 @@ router.post("/rulebooks/import/:importId/agent-mapping", async (req, res): Promi
 });
 
 router.post("/rulebooks/import/commit", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const body = CommitRulebookImportBody.safeParse(req.body);
   if (!body.success) {
@@ -359,7 +359,7 @@ router.get("/rulebook-versions/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/rulebook-versions/:id/activate", async (req, res): Promise<void> => {
-  const role = requireWriter(req.body?.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const params = ActivateRulebookVersionParams.safeParse(req.params);
   if (!params.success || !ActivateRulebookVersionBody.safeParse(req.body).success) {

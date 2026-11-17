@@ -15,5 +15,7 @@ export interface Decision {
   /** @nullable */
   examinerNote: string | null;
   role: string;
+  /** @nullable */
+  actor: string | null;
   decidedAt: Date;
 }

@@ -39,7 +39,9 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 - Next.js is the UI only; all server logic lives in the shared Express API at `/api` (the proxy routes `/api` there, so Next route handlers must not use `/api`).
 - Every business table has a `dataset` column; the workspace is always `live`. On API startup `removeDemoData()` deletes any leftover `demo` rows in one transaction and sets `app_state` to live (idempotent). There is no demo loader.
 - Audit log is append-only with a per-dataset sha256 hash chain, so purging demo data leaves the live chain intact.
-- Write endpoints take `role` in the body (a form field for uploads); Viewer gets 403. This prevents accidents only; roles are unverified.
+- Sign-in: Replit-managed Clerk (email/password, Google). Every /api route except /healthz requires a session (`requireUser` in `lib/auth.ts`); the local `users` table holds the assigned role. The first person to sign in (per environment) becomes Senior examiner, everyone after starts as Viewer; senior examiners change roles in Settings → People, and the last senior examiner cannot be demoted.
+- Write permission comes from the signed-in person's stored role, never from the request body. The actor ("Name <email>") is taken from request context (AsyncLocalStorage) and stored on audit events and decisions; it is part of the audit hash only when present.
+- Next.js reads the Clerk key through `next.config.mjs` env (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` from `CLERK_PUBLISHABLE_KEY`, proxy URL from `VITE_CLERK_PROXY_URL`). Sign-in pages live at `/sign-in` and `/sign-up` catch-all routes; signed-out visitors see a welcome screen.
 - Exactly one active rulebook version per dataset; activating one retires the previous one. Retired versions cannot be reactivated.
 - Duplicate uploads are detected by sha256 within the dataset (409 with `existingId`).
 - The model adapter throws a clear `LlmError` on any missing config or provider failure; it never returns fabricated content.
@@ -52,9 +54,9 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 
 - Stack: Next.js (user chose to keep it over the default Vite).
 - Push to GitHub at the end of each milestone, after tests pass.
-- No demo data; the user wants a clean workspace for production data. Keep the UI free of model names and filler text; the role (sign-in) selector sits at the bottom of the sidebar.
+- No demo data; the user wants a clean workspace for production data. Keep the UI free of model names and filler text; the signed-in user menu sits at the bottom of the sidebar.
 - Statuses: Compliant, Breach, Warning, Needs review, Not applicable; severity separate (Low/Medium/High).
-- Roles: Examiner, Senior examiner, Viewer (self-selected, unverified). Viewer cannot record decisions or draft notices.
+- Roles: Examiner, Senior examiner, Viewer, assigned per person by a senior examiner. Viewer cannot change anything.
 - 14 business days count from an examiner-entered reference date; day 1 is the next business day; weekend Sat–Sun.
 - Disclosures PDF only; rulebook .xlsx only.
 

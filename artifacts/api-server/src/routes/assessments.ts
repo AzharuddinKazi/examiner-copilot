@@ -6,7 +6,6 @@ import {
   GetAssessmentParams,
   GetAssessmentResponse,
   StopAssessmentParams,
-  StopAssessmentBody,
   StopAssessmentResponse,
 } from "@workspace/api-zod";
 import { db, assessmentsTable, assessmentDocumentsTable, documentsTable, productsTable, rulesTable } from "@workspace/db";
@@ -49,10 +48,10 @@ router.get("/assessments", async (_req, res): Promise<void> => {
 router.post("/assessments", async (req, res): Promise<void> => {
   const parsed = StartAssessmentBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "A role and productId are required." });
+    res.status(400).json({ error: "A productId is required." });
     return;
   }
-  const role = requireWriter(parsed.data.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const dataset = await getActiveDataset();
   const [product] = await db.select().from(productsTable).where(and(eq(productsTable.dataset, dataset), eq(productsTable.id, parsed.data.productId)));
@@ -132,12 +131,11 @@ router.get("/assessments/:id", async (req, res): Promise<void> => {
 
 router.post("/assessments/:id/stop", async (req, res): Promise<void> => {
   const p = StopAssessmentParams.safeParse(req.params);
-  const b = StopAssessmentBody.safeParse(req.body);
-  if (!p.success || !b.success) {
-    res.status(400).json({ error: "A role is required." });
+  if (!p.success) {
+    res.status(400).json({ error: "Invalid assessment id." });
     return;
   }
-  const role = requireWriter(b.data.role, res);
+  const role = requireWriter(req, res);
   if (!role) return;
   const dataset = await getActiveDataset();
   const row = await getAssessmentRow(dataset, p.data.id);

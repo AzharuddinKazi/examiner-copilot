@@ -17,7 +17,7 @@ import { parseApiError } from "@/lib/api-errors";
 import { useCanWrite, useInvalidate, ViewerReason } from "@/lib/write-access";
 
 function BankDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const create = useCreateBank();
   const invalidate = useInvalidate();
   const { toast } = useToast();
@@ -26,7 +26,7 @@ function BankDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: b
   const submit = () => {
     if (!valid) return;
     setError(null);
-    create.mutate({ data: { role, nameEn: en.trim(), nameAr: ar.trim() || null } }, {
+    create.mutate({ data: { nameEn: en.trim(), nameAr: ar.trim() || null } }, {
       onSuccess: (b) => {
         invalidate([getListBanksQueryKey()]);
         toast({ title: "Bank added", description: b.nameEn });
@@ -61,7 +61,7 @@ function BankDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: b
 }
 
 function ProductForm({ bank, onDone }: { bank: Bank; onDone: () => void }) {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const create = useCreateProduct();
   const invalidate = useInvalidate();
   const [name, setName] = useState(""); const [tier, setTier] = useState(""); const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,7 @@ function ProductForm({ bank, onDone }: { bank: Bank; onDone: () => void }) {
     <form className="mt-3 space-y-2 rounded-md border border-dashed border-border p-3" data-testid={`form-add-product-${bank.id}`}
       onSubmit={(e) => {
         e.preventDefault(); if (!valid) return; setError(null);
-        create.mutate({ id: bank.id, data: { role, name: name.trim(), cardTier: tier.trim() || null } }, {
+        create.mutate({ id: bank.id, data: { name: name.trim(), cardTier: tier.trim() || null } }, {
           onSuccess: () => { invalidate([getListBanksQueryKey()]); setName(""); setTier(""); onDone(); },
           onError: (er) => setError(parseApiError(er).message),
         });

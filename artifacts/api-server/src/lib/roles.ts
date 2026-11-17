@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 
 export const ROLES = ["examiner", "senior_examiner", "viewer"] as const;
 export type Role = (typeof ROLES)[number];
@@ -13,21 +13,23 @@ export function parseRole(value: unknown): Role | null {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value) ? (value as Role) : null;
 }
 
-/**
- * Roles are self-selected and unverified. This guard only stops accidental changes
- * from the Viewer role; it is not access control. Returns the role, or sends the error.
- */
-export function requireWriter(value: unknown, res: Response): Role | null {
-  const role = parseRole(value);
+/** Write access comes from the signed-in person's assigned role. Returns the role, or sends the error. */
+export function requireWriter(req: Request, res: Response): Role | null {
+  const role = req.user?.role;
   if (!role) {
-    res.status(400).json({ error: "A role is required (examiner, senior_examiner or viewer)." });
+    res.status(401).json({ error: "Sign in to continue." });
     return null;
   }
   if (role === "viewer") {
-    res.status(403).json({
-      error: "Viewer can look but not change anything. Change your role at the bottom of the sidebar (self-selected, not verified).",
-    });
+    res.status(403).json({ error: "Your account has view-only access. Ask a senior examiner to change your role." });
     return null;
   }
   return role;
+}
+
+/** Managing people is limited to senior examiners. */
+export function requireSenior(req: Request, res: Response): boolean {
+  if (req.user?.role === "senior_examiner") return true;
+  res.status(403).json({ error: "Only a senior examiner can change roles." });
+  return false;
 }

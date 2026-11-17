@@ -26,7 +26,6 @@ import type {
   AssessmentList,
   AssessmentSummary,
   AuditChainVerification,
-  AuditEvent,
   AuditEventPage,
   Bank,
   BankInput,
@@ -50,7 +49,6 @@ import type {
   ProductInput,
   RejectDocumentInput,
   ReviewQueue,
-  RoleChangeInput,
   RoleContext,
   RulebookImportInput,
   RulebookImportPreview,
@@ -59,6 +57,9 @@ import type {
   RulebookVersionDetail,
   RulebookVersionSummary,
   StartAssessmentInput,
+  User,
+  UserList,
+  UserRoleInput,
   WorkspaceProgress,
   WorkspaceStatus
 } from './api.schemas';
@@ -648,18 +649,173 @@ export function useVerifyAuditChain<TData = Awaited<ReturnType<typeof verifyAudi
 
 
 
-export const getRecordRoleChangeUrl = () => {
+export const getGetMeUrl = () => {
 
 
 
 
-  return `/api/audit/role-change`
+  return `/api/me`
 }
 
 /**
- * @summary Record that the self-selected (unverified) role changed
+ * @summary The signed-in person and their role
  */
-export const recordRoleChange = async (roleChangeInput: RoleChangeInput, options?: Parameters<typeof customFetch>[1]): Promise<AuditEvent> => {
+export const getMe = async ( options?: Parameters<typeof customFetch>[1]): Promise<User> => {
+
+  return customFetch<User>(getGetMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMeQueryKey = () => {
+    return [
+    `/api/me`
+    ] as const;
+    }
+
+
+export const getGetMeQueryOptions = <TData = Awaited<ReturnType<typeof getMe>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMe>>> = ({ signal }) => getMe({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMeQueryResult = NonNullable<Awaited<ReturnType<typeof getMe>>>
+export type GetMeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary The signed-in person and their role
+ */
+
+export function useGetMe<TData = Awaited<ReturnType<typeof getMe>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListUsersUrl = () => {
+
+
+
+
+  return `/api/users`
+}
+
+/**
+ * @summary Everyone who has signed in
+ */
+export const listUsers = async ( options?: Parameters<typeof customFetch>[1]): Promise<UserList> => {
+
+  return customFetch<UserList>(getListUsersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListUsersQueryKey = () => {
+    return [
+    `/api/users`
+    ] as const;
+    }
+
+
+export const getListUsersQueryOptions = <TData = Awaited<ReturnType<typeof listUsers>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListUsersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listUsers>>> = ({ signal }) => listUsers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListUsersQueryResult = NonNullable<Awaited<ReturnType<typeof listUsers>>>
+export type ListUsersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Everyone who has signed in
+ */
+
+export function useListUsers<TData = Awaited<ReturnType<typeof listUsers>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListUsersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetUserRoleUrl = (id: number,) => {
+
+
+
+
+  return `/api/users/${id}/role`
+}
+
+/**
+ * @summary Change a person's role (senior examiners only)
+ */
+export const setUserRole = async (id: number,
+    userRoleInput: UserRoleInput, options?: Parameters<typeof customFetch>[1]): Promise<User> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -675,12 +831,12 @@ export const recordRoleChange = async (roleChangeInput: RoleChangeInput, options
     }
     return headers;
   };
-return customFetch<AuditEvent>(getRecordRoleChangeUrl(),
+return customFetch<User>(getSetUserRoleUrl(id),
   {
     ...options,
-    method: 'POST',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(roleChangeInput)
+    body: JSON.stringify(userRoleInput)
   }
 );}
 
@@ -688,13 +844,13 @@ return customFetch<AuditEvent>(getRecordRoleChangeUrl(),
 
 
 
-export const getRecordRoleChangeMutationKey = () => ['recordRoleChange'] as const;
+export const getSetUserRoleMutationKey = () => ['setUserRole'] as const;
 
-export const getRecordRoleChangeMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordRoleChange>>, TError,RecordRoleChangeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof recordRoleChange>>, TError,RecordRoleChangeMutationVariables, TContext> => {
+export const getSetUserRoleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserRole>>, TError,SetUserRoleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setUserRole>>, TError,SetUserRoleMutationVariables, TContext> => {
 
-const mutationKey = getRecordRoleChangeMutationKey();
+const mutationKey = getSetUserRoleMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -704,10 +860,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordRoleChange>>, RecordRoleChangeMutationVariables> = (props) => {
-          const {data} = props ?? {};
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setUserRole>>, SetUserRoleMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
 
-          return  recordRoleChange(data,requestOptions)
+          return  setUserRole(id,data,requestOptions)
         }
 
 
@@ -717,23 +873,23 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type RecordRoleChangeMutationResult = NonNullable<Awaited<ReturnType<typeof recordRoleChange>>>
-    export type RecordRoleChangeMutationBody = BodyType<RoleChangeInput>
-    export type RecordRoleChangeMutationError = ErrorType<unknown>
-    export type RecordRoleChangeMutationVariables = {data: BodyType<RoleChangeInput>}
+    export type SetUserRoleMutationResult = NonNullable<Awaited<ReturnType<typeof setUserRole>>>
+    export type SetUserRoleMutationBody = BodyType<UserRoleInput>
+    export type SetUserRoleMutationError = ErrorType<unknown>
+    export type SetUserRoleMutationVariables = {id: number;data: BodyType<UserRoleInput>}
 
     /**
- * @summary Record that the self-selected (unverified) role changed
+ * @summary Change a person's role (senior examiners only)
  */
-export const useRecordRoleChange = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordRoleChange>>, TError,RecordRoleChangeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+export const useSetUserRole = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setUserRole>>, TError,SetUserRoleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
-        Awaited<ReturnType<typeof recordRoleChange>>,
+        Awaited<ReturnType<typeof setUserRole>>,
         TError,
-        RecordRoleChangeMutationVariables,
+        SetUserRoleMutationVariables,
         TContext
       > => {
-      return useMutation(getRecordRoleChangeMutationOptions(options));
+      return useMutation(getSetUserRoleMutationOptions(options));
     }
 
 export const getListBanksUrl = () => {
@@ -1081,7 +1237,6 @@ export const getPreviewRulebookImportUrl = () => {
 export const previewRulebookImport = async (fileUploadInput: FileUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<RulebookImportPreview> => {
     const formData = new FormData();
 formData.append(`file`, fileUploadInput.file);
-formData.append(`role`, fileUploadInput.role);
 
   return customFetch<RulebookImportPreview>(getPreviewRulebookImportUrl(),
   {
@@ -1489,7 +1644,6 @@ export const getUploadDocumentUrl = () => {
 export const uploadDocument = async (fileUploadInput: FileUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<DocumentSummary> => {
     const formData = new FormData();
 formData.append(`file`, fileUploadInput.file);
-formData.append(`role`, fileUploadInput.role);
 
   return customFetch<DocumentSummary>(getUploadDocumentUrl(),
   {

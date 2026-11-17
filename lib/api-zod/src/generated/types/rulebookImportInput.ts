@@ -6,10 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ColumnMapping } from './columnMapping';
-import type { Role } from './role';
 
 export interface RulebookImportInput {
-  role: Role;
   importId: number;
   mapping: ColumnMapping;
   dryRun: boolean;

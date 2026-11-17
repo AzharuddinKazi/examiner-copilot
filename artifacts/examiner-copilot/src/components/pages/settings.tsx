@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
 import { QueryError, errorMessage } from "@/components/states";
 import { StatusPill, ToolText } from "@/components/voice";
-import { useRole } from "@/lib/role";
+import { People } from "@/components/settings/people";
 
 function Row({ k, v, testId }: { k: string; v: React.ReactNode; testId: string }) {
   return (
@@ -20,7 +20,6 @@ function Row({ k, v, testId }: { k: string; v: React.ReactNode; testId: string }
 }
 
 export function SettingsView() {
-  const { role } = useRole();
   const llm = useGetLlmStatus();
   const test = useTestLlmConnection();
   const result = test.data;
@@ -30,7 +29,7 @@ export function SettingsView() {
       eyebrow="Settings"
       question="How is this workspace set up?"
       primaryAction={
-        <Button onClick={() => test.mutate({ data: { role } })} disabled={test.isPending} data-testid="button-test-connection">
+        <Button onClick={() => test.mutate({ data: {} })} disabled={test.isPending} data-testid="button-test-connection">
           <PlugZap aria-hidden /> {test.isPending ? "Testing…" : "Test connection"}
         </Button>
       }
@@ -55,12 +54,13 @@ export function SettingsView() {
             </div>
           ) : null}
           {!result && !test.isPending && !test.isError ? (
-            <p className="text-sm text-muted-foreground">Test the model connection to confirm the key and model work. It makes one minimal call and records it with your self-selected role.</p>
+            <p className="text-sm text-muted-foreground">Test the model connection to confirm the key and model work. It makes one minimal call and records it in the audit log.</p>
           ) : null}
         </div>
       }
       evidence={
-        <div className="max-w-md">
+        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+          <People />
           <section className="rounded-lg border border-card-border bg-card p-4" data-testid="card-provider">
             <div className="mb-3 flex items-center gap-2">
               <Cpu className="size-4 text-muted-foreground" aria-hidden />

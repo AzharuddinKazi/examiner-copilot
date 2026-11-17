@@ -5,10 +5,8 @@
  * Examiner Co-Pilot API. Agents propose, examiners decide.
  * OpenAPI spec version: 0.1.0
  */
-import type { Role } from './role';
 
 export interface RejectDocumentInput {
-  role: Role;
   /**
      * @minLength 3
      * @maxLength 500

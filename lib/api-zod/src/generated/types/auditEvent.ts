@@ -13,6 +13,8 @@ export interface AuditEvent {
   ts: Date;
   /** @nullable */
   role: string | null;
+  /** @nullable */
+  actor: string | null;
   action: string;
   entityType: string;
   /** @nullable */

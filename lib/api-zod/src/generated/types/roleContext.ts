@@ -5,8 +5,8 @@
  * Examiner Co-Pilot API. Agents propose, examiners decide.
  * OpenAPI spec version: 0.1.0
  */
-import type { Role } from './role';
 
-export interface RoleContext {
-  role: Role;
-}
+/**
+ * Empty body. Who acts comes from the signed-in session.
+ */
+export interface RoleContext { [key: string]: unknown }

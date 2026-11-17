@@ -88,6 +88,7 @@ export const decisionsTable = pgTable("decisions", {
   finalStatus: findingStatusEnum("final_status"),
   examinerNote: text("examiner_note"),
   role: text("role").notNull(),
+  actor: text("actor"),
   decidedAt: timestamp("decided_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

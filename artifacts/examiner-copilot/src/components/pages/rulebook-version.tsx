@@ -19,7 +19,7 @@ import { CHECK_TYPE_LABELS, DOC_TYPE_SHORT, SEVERITY_PILL } from "@/lib/labels";
 import { useCanWrite, useInvalidate, ViewerReason } from "@/lib/write-access";
 
 export function RulebookVersionView({ id }: { id: number }) {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const q = useGetRulebookVersion(id, { query: { enabled: Number.isFinite(id), queryKey: getGetRulebookVersionQueryKey(id) } });
   const activate = useActivateRulebookVersion();
   const invalidate = useInvalidate();
@@ -39,7 +39,7 @@ export function RulebookVersionView({ id }: { id: number }) {
   const pill = VERSION_PILL[v.status];
   const doActivate = () => {
     setError(null);
-    activate.mutate({ id: v.id, data: { role } }, {
+    activate.mutate({ id: v.id, data: {} }, {
       onSuccess: () => {
         invalidate([getListRulebooksQueryKey(), getGetRulebookVersionQueryKey(v.id)]);
         toast({ title: `Version ${v.version} is active`, description: "Assessments will use it from now on." });

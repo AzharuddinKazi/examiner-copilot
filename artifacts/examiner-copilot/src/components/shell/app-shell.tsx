@@ -2,11 +2,14 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@clerk/react";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Nav } from "./nav";
-import { RoleSelect } from "./role-select";
+import { UserMenu } from "./user-menu";
+import { Welcome } from "./welcome";
 import { ThemeToggle } from "./theme-toggle";
 
 function Wordmark() {
@@ -21,16 +24,28 @@ function Wordmark() {
 }
 
 /** Who is working: pinned to the bottom of the sidebar. */
-function SignedInAs() {
+function SignedInAs({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <div className="mt-auto flex items-center gap-1.5 border-t border-sidebar-border pt-3" data-testid="block-signed-in">
-      <RoleSelect />
+    <div className="mt-auto flex items-center gap-1 border-t border-sidebar-border pt-2" data-testid="block-signed-in">
+      <UserMenu onNavigate={onNavigate} />
       <ThemeToggle />
     </div>
   );
 }
 
+const AUTH_PAGES = /^\/(sign-in|sign-up)(\/|$)/;
+
+/** Sign-in pages render on their own; everything else needs a signed-in person. */
 export function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const { isLoaded, isSignedIn } = useAuth();
+  if (AUTH_PAGES.test(pathname)) return <>{children}</>;
+  if (!isLoaded) return <div className="min-h-[100dvh] bg-background" aria-busy="true" />;
+  if (!isSignedIn) return <Welcome />;
+  return <SignedInShell>{children}</SignedInShell>;
+}
+
+function SignedInShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex min-h-[100dvh]">
@@ -57,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Wordmark />
               </SheetHeader>
               <Nav onNavigate={() => setOpen(false)} />
-              <SignedInAs />
+              <SignedInAs onNavigate={() => setOpen(false)} />
             </SheetContent>
           </Sheet>
           <Wordmark />

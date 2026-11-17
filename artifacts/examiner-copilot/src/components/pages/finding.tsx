@@ -26,6 +26,10 @@ import { CHECK_TYPE_LABELS, DOC_TYPE_SHORT, EVIDENCE_VERIFICATION_LABELS, FINDIN
 import { useCanWrite, ViewerReason } from "@/lib/write-access";
 import { cn } from "@/lib/utils";
 
+/** Who decided: the signed-in person, with their role at the time. */
+const who = (d: { actor: string | null; role: string }) =>
+  `${d.actor ? d.actor.replace(/\s*<.*>$/, "") : "Unknown"} (${ROLE_LABELS[d.role as RoleValue] ?? d.role})`;
+
 const CONTEXT = 360;
 
 /** Splits page text into plain and highlighted runs. Overlapping highlights are merged. */
@@ -93,7 +97,7 @@ function SourcePanel({ p }: { p: SourcePage }) {
 }
 
 function DecisionForm({ f, onDone }: { f: FindingDetail; onDone: (next: number | null) => void }) {
-  const { role, canWrite } = useCanWrite();
+  const { canWrite } = useCanWrite();
   const decide = useDecideFinding();
   const invalidate = useReviewInvalidate();
   const { toast } = useToast();
@@ -112,7 +116,7 @@ function DecisionForm({ f, onDone }: { f: FindingDetail; onDone: (next: number |
     if (!valid) return;
     setError(null);
     decide.mutate(
-      { id: f.id, data: { role, decision: kind, finalStatus: kind === "modify" ? (status as FindingStatus) : null, examinerNote: note.trim() || null } },
+      { id: f.id, data: { decision: kind, finalStatus: kind === "modify" ? (status as FindingStatus) : null, examinerNote: note.trim() || null } },
       {
         onSuccess: (r) => {
           invalidate(f.id);
@@ -232,7 +236,7 @@ export function FindingView({ id }: { id: number }) {
             <div className="space-y-2 rounded-lg border border-pen/30 bg-card p-4" data-testid="block-current-decision">
               <p className="flex flex-wrap items-center gap-2 text-sm"><span className="text-muted-foreground">You decided</span> <DecisionOutcome d={f.decision} /></p>
               {f.decision.examinerNote ? (
-                <ExaminerNote author={`${ROLE_LABELS[f.decision.role as RoleValue] ?? f.decision.role} (unverified) · ${format(new Date(f.decision.decidedAt), "d MMM yyyy, HH:mm")}`}>{f.decision.examinerNote}</ExaminerNote>
+                <ExaminerNote author={`${who(f.decision)} · ${format(new Date(f.decision.decidedAt), "d MMM yyyy, HH:mm")}`}>{f.decision.examinerNote}</ExaminerNote>
               ) : null}
             </div>
           ) : (
@@ -298,7 +302,7 @@ export function FindingView({ id }: { id: number }) {
                       <span className="font-mono">{format(new Date(h.decidedAt), "d MMM yyyy, HH:mm")}</span>
                       <DecisionOutcome d={h} />
                     </p>
-                    {h.examinerNote ? <ExaminerNote author={`${ROLE_LABELS[h.role as RoleValue] ?? h.role} (unverified)`}>{h.examinerNote}</ExaminerNote> : null}
+                    {h.examinerNote ? <ExaminerNote author={who(h)}>{h.examinerNote}</ExaminerNote> : null}
                   </li>
                 ))}
               </ol>

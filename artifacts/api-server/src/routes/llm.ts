@@ -46,7 +46,7 @@ router.post("/llm/test", async (req, res): Promise<void> => {
   const dataset = await getActiveDataset();
   await appendAudit({
     dataset,
-    role: parsed.data.role,
+    role: req.user?.role ?? null,
     action: "llm.test",
     entityType: "provider",
     entityId: "openrouter",

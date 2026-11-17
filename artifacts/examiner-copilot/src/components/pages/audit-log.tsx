@@ -110,7 +110,7 @@ export function AuditLog() {
             <QueryError title="Could not load audit events" error={events.error} onRetry={() => events.refetch()} retrying={events.isFetching} />
           ) : page.items.length === 0 ? (
             <EmptyState icon={ScrollText} title={action === ALL ? "No events recorded yet" : "No events for this action"} testId="empty-audit">
-              {action === ALL ? "Changing your role is the first thing that will appear here." : "Choose another action or show all."}
+              {action === ALL ? "Your first change will appear here." : "Choose another action or show all."}
             </EmptyState>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-card-border bg-card">
@@ -119,7 +119,7 @@ export function AuditLog() {
                   <tr>
                     <th className="w-8 px-2 py-2"><span className="sr-only">Expand</span></th>
                     <th className="px-3 py-2 font-semibold">Time</th>
-                    <th className="px-3 py-2 font-semibold">Role (unverified)</th>
+                    <th className="px-3 py-2 font-semibold">Person</th>
                     <th className="px-3 py-2 font-semibold">Action</th>
                     <th className="px-3 py-2 font-semibold">Entity</th>
                     <th className="px-3 py-2 font-semibold">Summary</th>
@@ -140,7 +140,7 @@ export function AuditLog() {
                             </Button>
                           </td>
                           <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">{fmt(e.ts)}</td>
-                          <td className="px-3 py-2 text-xs">{e.role ?? "—"} <span className="text-muted-foreground">· unverified</span></td>
+                          <td className="px-3 py-2 text-xs">{e.actor ? e.actor.replace(/\s*<.*>$/, "") : "System"}{e.role ? <span className="block text-muted-foreground">{e.role.replace("_", " ")}</span> : null}</td>
                           <td className="px-3 py-2 font-mono text-xs">{e.action}</td>
                           <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{e.entityType}{e.entityId ? `#${e.entityId}` : ""}</td>
                           <td className="px-3 py-2">{e.summary}</td>

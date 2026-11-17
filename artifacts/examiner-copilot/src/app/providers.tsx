@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
-import { RoleProvider } from "@/lib/role";
+import { AuthProvider } from "@/lib/auth";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -17,12 +17,12 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <RoleProvider>
+        <AuthProvider>
           <TooltipProvider>
             {children}
             <Toaster />
           </TooltipProvider>
-        </RoleProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

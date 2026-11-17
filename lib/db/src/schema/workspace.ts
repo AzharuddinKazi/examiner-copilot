@@ -24,6 +24,8 @@ export const auditLogTable = pgTable(
     dataset: datasetEnum("dataset").notNull(),
     ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
     role: text("role"),
+    /** Signed-in person (name and email) who caused the event; null for system events. */
+    actor: text("actor"),
     action: text("action").notNull(),
     entityType: text("entity_type").notNull(),
     entityId: text("entity_id"),

@@ -7,7 +7,7 @@ import { getGetWorkspaceProgressQueryKey, getListAuditEventsQueryKey } from "@wo
 import { useRole } from "@/lib/role";
 import { cn } from "@/lib/utils";
 
-export const VIEWER_REASON = "Viewer can look but not change anything (role is self-selected, not verified)";
+export const VIEWER_REASON = "Your account has view-only access. A senior examiner can change your role in Settings.";
 
 export function useCanWrite() {
   const { role } = useRole();
