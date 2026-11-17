@@ -1182,11 +1182,14 @@ components:
 
     Bank:
       type: object
-      required: [id, nameEn, nameAr, products, documentCount]
+      required: [id, nameEn, nameAr, logoUrl, products, documentCount]
       properties:
         id: { type: integer }
         nameEn: { type: string }
         nameAr: { type: ["string", "null"] }
+        logoUrl:
+          type: ["string", "null"]
+          description: Official logo, as a path relative to the web app (e.g. banks/adcb.svg). Null when the bank is not in the logo catalogue.
         products:
           type: array
           items: { $ref: "#/components/schemas/Product" }

@@ -38,6 +38,7 @@ import { activateVersion, createRulebookVersion, versionSummaries } from "../lib
 import { proposeMappingWithAgent } from "../lib/ingest/agent";
 import { llmReady } from "../lib/ingest/run";
 import { LlmError } from "../lib/llm/adapter";
+import { bankLogoUrl } from "../lib/bank-logos";
 import { renderRulebookTemplate, RULEBOOK_TEMPLATE_FILE } from "../lib/rulebook-template";
 
 const router: IRouter = Router();
@@ -59,6 +60,7 @@ router.get("/banks", async (_req, res): Promise<void> => {
     id: b.id,
     nameEn: b.nameEn,
     nameAr: b.nameAr,
+    logoUrl: bankLogoUrl(b.nameEn, b.nameAr),
     documentCount: docCounts.filter((d) => d.bankId === b.id).reduce((s, d) => s + d.n, 0),
     products: products
       .filter((p) => p.bankId === b.id)
@@ -97,7 +99,7 @@ router.post("/banks", async (req, res): Promise<void> => {
     );
     return b!;
   });
-  res.status(201).json(CreateBankResponse.parse({ ...bank, products: [], documentCount: 0 }));
+  res.status(201).json(CreateBankResponse.parse({ ...bank, logoUrl: bankLogoUrl(bank.nameEn, bank.nameAr), products: [], documentCount: 0 }));
 });
 
 router.post("/banks/:id/products", async (req, res): Promise<void> => {

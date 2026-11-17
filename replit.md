@@ -31,6 +31,7 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 - Rule-based upload suggestions (type, language, bank, product, each with a reason): `artifacts/api-server/src/lib/suggest.ts`
 - Rulebook .xlsx import (column mapping, row validation): `artifacts/api-server/src/lib/rulebook-import.ts`
 - Fictional test fixtures (3 banks, 12 rules, 12 PDFs), used only by unit tests: `artifacts/api-server/src/__tests__/fixtures/`
+- Banks in scope: ADCB, ADIB, CBD, Mashreq, for credit card product documents only. Official logos are in `artifacts/examiner-copilot/public/banks/` and matched to a bank by name (English or Arabic, short or full) in `artifacts/api-server/src/lib/bank-logos.ts`, so a bank re-added under the same name gets its logo. `src/scripts/add-uae-banks.ts` adds the four banks to an environment (idempotent, audited as "Setup script").
 - Empty rulebook template download: `GET /api/rulebooks/template.xlsx`
 - Voice components (bank / tool / examiner) and StatusPill: `artifacts/examiner-copilot/src/components/voice/`
 

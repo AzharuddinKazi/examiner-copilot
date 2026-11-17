@@ -124,7 +124,7 @@ export function DocumentDetailView({ id }: { id: number }) {
                 ["Document type", d.docType ? DOC_TYPE_LABELS[d.docType] : null],
                 ["Language", d.language ? LANGUAGE_LABELS[d.language] : null],
                 ["Version label", d.versionLabel],
-                ["Confirmed", d.confirmedAt ? `${format(new Date(d.confirmedAt), "d MMM yyyy, HH:mm")}${d.confirmedByRole ? ` by ${d.confirmedByRole} (unverified)` : ""}` : null],
+                ["Confirmed", d.confirmedAt ? `${format(new Date(d.confirmedAt), "d MMM yyyy, HH:mm")}${d.confirmedByRole ? ` by ${d.confirmedByRole.replace("_", " ")}` : ""}` : null],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4 border-b border-dashed border-border py-1.5">
                   <dt className="text-xs text-muted-foreground">{k}</dt>

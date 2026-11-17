@@ -209,6 +209,11 @@ export interface Bank {
   nameEn: string;
   /** @nullable */
   nameAr: string | null;
+  /**
+     * Official logo, as a path relative to the web app (e.g. banks/adcb.svg). Null when the bank is not in the logo catalogue.
+     * @nullable
+     */
+  logoUrl: string | null;
   products: Product[];
   documentCount: number;
 }

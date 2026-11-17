@@ -84,7 +84,7 @@ export function AuditLog() {
         ) : (
           <p className="max-w-prose text-sm text-muted-foreground">
             Every action is appended to a hash chain. Each event's hash covers the previous one, so altering any past event breaks the chain from that point.
-            Roles shown are self-selected and unverified.
+            Each event names the signed-in person who made it.
           </p>
         )
       }

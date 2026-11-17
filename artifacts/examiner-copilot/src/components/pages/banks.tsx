@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
+import { BankLogo } from "@/components/bank-logo";
 import { EmptyState, QueryError } from "@/components/states";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
@@ -99,8 +100,9 @@ function BankCard({ bank }: { bank: Bank }) {
   const [adding, setAdding] = useState(false);
   return (
     <article className="rounded-lg border border-card-border bg-card p-4" data-testid={`card-bank-${bank.id}`}>
-      <header className="flex items-start justify-between gap-3 border-b border-border pb-3">
-        <div className="min-w-0">
+      <header className="flex items-center gap-3 border-b border-border pb-3">
+        <BankLogo bank={bank} />
+        <div className="min-w-0 flex-1">
           <h3 className="font-semibold" data-testid={`text-bank-name-${bank.id}`}>{bank.nameEn}</h3>
           {bank.nameAr ? <p dir="rtl" lang="ar" className="font-arabic text-base text-muted-foreground" data-testid={`text-bank-name-ar-${bank.id}`}>{bank.nameAr}</p> : null}
         </div>

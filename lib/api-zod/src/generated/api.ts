@@ -190,6 +190,7 @@ export const ListBanksResponse = zod.object({
   "id": zod.int(),
   "nameEn": zod.string(),
   "nameAr": zod.string().nullable(),
+  "logoUrl": zod.string().nullable().describe('Official logo, as a path relative to the web app (e.g. banks/adcb.svg). Null when the bank is not in the logo catalogue.'),
   "products": zod.array(zod.object({
   "id": zod.int(),
   "bankId": zod.int(),
@@ -221,6 +222,7 @@ export const CreateBankResponse = zod.object({
   "id": zod.int(),
   "nameEn": zod.string(),
   "nameAr": zod.string().nullable(),
+  "logoUrl": zod.string().nullable().describe('Official logo, as a path relative to the web app (e.g. banks/adcb.svg). Null when the bank is not in the logo catalogue.'),
   "products": zod.array(zod.object({
   "id": zod.int(),
   "bankId": zod.int(),

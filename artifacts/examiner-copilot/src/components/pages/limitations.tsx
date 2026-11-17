@@ -71,7 +71,7 @@ export function Limitations() {
             </div>
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">The examiner's judgement</p>
-              <ExaminerNote author="Examiner · self-selected" data-testid="legend-examiner-note">
+              <ExaminerNote author="Examiner name (role)" data-testid="legend-examiner-note">
                 Agree the fee is disclosed, but it is not shown next to the minimum payment. Raise with the bank.
               </ExaminerNote>
             </div>
