@@ -3,7 +3,7 @@ import { pgEnum } from "drizzle-orm/pg-core";
 /** Every business row belongs to exactly one dataset. Demo and live never mix. */
 export const datasetEnum = pgEnum("dataset", ["demo", "live"]);
 
-export const docTypeEnum = pgEnum("doc_type", ["kfs", "tnc", "rewards", "fees"]);
+export const docTypeEnum = pgEnum("doc_type", ["kfs", "tnc", "rewards", "fees", "advert"]);
 export const languageEnum = pgEnum("doc_language", ["en", "ar"]);
 export const documentStatusEnum = pgEnum("document_status", ["uploaded", "proposed", "confirmed", "rejected"]);
 export const rulebookVersionStatusEnum = pgEnum("rulebook_version_status", ["draft", "active", "retired"]);

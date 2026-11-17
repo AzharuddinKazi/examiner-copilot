@@ -3,7 +3,7 @@
  * extracted text. These are proposals for the examiner to confirm or correct; nothing is
  * decided here. Document text is treated as data only.
  */
-export type DocType = "kfs" | "tnc" | "rewards" | "fees";
+export type DocType = "kfs" | "tnc" | "rewards" | "fees" | "advert";
 export type DocLanguage = "en" | "ar";
 
 export interface SuggestionItem<T> {
@@ -31,6 +31,7 @@ const DOC_TYPE_LABEL: Record<DocType, string> = {
   tnc: "Terms and Conditions",
   rewards: "Rewards terms",
   fees: "Fees Schedule",
+  advert: "Advertisement",
 };
 
 const DOC_TYPE_PATTERNS: Record<DocType, RegExp[]> = {
@@ -38,6 +39,7 @@ const DOC_TYPE_PATTERNS: Record<DocType, RegExp[]> = {
   tnc: [/terms\s*(and|&)\s*conditions/i, /\bt\s*&\s*c\b/i, /\btnc\b/i, /الشروط\s*والأحكام/],
   rewards: [/rewards?\s*(programme|program|terms)/i, /\brewards?\b/i, /المكافآت/],
   fees: [/schedule\s*of\s*(fees|charges)/i, /fees?\s*(schedule|and\s*charges)/i, /جدول\s*الرسوم/, /الرسوم\s*والتكاليف/],
+  advert: [/\badvert(isement)?s?\b/i, /\bmarketing\b/i, /\bpromo(tion(al)?)?\b/i, /\bbrochure\b/i, /\bleaflet\b/i, /إعلان/],
 };
 
 function countMatches(text: string, patterns: RegExp[]): number {

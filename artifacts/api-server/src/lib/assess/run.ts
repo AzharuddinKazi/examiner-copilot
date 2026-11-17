@@ -22,7 +22,8 @@ import { readLlmConfig } from "../llm/config";
 import { appendAudit } from "../audit";
 import type { Dataset } from "../dataset";
 import { logger } from "../logger";
-import type { CheckType, Threshold } from "../rulebook-import";
+import { parseAppliesTo, type CheckType, type Threshold } from "../rulebook-import";
+import type { DocType } from "../suggest";
 import {
   applicableDocs,
   decideBilingual,
@@ -54,7 +55,7 @@ import { detectInjection } from "./text";
 
 export const LIMITS = { stepLimit: 20, tokenLimit: 250_000, coordinatorRounds: 2 } as const;
 const MAX_TOKENS = { evidence: 12000, rule: 10000, consistency: 8000, coordinator: 6000 } as const;
-const DOC_LABEL = { kfs: "KFS", tnc: "T&C", rewards: "Rewards", fees: "Fees Schedule" } as const;
+const DOC_LABEL = { kfs: "KFS", tnc: "T&C", rewards: "Rewards", fees: "Fees Schedule", advert: "Advert" } as const;
 
 export interface Alert {
   kind: "injection" | "extraction_gap" | "missing_document" | "model_error";
@@ -213,12 +214,21 @@ async function loadInputs(dataset: Dataset, assessmentId: number) {
     threshold: (r.threshold as Threshold | null) ?? null,
     severity: r.severity,
     appliesToDocTypes: r.appliesToDocTypes,
+    details: r.details ?? [],
   }));
   return { assessment: a, docs, rules };
 }
 
+/** Document types a rule compares against (from a "compares with" rulebook column), besides those it runs on. */
+function compareDocTypes(r: AssessRule): DocType[] {
+  const raw = r.details?.find((d) => /compare/i.test(d.label))?.value;
+  return raw ? parseAppliesTo(raw).types : [];
+}
+
 const NUMERIC: CheckType[] = ["max_value", "min_value", "cross_document"];
-const JUDGED: CheckType[] = ["presence", "prohibited_language"];
+const JUDGED: CheckType[] = ["presence", "prohibited_language", "binary", "subjective", "calculation"];
+/** Most rules the Rule agent judges in one call; large rulebooks are split so answers stay complete. */
+const JUDGE_BATCH = 12;
 
 async function pool<T>(items: T[], size: number, fn: (t: T) => Promise<void>) {
   const queue = [...items];
@@ -259,7 +269,9 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
         });
       } else active.push(r);
     }
-    const missingTypes = (["kfs", "tnc", "rewards", "fees"] as const).filter((t) => !english.some((d) => d.docType === t));
+    const missingTypes = (["kfs", "tnc", "rewards", "fees", "advert"] as const).filter(
+      (t) => (t !== "advert" || rules.some((r) => r.appliesToDocTypes.includes(t))) && !english.some((d) => d.docType === t),
+    );
     for (const t of missingTypes) {
       alerts.push({ kind: "missing_document", message: `No confirmed English ${DOC_LABEL[t]} document is included. Rules that need it are marked Needs review.`, documentId: null, documentName: null, pageNo: null, quote: null });
     }
@@ -380,7 +392,7 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
     const judged = active.filter((r) => JUDGED.includes(r.checkType));
     const judgements = new Map<string, Judgement>();
     const judge = async (rs: AssessRule[], focusDocs?: AssessDoc[], focus?: string) => {
-      const relevant = focusDocs ?? english.filter((d) => rs.some((r) => r.appliesToDocTypes.includes(d.docType)));
+      const relevant = focusDocs ?? english.filter((d) => rs.some((r) => r.appliesToDocTypes.includes(d.docType) || compareDocTypes(r).includes(d.docType)));
       return ctx.call({
         agent: "rule",
         tool: "judge_rules",
@@ -394,7 +406,9 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
     };
     if (judged.length) {
       const totalChars = english.reduce((n, d) => n + d.pages.reduce((m, p) => m + p.text.length, 0), 0);
-      const groups = totalChars > 60_000 ? judged.map((r) => [r]) : [judged];
+      const groups: AssessRule[][] = [];
+      if (totalChars > 60_000) for (const r of judged) groups.push([r]);
+      else for (let i = 0; i < judged.length; i += JUDGE_BATCH) groups.push(judged.slice(i, i + JUDGE_BATCH));
       for (const [i, g] of groups.entries()) {
         await ctx.progress(`Rule agent judging ${g.map((r) => r.code).join(", ")}${groups.length > 1 ? ` (${i + 1} of ${groups.length})` : ""}`);
         const out = await judge(g);

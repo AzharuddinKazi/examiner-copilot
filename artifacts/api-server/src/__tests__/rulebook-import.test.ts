@@ -43,7 +43,7 @@ describe("row validation", () => {
         ["Code", "Title", "Text", "Check", "Applies to", "Threshold", "Severity"],
         ["R1", "Ok", "Rule text", "Must be stated", "KFS", "", "High"],
         ["R1", "Dup", "Rule text", "presence", "KFS", "", "Low"],
-        ["R3", "", "Rule text", "max", "Leaflet", "", "Urgent"],
+        ["R3", "", "Rule text", "max", "Billboard", "", "Urgent"],
         ["R4", "Cap", "Rule text", "maximum", "Fees", "no number", ""],
       ]),
     );
@@ -61,7 +61,7 @@ describe("row validation", () => {
     const { mapping } = proposeMapping(sheet.headers);
     const { rules, rowErrors } = buildRules(sheet, mapping);
     expect(rules).toEqual([]);
-    expect(rowErrors.map((e) => e.field).sort()).toEqual(["checkType", "code", "text", "title"]);
+    expect(rowErrors.map((e) => e.field).sort()).toEqual(["checkType", "code", "text"]);
   });
 
   it("rejects a column mapped twice", async () => {
@@ -81,7 +81,8 @@ describe("cell parsers", () => {
     expect(parseAppliesTo("Terms and Conditions, Fees Schedule").types).toEqual(["tnc", "fees"]);
     expect(parseAppliesTo("All").types).toEqual(["kfs", "tnc", "rewards", "fees"]);
     expect(parseAppliesTo("").types).toHaveLength(4);
-    expect(parseAppliesTo("KFS and Brochure").unknown).toEqual(["Brochure"]);
+    expect(parseAppliesTo("KFS and Billboard").unknown).toEqual(["Billboard"]);
+    expect(parseAppliesTo("TC;KFS;SOFC;REWARDS;ADVERT").types).toEqual(["kfs", "tnc", "rewards", "fees", "advert"]);
   });
   it("parses thresholds with units", () => {
     expect(parseThreshold("AED 1,500")).toEqual({ value: 1500, unit: "AED", raw: "AED 1,500" });
@@ -106,5 +107,30 @@ describe("CSV rulebooks", () => {
   it("rejects non-UTF-8 and binary files with a clear message", async () => {
     await expect(parseWorkbook(Buffer.from([0x52, 0x75, 0x6c, 0x65, 0xff, 0x2c, 0x0a, 0x61, 0x2c, 0x62]))).rejects.toThrow(/UTF-8/);
     await expect(parseWorkbook(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0]))).rejects.toThrow(/\.xls/);
+  });
+});
+
+describe("rulebook with role columns and extra criteria", () => {
+  it("maps rule_id / rule_type / runs_on_roles, derives titles and keeps extra columns", async () => {
+    const csv = [
+      "\uFEFFrule_id,rule_text,rule_type,severity,theme,runs_on_roles,compares_with_roles,satisfied",
+      'HK-1,"Every headline benefit must appear in the T&C. Second sentence.",Calculation,High,Advertising,ADVERT,TC;REWARDS,"All claims found."',
+      "S-2,The KFS must state the APR.,Binary,Medium,Interest,TC;KFS;SOFC,,",
+      "S-3,Terms must be fair.,Subjective,Low,Fairness,TC,,",
+    ].join("\r\n");
+    const sheet = await parseWorkbook(Buffer.from(csv, "utf8"));
+    const { mapping } = proposeMapping(sheet.headers);
+    expect(mapping).toMatchObject({ code: "rule_id", title: null, text: "rule_text", checkType: "rule_type", appliesTo: "runs_on_roles", category: "theme", severity: "severity" });
+    const { rules, rowErrors } = buildRules(sheet, mapping);
+    expect(rowErrors).toEqual([]);
+    expect(rules.map((r) => r.checkType)).toEqual(["calculation", "binary", "subjective"]);
+    expect(rules[0]!.appliesToDocTypes).toEqual(["advert"]);
+    expect(rules[1]!.appliesToDocTypes).toEqual(["kfs", "tnc", "fees"]);
+    expect(rules[0]!.title).toBe("Every headline benefit must appear in the T&C");
+    expect(rules[0]!.details).toEqual([
+      { label: "compares_with_roles", value: "TC;REWARDS" },
+      { label: "satisfied", value: "All claims found." },
+    ]);
+    expect(rules[1]!.details).toEqual([]);
   });
 });

@@ -350,14 +350,18 @@ export const CommitRulebookImportResponse = zod.object({
   "title": zod.string(),
   "text": zod.string(),
   "category": zod.string().nullable(),
-  "appliesToDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule')),
-  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "appliesToDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material')),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language', 'binary', 'subjective', 'calculation']),
   "threshold": zod.union([zod.object({
   "value": zod.number().nullable(),
   "unit": zod.string().nullable(),
   "raw": zod.string()
 }),zod.null()]),
-  "severity": zod.enum(['low', 'medium', 'high'])
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})).describe('Extra spreadsheet columns kept with the rule (for example evidence to look for, pass criteria, examples)')
 })),
   "rowErrors": zod.array(zod.object({
   "row": zod.int().describe('Spreadsheet row number (header is row 1)'),
@@ -404,14 +408,18 @@ export const GetRulebookVersionResponse = zod.object({
   "title": zod.string(),
   "text": zod.string(),
   "category": zod.string().nullable(),
-  "appliesToDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule')),
-  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "appliesToDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material')),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language', 'binary', 'subjective', 'calculation']),
   "threshold": zod.union([zod.object({
   "value": zod.number().nullable(),
   "unit": zod.string().nullable(),
   "raw": zod.string()
 }),zod.null()]),
-  "severity": zod.enum(['low', 'medium', 'high'])
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})).describe('Extra spreadsheet columns kept with the rule (for example evidence to look for, pass criteria, examples)')
 }))
 }))
 
@@ -450,7 +458,7 @@ export const ListDocumentsResponse = zod.object({
   "bankName": zod.string().nullable(),
   "productId": zod.int().nullable(),
   "productName": zod.string().nullable(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "versionLabel": zod.string().nullable(),
   "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
@@ -561,7 +569,7 @@ export const UploadDocumentResponse = zod.object({
   "bankName": zod.string().nullable(),
   "productId": zod.int().nullable(),
   "productName": zod.string().nullable(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "versionLabel": zod.string().nullable(),
   "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
@@ -660,7 +668,7 @@ export const GetDocumentResponse = zod.object({
   "bankName": zod.string().nullable(),
   "productId": zod.int().nullable(),
   "productName": zod.string().nullable(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "versionLabel": zod.string().nullable(),
   "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
@@ -767,7 +775,7 @@ export const confirmDocumentBodyVersionLabelMax = 60;
 export const ConfirmDocumentBody = zod.object({
   "bankId": zod.int(),
   "productId": zod.int(),
-  "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),
+  "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),
   "language": zod.enum(['en', 'ar']),
   "versionLabel": zod.string().max(confirmDocumentBodyVersionLabelMax).nullish()
 })
@@ -779,7 +787,7 @@ export const ConfirmDocumentResponse = zod.object({
   "bankName": zod.string().nullable(),
   "productId": zod.int().nullable(),
   "productName": zod.string().nullable(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "versionLabel": zod.string().nullable(),
   "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
@@ -887,7 +895,7 @@ export const RejectDocumentResponse = zod.object({
   "bankName": zod.string().nullable(),
   "productId": zod.int().nullable(),
   "productName": zod.string().nullable(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "versionLabel": zod.string().nullable(),
   "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
@@ -984,11 +992,11 @@ export const ListAssessmentCandidatesResponse = zod.object({
   "documents": zod.array(zod.object({
   "id": zod.int(),
   "originalName": zod.string(),
-  "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),
+  "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),
   "language": zod.enum(['en', 'ar']),
   "gapPages": zod.array(zod.int())
 })).describe('Confirmed documents that will be assessed'),
-  "missingDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule')).describe('Document types with no confirmed English document; rules for them become Needs review'),
+  "missingDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material')).describe('Document types with no confirmed English document; rules for them become Needs review'),
   "awaitingCount": zod.int().describe('Documents for this product still awaiting confirmation (not included)'),
   "ready": zod.boolean(),
   "notReadyReason": zod.string().nullable(),
@@ -1148,7 +1156,7 @@ export const GetAssessmentResponse = zod.object({
   "documents": zod.array(zod.object({
   "id": zod.int(),
   "originalName": zod.string(),
-  "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),
+  "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),
   "language": zod.enum(['en', 'ar']),
   "gapPages": zod.array(zod.int())
 })),
@@ -1170,7 +1178,7 @@ export const GetAssessmentResponse = zod.object({
   "ruleCode": zod.string(),
   "ruleTitle": zod.string(),
   "ruleText": zod.string(),
-  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language', 'binary', 'subjective', 'calculation']),
   "threshold": zod.union([zod.object({
   "value": zod.number().nullable(),
   "unit": zod.string().nullable(),
@@ -1185,7 +1193,7 @@ export const GetAssessmentResponse = zod.object({
   "id": zod.int(),
   "documentId": zod.int(),
   "documentName": zod.string(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "pageNo": zod.int(),
   "quote": zod.string().describe('The bank\'s words'),
@@ -1268,7 +1276,7 @@ export const RequestDocumentAgentProposalResponse = zod.object({
   "bankName": zod.string().nullable(),
   "productId": zod.int().nullable(),
   "productName": zod.string().nullable(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "versionLabel": zod.string().nullable(),
   "status": zod.enum(['uploaded', 'proposed', 'confirmed', 'rejected']).describe('proposed = the tool suggested details that await confirmation'),
@@ -1451,7 +1459,7 @@ export const GetFindingResponse = zod.object({
   "ruleCode": zod.string(),
   "ruleTitle": zod.string(),
   "ruleText": zod.string(),
-  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language', 'binary', 'subjective', 'calculation']),
   "threshold": zod.union([zod.object({
   "value": zod.number().nullable(),
   "unit": zod.string().nullable(),
@@ -1466,7 +1474,7 @@ export const GetFindingResponse = zod.object({
   "id": zod.int(),
   "documentId": zod.int(),
   "documentName": zod.string(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "pageNo": zod.int(),
   "quote": zod.string().describe('The bank\'s words'),
@@ -1507,7 +1515,7 @@ export const GetFindingResponse = zod.object({
   "sourcePages": zod.array(zod.object({
   "documentId": zod.int(),
   "documentName": zod.string(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "pageNo": zod.int(),
   "text": zod.string(),
@@ -1547,7 +1555,7 @@ export const DecideFindingResponse = zod.object({
   "ruleCode": zod.string(),
   "ruleTitle": zod.string(),
   "ruleText": zod.string(),
-  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language', 'binary', 'subjective', 'calculation']),
   "threshold": zod.union([zod.object({
   "value": zod.number().nullable(),
   "unit": zod.string().nullable(),
@@ -1562,7 +1570,7 @@ export const DecideFindingResponse = zod.object({
   "id": zod.int(),
   "documentId": zod.int(),
   "documentName": zod.string(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "pageNo": zod.int(),
   "quote": zod.string().describe('The bank\'s words'),
@@ -1603,7 +1611,7 @@ export const DecideFindingResponse = zod.object({
   "sourcePages": zod.array(zod.object({
   "documentId": zod.int(),
   "documentName": zod.string(),
-  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
   "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
   "pageNo": zod.int(),
   "text": zod.string(),

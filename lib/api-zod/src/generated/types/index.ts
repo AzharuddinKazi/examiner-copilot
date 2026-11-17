@@ -88,6 +88,7 @@ export * from './rulebookList';
 export * from './rulebookVersionDetail';
 export * from './rulebookVersionStatus';
 export * from './rulebookVersionSummary';
+export * from './ruleDetail';
 export * from './ruleDraft';
 export * from './ruleField';
 export * from './severity';

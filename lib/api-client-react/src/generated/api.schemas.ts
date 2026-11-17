@@ -249,7 +249,7 @@ export interface ProductInput {
 }
 
 /**
- * kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule
+ * kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material
  */
 export type DocType = typeof DocType[keyof typeof DocType];
 
@@ -259,6 +259,7 @@ export const DocType = {
   tnc: 'tnc',
   rewards: 'rewards',
   fees: 'fees',
+  advert: 'advert',
 } as const;
 
 export type DocLanguage = typeof DocLanguage[keyof typeof DocLanguage];
@@ -302,6 +303,9 @@ export const CheckType = {
   bilingual: 'bilingual',
   readability: 'readability',
   prohibited_language: 'prohibited_language',
+  binary: 'binary',
+  subjective: 'subjective',
+  calculation: 'calculation',
 } as const;
 
 export type RuleField = typeof RuleField[keyof typeof RuleField];
@@ -557,6 +561,11 @@ export interface Threshold {
   raw: string;
 }
 
+export interface RuleDetail {
+  label: string;
+  value: string;
+}
+
 export interface RuleDraft {
   row: number;
   code: string;
@@ -568,6 +577,8 @@ export interface RuleDraft {
   checkType: CheckType;
   threshold: Threshold | null;
   severity: Severity;
+  /** Extra spreadsheet columns kept with the rule (for example evidence to look for, pass criteria, examples) */
+  details: RuleDetail[];
 }
 
 export interface RowError {
@@ -638,6 +649,8 @@ export interface Rule {
   checkType: CheckType;
   threshold: Threshold | null;
   severity: Severity;
+  /** Extra spreadsheet columns kept with the rule (for example evidence to look for, pass criteria, examples) */
+  details: RuleDetail[];
 }
 
 export type RulebookVersionDetail = RulebookVersionSummary & ({

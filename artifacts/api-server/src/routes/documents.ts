@@ -35,7 +35,7 @@ import {
 
 const router: IRouter = Router();
 
-const DOC_TYPE_LABEL = { kfs: "Key Facts Statement", tnc: "Terms and Conditions", rewards: "Rewards terms", fees: "Fees Schedule" } as const;
+const DOC_TYPE_LABEL = { kfs: "Key Facts Statement", tnc: "Terms and Conditions", rewards: "Rewards terms", fees: "Fees Schedule", advert: "Advertisement" } as const;
 
 router.get("/documents", async (_req, res): Promise<void> => {
   const dataset = await getActiveDataset();

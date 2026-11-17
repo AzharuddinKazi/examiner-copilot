@@ -6,8 +6,9 @@ export const DOC_TYPE_LABELS: Record<DocType, string> = {
   tnc: "Terms and Conditions",
   rewards: "Rewards terms",
   fees: "Fees Schedule",
+  advert: "Advertisement",
 };
-export const DOC_TYPE_SHORT: Record<DocType, string> = { kfs: "KFS", tnc: "T&C", rewards: "Rewards", fees: "Fees" };
+export const DOC_TYPE_SHORT: Record<DocType, string> = { kfs: "KFS", tnc: "T&C", rewards: "Rewards", fees: "Fees", advert: "Advert" };
 export const DOC_TYPES = Object.keys(DOC_TYPE_LABELS) as DocType[];
 
 export const LANGUAGE_LABELS: Record<DocLanguage, string> = { en: "English", ar: "Arabic" };
@@ -21,6 +22,9 @@ export const CHECK_TYPE_LABELS: Record<CheckType, string> = {
   bilingual: "English and Arabic must match",
   readability: "Must be readable",
   prohibited_language: "Must not contain",
+  binary: "Met or not met",
+  subjective: "Examiner judgement",
+  calculation: "Calculation",
 };
 
 export const RULE_FIELD_LABELS: Record<RuleField, string> = {
@@ -34,7 +38,7 @@ export const RULE_FIELD_LABELS: Record<RuleField, string> = {
   severity: "Severity",
 };
 export const RULE_FIELDS = Object.keys(RULE_FIELD_LABELS) as RuleField[];
-export const REQUIRED_RULE_FIELDS: RuleField[] = ["code", "title", "text", "checkType"];
+export const REQUIRED_RULE_FIELDS: RuleField[] = ["code", "text", "checkType"];
 
 export const SEVERITY_PILL: Record<Severity, { variant: StatusVariant; label: string }> = {
   high: { variant: "breach", label: "High" },

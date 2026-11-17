@@ -356,6 +356,7 @@ router.get("/rulebook-versions/:id", async (req, res): Promise<void> => {
         checkType: r.checkType,
         threshold: r.threshold ?? null,
         severity: r.severity,
+        details: r.details ?? [],
       })),
     }),
   );

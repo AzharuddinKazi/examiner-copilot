@@ -55,6 +55,8 @@ export const rulesTable = pgTable("rules", {
   checkType: text("check_type").notNull(),
   threshold: jsonb("threshold"),
   severity: severityEnum("severity").notNull().default("medium"),
+  /** Extra spreadsheet columns kept with the rule, e.g. evidence to look for and pass criteria. */
+  details: jsonb("details").$type<{ label: string; value: string }[]>().notNull().default([]),
 });
 
 export const holidayCalendarsTable = pgTable("holiday_calendars", {

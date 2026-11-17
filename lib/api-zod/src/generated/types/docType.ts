@@ -7,7 +7,7 @@
  */
 
 /**
- * kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule
+ * kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material
  */
 export type DocType = typeof DocType[keyof typeof DocType];
 
@@ -17,4 +17,5 @@ export const DocType = {
   tnc: 'tnc',
   rewards: 'rewards',
   fees: 'fees',
+  advert: 'advert',
 } as const;

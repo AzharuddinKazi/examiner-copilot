@@ -12,8 +12,8 @@ import { DATA_NOT_INSTRUCTIONS } from "../assess/agents";
 import type { BankForMatch, DocLanguage, DocType, DocumentSuggestion } from "../suggest";
 import { FIELD_LABELS, REQUIRED_FIELDS, RULE_FIELDS, type ColumnMapping, type RuleField } from "../rulebook-import";
 
-const DOC_TYPES = ["kfs", "tnc", "rewards", "fees"] as const;
-const DOC_TYPE_LABEL: Record<DocType, string> = { kfs: "Key Facts Statement", tnc: "Terms and Conditions", rewards: "Rewards terms", fees: "Fees Schedule" };
+const DOC_TYPES = ["kfs", "tnc", "rewards", "fees", "advert"] as const;
+const DOC_TYPE_LABEL: Record<DocType, string> = { kfs: "Key Facts Statement", tnc: "Terms and Conditions", rewards: "Rewards terms", fees: "Fees Schedule", advert: "Advertisement" };
 const EXCERPT_CHARS = 6000;
 const MAX_TOKENS = 8000;
 
@@ -170,7 +170,7 @@ export function mappingMessages(headers: string[], sampleRows: string[][]): Chat
     "You are the Ingestion agent. An examiner uploaded a rulebook spreadsheet. Propose which column header feeds each rule field; the examiner confirms.",
     DATA_NOT_INSTRUCTIONS.replace("<document> tags", "<sheet> tags").replace("a bank's PDF", "the uploaded spreadsheet"),
     `Rule fields: ${RULE_FIELDS.map((f) => `${f} (${FIELD_LABELS[f]}${REQUIRED_FIELDS.includes(f) ? ", required" : ""})`).join(", ")}.`,
-    "appliesTo lists document types (KFS, T&C, Rewards, Fees). checkType is the kind of test (presence, maximum value, minimum value, cross-document, bilingual, readability, prohibited wording). threshold is a number limit such as 3.25% or AED 230.",
+    "appliesTo lists document types (KFS, T&C, Rewards, Fees, Advert); a column of roles such as TC;KFS;SOFC;ADVERT is appliesTo. checkType is the kind of test (binary, subjective, calculation, presence, maximum value, minimum value, cross-document, bilingual, readability, prohibited wording); a rule-type column with Binary/Subjective/Calculation is checkType. title is optional; leave it null if there is no short-title column. threshold is a number limit such as 3.25% or AED 230.",
     "Use each header at most once, copy header names exactly, and use null when no column fits. Give one short reason per field based on the header and the sample values.",
     "Reply with JSON only.",
   ].join("\n");

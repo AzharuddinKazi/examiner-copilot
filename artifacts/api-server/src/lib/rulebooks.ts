@@ -53,6 +53,7 @@ export async function createRulebookVersion(
         checkType: r.checkType,
         threshold: r.threshold,
         severity: r.severity,
+        details: r.details,
       })),
     );
   }

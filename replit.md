@@ -1,6 +1,6 @@
 # Examiner Co-Pilot
 
-A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards, Fees Schedule) against an examiner-supplied, versioned rulebook. Agents propose; examiners decide. The workspace holds production data only (no demo data).
+A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards, Fees Schedule, and adverts) against an examiner-supplied, versioned rulebook. Agents propose; examiners decide. The workspace holds production data only (no demo data).
 
 ## Run & Operate
 
@@ -29,7 +29,7 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 - Uploaded files (PDFs, .xlsx): `stored_files` table (bytea)
 - PDF checks and page-by-page extraction (no OCR; pages with little text are gaps): `artifacts/api-server/src/lib/pdf.ts`
 - Rule-based upload suggestions (type, language, bank, product, each with a reason): `artifacts/api-server/src/lib/suggest.ts`
-- Rulebook .xlsx import (column mapping, row validation): `artifacts/api-server/src/lib/rulebook-import.ts`
+- Rulebook .xlsx/.csv import (column mapping, row validation; unmapped columns are kept as rule `details` and passed to the Rule agent; title optional, derived from rule text): `artifacts/api-server/src/lib/rulebook-import.ts`
 - Fictional test fixtures (3 banks, 12 rules, 12 PDFs), used only by unit tests: `artifacts/api-server/src/__tests__/fixtures/`
 - Banks in scope: ADCB, ADIB, CBD, Mashreq, for credit card product documents only. Official logos are in `artifacts/examiner-copilot/public/banks/` and matched to a bank by name (English or Arabic, short or full) in `artifacts/api-server/src/lib/bank-logos.ts`, so a bank re-added under the same name gets its logo. On API startup, `ensureScopeBanks` adds the four banks when the library is empty (so the published app gets them; audited as "Setup script"); once any bank exists it does nothing.
 - Preview auto sign-in: in development only (NODE_ENV=development), a request with no Clerk session acts as the earliest senior examiner, and the web app skips the welcome screen. Production always requires sign-in. Set `PREVIEW_AUTO_SIGNIN=false` to test the real sign-in flow in the preview.
@@ -60,7 +60,7 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 - Statuses: Compliant, Breach, Warning, Needs review, Not applicable; severity separate (Low/Medium/High).
 - Roles: Examiner, Senior examiner, Viewer, assigned per person by a senior examiner. Viewer cannot change anything.
 - 14 business days count from an examiner-entered reference date; day 1 is the next business day; weekend Sat–Sun.
-- Disclosures PDF only; rulebook .xlsx only.
+- Disclosures PDF only; rulebook .xlsx or CSV (UTF-8). Rulebook check types include binary/subjective/calculation (judged by the Rule agent in batches of 12); document roles TC→tnc, SOFC→fees, ADVERT→advert.
 
 - Model provider: OpenRouter. The key is stored as the secret `OPENAI_API_KEY` (`OPENROUTER_API_KEY` also accepted and wins if both exist). Model in env var `OPENROUTER_MODEL`, currently the free `nvidia/nemotron-3.5-super-vl:free` (user asked for a free model).
 

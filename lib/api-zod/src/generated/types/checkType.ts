@@ -17,4 +17,7 @@ export const CheckType = {
   bilingual: 'bilingual',
   readability: 'readability',
   prohibited_language: 'prohibited_language',
+  binary: 'binary',
+  subjective: 'subjective',
+  calculation: 'calculation',
 } as const;

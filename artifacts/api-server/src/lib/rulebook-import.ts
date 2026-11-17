@@ -5,7 +5,7 @@ export const XLSX_LIMITS = { maxBytes: 5 * 1024 * 1024, maxRows: 500 } as const;
 
 export const RULE_FIELDS = ["code", "title", "text", "category", "appliesTo", "checkType", "threshold", "severity"] as const;
 export type RuleField = (typeof RULE_FIELDS)[number];
-export const REQUIRED_FIELDS: RuleField[] = ["code", "title", "text", "checkType"];
+export const REQUIRED_FIELDS: RuleField[] = ["code", "text", "checkType"];
 
 export type ColumnMapping = Record<RuleField, string | null>;
 export type CheckType =
@@ -15,7 +15,10 @@ export type CheckType =
   | "cross_document"
   | "bilingual"
   | "readability"
-  | "prohibited_language";
+  | "prohibited_language"
+  | "binary"
+  | "subjective"
+  | "calculation";
 export type Severity = "low" | "medium" | "high";
 
 export interface Threshold {
@@ -34,6 +37,13 @@ export interface RuleDraft {
   checkType: CheckType;
   threshold: Threshold | null;
   severity: Severity;
+  /** Unmapped, non-empty columns kept with the rule. */
+  details: RuleDetail[];
+}
+
+export interface RuleDetail {
+  label: string;
+  value: string;
 }
 
 export interface RowError {
@@ -167,12 +177,12 @@ function cellText(cell: ExcelJS.Cell): string {
 const norm = (s: string) => s.toLowerCase().replace(/[_\-./()]+/g, " ").replace(/\s+/g, " ").trim();
 
 const FIELD_ALIASES: Record<RuleField, string[]> = {
-  code: ["code", "rule id", "id", "rule code", "ref", "reference", "rule no", "rule number", "rule ref"],
+  code: ["code", "rule id", "id", "ruleid", "rule ref id", "rule code", "ref", "reference", "rule no", "rule number", "rule ref"],
   title: ["title", "rule name", "name", "heading", "short title", "rule title"],
-  text: ["text", "requirement", "rule text", "description", "provision", "rule", "requirement text"],
+  text: ["text", "requirement", "rule text", "rule statement", "statement", "description", "provision", "rule", "requirement text"],
   category: ["category", "area", "topic", "theme", "section"],
-  appliesTo: ["applies to", "document", "documents", "doc type", "document type", "scope", "applicable documents"],
-  checkType: ["check", "check type", "test", "type of check", "method", "test type"],
+  appliesTo: ["applies to", "document", "documents", "doc type", "document type", "scope", "applicable documents", "runs on roles", "runs on", "document roles", "roles"],
+  checkType: ["check", "check type", "test", "type of check", "method", "test type", "rule type", "assessment type"],
   threshold: ["threshold", "limit", "value", "max", "cap", "threshold value"],
   severity: ["severity", "priority", "risk", "impact", "risk rating"],
 };
@@ -239,6 +249,8 @@ function optionalDefault(f: RuleField): string {
       return "if not mapped, each rule applies to all four document types.";
     case "severity":
       return "if not mapped, each rule is Medium severity.";
+    case "title":
+      return "if not mapped, the title is taken from the start of the rule text.";
     default:
       return "leave it unmapped if the sheet has no such column.";
   }
@@ -252,15 +264,21 @@ const CHECK_ALIASES: Record<CheckType, string[]> = {
   bilingual: ["bilingual", "english arabic", "language consistency", "arabic english", "translation"],
   readability: ["readability", "readable", "plain language", "must be readable"],
   prohibited_language: ["prohibited language", "prohibited", "must not contain", "banned wording", "prohibited wording"],
+  binary: ["binary", "yes no", "pass fail", "met not met"],
+  subjective: ["subjective", "judgement", "judgment", "qualitative"],
+  calculation: ["calculation", "calculated", "computation", "arithmetic", "quantitative"],
 };
 
 const DOC_ALIASES: Record<DocType, string[]> = {
   kfs: ["kfs", "key facts", "key facts statement", "key fact statement"],
-  tnc: ["t&c", "tnc", "t & c", "terms", "terms and conditions", "terms & conditions", "t c"],
+  tnc: ["t&c", "tnc", "tc", "t & c", "terms", "terms and conditions", "terms & conditions", "t c"],
   rewards: ["rewards", "reward", "rewards terms", "reward terms", "rewards programme", "rewards program"],
-  fees: ["fees", "fees schedule", "fee schedule", "schedule of fees", "schedule of charges", "fees and charges"],
+  fees: ["fees", "fees schedule", "fee schedule", "schedule of fees", "schedule of charges", "fees and charges", "sofc", "soc", "schedule of fees and charges", "fees & charges", "schedule of fees & charges"],
+  advert: ["advert", "advertisement", "advertising", "ad", "ads", "marketing", "marketing material", "promotional material", "promotion", "brochure", "leaflet"],
 };
+/** "All" means the four contract documents; adverts are only checked when a rule names them. */
 const ALL_DOC_TYPES: DocType[] = ["kfs", "tnc", "rewards", "fees"];
+const DOC_ORDER: DocType[] = ["kfs", "tnc", "rewards", "fees", "advert"];
 
 const SEVERITY_ALIASES: Record<Severity, string[]> = {
   low: ["low", "l", "minor"],
@@ -290,7 +308,7 @@ export function parseAppliesTo(raw: string): { types: DocType[]; unknown: string
     if (hit) types.add(hit[0]);
     else unknown.push(t);
   }
-  return { types: ALL_DOC_TYPES.filter((d) => types.has(d)), unknown };
+  return { types: DOC_ORDER.filter((d) => types.has(d)), unknown };
 }
 
 export function parseThreshold(raw: string): Threshold | null {
@@ -325,14 +343,16 @@ export function buildRules(sheet: ParsedSheet, mapping: ColumnMapping): { rules:
   if (rowErrors.length) return { rules: [], rowErrors };
 
   const get = (cells: string[], f: RuleField) => (idx[f] >= 0 ? (cells[idx[f]] ?? "").trim() : "");
+  const mappedHeaders = new Set(Object.values(mapping).filter(Boolean));
+  const detailIdx = sheet.headers.map((h, i) => ({ label: h, i })).filter(({ label }) => !mappedHeaders.has(label));
   const seenCodes = new Map<string, number>();
   const rules: RuleDraft[] = [];
 
   for (const { row, cells } of sheet.rows) {
     const errs: RowError[] = [];
     const code = get(cells, "code");
-    const title = get(cells, "title");
     const text = get(cells, "text");
+    const title = get(cells, "title") || (mapping.title ? "" : titleFrom(text));
     if (!code) errs.push({ row, field: "code", message: "Rule code is empty." });
     else if (code.length > 40) errs.push({ row, field: "code", message: "Rule code is longer than 40 characters." });
     else if (seenCodes.has(code.toLowerCase())) {
@@ -349,7 +369,7 @@ export function buildRules(sheet: ParsedSheet, mapping: ColumnMapping): { rules:
       errs.push({
         row,
         field: "checkType",
-        message: `"${checkRaw}" is not a known check type. Use one of: presence, max value, min value, cross document, bilingual, readability, prohibited language.`,
+        message: `"${checkRaw}" is not a known check type. Use one of: binary, subjective, calculation, presence, max value, min value, cross document, bilingual, readability, prohibited language.`,
       });
     }
 
@@ -358,7 +378,7 @@ export function buildRules(sheet: ParsedSheet, mapping: ColumnMapping): { rules:
       errs.push({
         row,
         field: "appliesTo",
-        message: `Unknown document type: ${applies.unknown.map((u) => `"${u}"`).join(", ")}. Use KFS, T&C, Rewards, Fees or All.`,
+        message: `Unknown document type: ${applies.unknown.map((u) => `"${u}"`).join(", ")}. Use KFS, T&C, Rewards, Fees, Advert or All.`,
       });
     }
 
@@ -385,8 +405,17 @@ export function buildRules(sheet: ParsedSheet, mapping: ColumnMapping): { rules:
       checkType: checkType!,
       threshold,
       severity: severity!,
+      details: detailIdx.map(({ label, i }) => ({ label, value: (cells[i] ?? "").trim() })).filter((d) => d.value !== ""),
     });
   }
   if (sheet.rows.length === 0) rowErrors.push({ row: 2, field: "code", message: "The sheet has no rule rows." });
   return { rules, rowErrors };
+}
+
+/** A short title from the rule text: the first sentence, cut at a word boundary. */
+export function titleFrom(text: string): string {
+  const first = text.split(/(?<=[.;:])\s/)[0]!.replace(/[.;:]$/, "").trim();
+  if (first.length <= 120) return first;
+  const cut = first.slice(0, 117);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 60))}…`;
 }

@@ -7,6 +7,7 @@
  */
 import type { CheckType } from './checkType';
 import type { DocType } from './docType';
+import type { RuleDetail } from './ruleDetail';
 import type { Severity } from './severity';
 import type { Threshold } from './threshold';
 
@@ -21,4 +22,6 @@ export interface RuleDraft {
   checkType: CheckType;
   threshold: Threshold | null;
   severity: Severity;
+  /** Extra spreadsheet columns kept with the rule (for example evidence to look for, pass criteria, examples) */
+  details: RuleDetail[];
 }

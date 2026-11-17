@@ -100,6 +100,16 @@ export function RulebookVersionView({ id }: { id: number }) {
                         <tr className="border-b border-border bg-muted/30"><td colSpan={6} className="px-4 py-3">
                           <p className="whitespace-pre-wrap font-serif text-[15px] leading-relaxed" data-testid={`text-rule-${r.id}`}>{r.text}</p>
                           {r.category ? <p className="mt-1 text-xs text-muted-foreground">Category: {r.category}</p> : null}
+                          {r.details.length ? (
+                            <dl className="mt-3 grid gap-x-4 gap-y-2 border-t border-border pt-3 text-xs sm:grid-cols-[max-content_1fr]" data-testid={`details-rule-${r.id}`}>
+                              {r.details.map((d) => (
+                                <Fragment key={d.label}>
+                                  <dt className="font-mono text-[11px] text-muted-foreground">{d.label}</dt>
+                                  <dd className="whitespace-pre-wrap">{d.value}</dd>
+                                </Fragment>
+                              ))}
+                            </dl>
+                          ) : null}
                         </td></tr>
                       ) : null}
                     </Fragment>

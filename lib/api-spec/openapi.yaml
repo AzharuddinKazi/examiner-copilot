@@ -1219,8 +1219,8 @@ components:
 
     DocType:
       type: string
-      enum: [kfs, tnc, rewards, fees]
-      description: kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule
+      enum: [kfs, tnc, rewards, fees, advert]
+      description: kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material
 
     DocLanguage:
       type: string
@@ -1237,7 +1237,7 @@ components:
 
     CheckType:
       type: string
-      enum: [presence, max_value, min_value, cross_document, bilingual, readability, prohibited_language]
+      enum: [presence, max_value, min_value, cross_document, bilingual, readability, prohibited_language, binary, subjective, calculation]
 
     RuleField:
       type: string
@@ -1433,7 +1433,7 @@ components:
 
     RuleDraft:
       type: object
-      required: [row, code, title, text, category, appliesToDocTypes, checkType, threshold, severity]
+      required: [row, code, title, text, category, appliesToDocTypes, checkType, threshold, severity, details]
       properties:
         row: { type: integer }
         code: { type: string }
@@ -1449,6 +1449,17 @@ components:
             - { $ref: "#/components/schemas/Threshold" }
             - { type: "null" }
         severity: { $ref: "#/components/schemas/Severity" }
+        details:
+          type: array
+          description: Extra spreadsheet columns kept with the rule (for example evidence to look for, pass criteria, examples)
+          items: { $ref: "#/components/schemas/RuleDetail" }
+
+    RuleDetail:
+      type: object
+      required: [label, value]
+      properties:
+        label: { type: string }
+        value: { type: string }
 
     RowError:
       type: object
@@ -1514,7 +1525,7 @@ components:
 
     Rule:
       type: object
-      required: [id, code, title, text, category, appliesToDocTypes, checkType, threshold, severity]
+      required: [id, code, title, text, category, appliesToDocTypes, checkType, threshold, severity, details]
       properties:
         id: { type: integer }
         code: { type: string }
@@ -1530,6 +1541,10 @@ components:
             - { $ref: "#/components/schemas/Threshold" }
             - { type: "null" }
         severity: { $ref: "#/components/schemas/Severity" }
+        details:
+          type: array
+          description: Extra spreadsheet columns kept with the rule (for example evidence to look for, pass criteria, examples)
+          items: { $ref: "#/components/schemas/RuleDetail" }
 
     RulebookVersionDetail:
       allOf:

@@ -27,6 +27,8 @@ export interface AssessRule {
   threshold: Threshold | null;
   severity: Severity;
   appliesToDocTypes: DocType[];
+  /** Extra rulebook columns (evidence to look for, pass criteria, examples). */
+  details?: { label: string; value: string }[];
 }
 
 export interface CitedQuote {
@@ -451,7 +453,7 @@ export function decideJudgement(rule: AssessRule, j: Judgement | undefined, docs
   const checks: CodeCheck[] = [quoteCheck(evidence, byId)];
   const targets = applicableDocs(rule, docs, "en");
   const gaps = targets.filter((d) => d.gapPages.length);
-  if (j.status === "breach" && rule.checkType === "presence" && verified.length === 0) {
+  if (j.status === "breach" && (rule.checkType === "presence" || rule.checkType === "binary") && verified.length === 0) {
     // An absence finding has nothing to quote. It is only reliable if every page was readable.
     checks.push({
       label: "Whole document readable",
