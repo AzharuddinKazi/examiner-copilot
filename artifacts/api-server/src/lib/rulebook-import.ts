@@ -50,12 +50,86 @@ export interface ParsedSheet {
 
 export class WorkbookError extends Error {}
 
-/** Reads the first worksheet that has a header row and at least one data row. */
+/**
+ * Reads a rulebook from an .xlsx workbook (first worksheet with a header row and a rule row)
+ * or a CSV file (comma, semicolon or tab separated, UTF-8).
+ */
 export async function parseWorkbook(buf: Buffer): Promise<ParsedSheet> {
-  // .xlsx is a zip; check the signature before handing it to the parser.
-  if (buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4b) {
-    throw new WorkbookError("This is not an .xlsx file. Save the rulebook as Excel Workbook (.xlsx) and try again.");
+  // .xlsx is a zip; anything else must be readable text to be treated as CSV.
+  if (buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b) return parseXlsx(buf);
+  if (buf.length >= 4 && buf[0] === 0xd0 && buf[1] === 0xcf) {
+    throw new WorkbookError("This is an old Excel (.xls) file. Save the rulebook as Excel Workbook (.xlsx) or CSV and try again.");
   }
+  if (buf.includes(0)) throw new WorkbookError("This file is not a spreadsheet. Upload the rulebook as .xlsx or .csv.");
+  return parseCsv(buf);
+}
+
+/** Splits CSV text into rows; handles quoted fields, doubled quotes and line breaks inside quotes. */
+export function splitCsv(text: string): string[][] {
+  const firstLine = text.slice(0, text.search(/\r?\n|$/));
+  const counts = { ",": 0, ";": 0, "\t": 0 } as Record<string, number>;
+  let q = false;
+  for (const ch of firstLine) {
+    if (ch === '"') q = !q;
+    else if (!q && ch in counts) counts[ch]!++;
+  }
+  const [best, n] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]!;
+  const delim = n > 0 ? best : ",";
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (inQ) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; } else inQ = false;
+      } else cell += ch;
+    } else if (ch === '"' && cell.trim() === "") { cell = ""; inQ = true; }
+    else if (ch === delim) { row.push(cell); cell = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); rows.push(row); row = []; cell = "";
+    } else cell += ch;
+  }
+  if (inQ) throw new WorkbookError("The CSV has a quote that is never closed. Check the file and try again.");
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+
+function parseCsv(buf: Buffer): ParsedSheet {
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(buf);
+  } catch {
+    throw new WorkbookError("The CSV is not UTF-8 text. In Excel, save it as \"CSV UTF-8 (Comma delimited)\" and try again.");
+  }
+  const rows = splitCsv(text.replace(/^\uFEFF/, "")).map((cells, i) => ({ row: i + 1, cells: cells.map((c) => c.trim()) }));
+  const sheet = toSheet("CSV", rows.filter((r) => r.cells.some((v) => v !== "")));
+  if (!sheet) throw new WorkbookError("The CSV needs a header row and at least one rule row.");
+  return sheet;
+}
+
+/** Turns non-empty rows into headers plus rule rows; null if there is no rule row. */
+function toSheet(sheetName: string, all: { row: number; cells: string[] }[]): ParsedSheet | null {
+  if (all.length < 2) return null;
+  const [head, ...rest] = all;
+  const width = Math.max(...all.map((r) => lastNonEmpty(r.cells) + 1));
+  const seen = new Map<string, number>();
+  const headers = head!.cells.slice(0, width).map((h, i) => {
+    let name = h || `Column ${i + 1}`;
+    const n = seen.get(name.toLowerCase()) ?? 0;
+    seen.set(name.toLowerCase(), n + 1);
+    if (n > 0) name = `${name} (${n + 1})`;
+    return name;
+  });
+  if (rest.length > XLSX_LIMITS.maxRows) {
+    throw new WorkbookError(`The sheet has ${rest.length} rule rows; the limit is ${XLSX_LIMITS.maxRows}.`);
+  }
+  return { sheetName, headers, rows: rest.map((r) => ({ row: r.row, cells: headers.map((_, i) => r.cells[i] ?? "") })) };
+}
+
+async function parseXlsx(buf: Buffer): Promise<ParsedSheet> {
   const wb = new ExcelJS.Workbook();
   try {
     await wb.xlsx.load(buf as unknown as ArrayBuffer);
@@ -69,25 +143,8 @@ export async function parseWorkbook(buf: Buffer): Promise<ParsedSheet> {
       for (let c = 1; c <= ws.columnCount; c++) cells.push(cellText(r.getCell(c)));
       if (cells.some((v) => v !== "")) all.push({ row: rowNumber, cells });
     });
-    if (all.length < 2) continue;
-    const [head, ...rest] = all;
-    const width = Math.max(...all.map((r) => lastNonEmpty(r.cells) + 1));
-    const seen = new Map<string, number>();
-    const headers = head!.cells.slice(0, width).map((h, i) => {
-      let name = h || `Column ${i + 1}`;
-      const n = seen.get(name.toLowerCase()) ?? 0;
-      seen.set(name.toLowerCase(), n + 1);
-      if (n > 0) name = `${name} (${n + 1})`;
-      return name;
-    });
-    if (rest.length > XLSX_LIMITS.maxRows) {
-      throw new WorkbookError(`The sheet has ${rest.length} rule rows; the limit is ${XLSX_LIMITS.maxRows}.`);
-    }
-    return {
-      sheetName: ws.name,
-      headers,
-      rows: rest.map((r) => ({ row: r.row, cells: headers.map((_, i) => r.cells[i] ?? "") })),
-    };
+    const sheet = toSheet(ws.name, all);
+    if (sheet) return sheet;
   }
   throw new WorkbookError("No worksheet has a header row and at least one rule row.");
 }

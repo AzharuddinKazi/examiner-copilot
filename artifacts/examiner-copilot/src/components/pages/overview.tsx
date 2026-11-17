@@ -179,7 +179,7 @@ function GetStarted({ p }: { p: WorkspaceProgress }) {
   const runs = p.steps.find((s) => s.key === "assess")?.counts[0]?.value ?? 0;
   const items = [
     { done: p.library.banks > 0 && p.library.products > 0, label: "Add the banks and their card products", detail: `${plural(p.library.banks, "bank", "banks")}, ${plural(p.library.products, "card product", "card products")}`, href: "/library/banks" },
-    { done: p.library.activeRules > 0, label: "Import your rulebook (.xlsx) and make it active", detail: plural(p.library.activeRules, "active rule", "active rules"), href: "/library/rulebook" },
+    { done: p.library.activeRules > 0, label: "Import your rulebook (.xlsx or .csv) and make it active", detail: plural(p.library.activeRules, "active rule", "active rules"), href: "/library/rulebook" },
     { done: docs > 0, label: "Upload the card disclosures (PDF) and confirm each one", detail: plural(docs, "confirmed document", "confirmed documents"), href: "/upload" },
     { done: runs > 0, label: "Run an assessment for a card product", detail: plural(runs, "assessment", "assessments"), href: "/assess" },
   ];

@@ -169,12 +169,13 @@ router.get("/rulebooks/template.xlsx", async (_req, res): Promise<void> => {
 });
 
 router.post("/rulebooks/import/preview", async (req, res): Promise<void> => {
-  if (!(await receiveFile(req, res, XLSX_LIMITS.maxBytes, ".xlsx rulebook"))) return;
+  if (!(await receiveFile(req, res, XLSX_LIMITS.maxBytes, ".xlsx or .csv rulebook"))) return;
   const role = requireWriter(req, res);
   if (!role) return;
   const file = req.file!;
-  if (!/\.xlsx$/i.test(file.originalname)) {
-    res.status(400).json({ error: "Only .xlsx rulebooks are accepted. Save the file as Excel Workbook (.xlsx)." });
+  const isCsv = /\.csv$/i.test(file.originalname);
+  if (!isCsv && !/\.xlsx$/i.test(file.originalname)) {
+    res.status(400).json({ error: "Upload the rulebook as an Excel Workbook (.xlsx) or a CSV file (.csv)." });
     return;
   }
   let sheet;
@@ -192,7 +193,7 @@ router.post("/rulebooks/import/preview", async (req, res): Promise<void> => {
     dataset,
     purpose: "rulebook",
     originalName: file.originalname,
-    mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    mime: isCsv ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     data: file.buffer,
   });
   const { mapping, reasons } = proposeMapping(sheet.headers);

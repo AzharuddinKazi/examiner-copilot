@@ -46,10 +46,10 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
 
   const doPreview = () => {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".xlsx")) { setError("Choose an .xlsx file."); return; }
+    if (!/\.(xlsx|csv)$/i.test(file.name)) { setError("Choose an .xlsx or .csv file."); return; }
     setError(null);
     preview.mutate({ data: { file } }, {
-      onSuccess: (r) => { setPv(r); setMapping(r.proposedMapping); setName(r.fileName.replace(/\.xlsx$/i, "")); setStep(1); },
+      onSuccess: (r) => { setPv(r); setMapping(r.proposedMapping); setName(r.fileName.replace(/\.(xlsx|csv)$/i, "")); setStep(1); },
       onError: (e) => setError(parseApiError(e).message),
     });
   };
@@ -113,9 +113,9 @@ export function ImportWizard({ open, onOpenChange }: { open: boolean; onOpenChan
           <div className="space-y-3">
             <label htmlFor="rb-file" className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border bg-card/60 px-6 py-8 text-center hover:border-primary/60 focus-within:ring-2 focus-within:ring-ring">
               <FileSpreadsheet className="size-6 text-muted-foreground" aria-hidden />
-              <span className="text-sm font-medium">{file ? file.name : "Choose an .xlsx file"}</span>
+              <span className="text-sm font-medium">{file ? file.name : "Choose an .xlsx or .csv file"}</span>
               <span className="text-xs text-muted-foreground">One rule per row, headers in row 1.</span>
-              <input id="rb-file" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="sr-only"
+              <input id="rb-file" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" className="sr-only"
                 onChange={(e) => { setFile(e.target.files?.[0] ?? null); setError(null); }} data-testid="input-file-xlsx" />
             </label>
             <a href="/api/rulebooks/template.xlsx" className="text-xs underline underline-offset-2" data-testid="link-sample-wizard">Download empty template</a>

@@ -89,3 +89,22 @@ describe("cell parsers", () => {
     expect(parseThreshold("")).toBeNull();
   });
 });
+
+describe("CSV rulebooks", () => {
+  it("reads a comma-separated file with quotes, a BOM and a line break inside a cell", async () => {
+    const csv = '\uFEFFRule ID,Rule name,Requirement,Check,Limit\r\nKFS-01,"Late fee cap","Must not exceed AED 230, ""incl. VAT""\nper month",Maximum,AED 230\r\n';
+    const s = await parseWorkbook(Buffer.from(csv, "utf8"));
+    expect(s.headers).toEqual(["Rule ID", "Rule name", "Requirement", "Check", "Limit"]);
+    expect(s.rows).toHaveLength(1);
+    expect(s.rows[0]!.cells[2]).toBe('Must not exceed AED 230, "incl. VAT"\nper month');
+    expect(s.rows[0]!.row).toBe(2);
+  });
+  it("detects semicolon separators and Arabic text", async () => {
+    const s = await parseWorkbook(Buffer.from("Code;Title;Text;Check\nAR-1;اللغة;نص عربي;Bilingual\n", "utf8"));
+    expect(s.rows[0]!.cells).toEqual(["AR-1", "اللغة", "نص عربي", "Bilingual"]);
+  });
+  it("rejects non-UTF-8 and binary files with a clear message", async () => {
+    await expect(parseWorkbook(Buffer.from([0x52, 0x75, 0x6c, 0x65, 0xff, 0x2c, 0x0a, 0x61, 0x2c, 0x62]))).rejects.toThrow(/UTF-8/);
+    await expect(parseWorkbook(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0, 0]))).rejects.toThrow(/\.xls/);
+  });
+});

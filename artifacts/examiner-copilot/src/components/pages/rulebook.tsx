@@ -36,7 +36,7 @@ export function RulebookView() {
         question="Which rules are we applying?"
         primaryAction={
           <div className="flex flex-col items-start gap-1.5 md:items-end">
-            <Button onClick={() => setOpen(true)} disabled={!canWrite} data-testid="button-import-rulebook"><FileSpreadsheet aria-hidden /> Import rulebook (.xlsx)</Button>
+            <Button onClick={() => setOpen(true)} disabled={!canWrite} data-testid="button-import-rulebook"><FileSpreadsheet aria-hidden /> Import rulebook (.xlsx or .csv)</Button>
             <a href="/api/rulebooks/template.xlsx" className="inline-flex items-center gap-1 text-xs underline underline-offset-2" data-testid="link-sample-rulebook"><Download className="size-3" aria-hidden /> Download empty template</a>
             <ViewerReason className="max-w-xs md:text-right" />
           </div>
@@ -60,7 +60,7 @@ export function RulebookView() {
         reason={<p className="text-sm text-muted-foreground">The rulebook is supplied by examiners. Only one version is active at a time, so every assessment can say exactly which rules it used.</p>}
         evidence={q.isLoading ? <Skeleton className="h-40 w-full" /> : q.isError ? null : books.length === 0 ? (
           <EmptyState icon={BookOpen} title="No rulebooks yet" testId="empty-rulebooks">
-            <p>Import an .xlsx with one rule per row. Download the empty template if you need the column layout.</p>
+            <p>Import an .xlsx or .csv file with one rule per row. Download the empty template if you need the column layout.</p>
           </EmptyState>
         ) : (
           <div className="space-y-4">
