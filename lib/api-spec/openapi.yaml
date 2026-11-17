@@ -20,6 +20,8 @@ tags:
     description: Banks, card products and the versioned rulebook
   - name: documents
     description: Uploaded disclosure PDFs and their extracted pages
+  - name: assessments
+    description: Agent runs that propose a status per rule, with evidence checked by code
 paths:
   /healthz:
     get:
@@ -593,6 +595,139 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+
+  /assessments/candidates:
+    get:
+      operationId: listAssessmentCandidates
+      tags: [assessments]
+      summary: Card products and whether each is ready to assess, plus run preconditions
+      responses:
+        "200":
+          description: Candidates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentCandidates"
+
+  /assessments:
+    get:
+      operationId: listAssessments
+      tags: [assessments]
+      summary: Assessments for the active dataset, newest first
+      responses:
+        "200":
+          description: Assessments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentList"
+    post:
+      operationId: startAssessment
+      tags: [assessments]
+      summary: Start an assessment of one card product against the active rulebook version. Runs in the background.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartAssessmentInput"
+      responses:
+        "202":
+          description: Started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentSummary"
+        "400":
+          description: The product is not ready (no confirmed documents or no active rulebook)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot start assessments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Another assessment is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: The model provider is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assessments/{id}:
+    get:
+      operationId: getAssessment
+      tags: [assessments]
+      summary: One assessment with its agent trace, findings and evidence
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Assessment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assessments/{id}/stop:
+    post:
+      operationId: stopAssessment
+      tags: [assessments]
+      summary: Ask a running assessment to stop after its current step
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleContext"
+      responses:
+        "200":
+          description: Stop requested (or already finished)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssessmentSummary"
+        "403":
+          description: Viewer cannot stop assessments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   schemas:
@@ -1179,3 +1314,222 @@ components:
             rules:
               type: array
               items: { $ref: "#/components/schemas/Rule" }
+
+    FindingStatus:
+      type: string
+      enum: [compliant, breach, warning, needs_review, not_applicable]
+
+    AssessmentStatus:
+      type: string
+      enum: [queued, running, complete, stopped, failed]
+      description: stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)
+
+    AgentName:
+      type: string
+      enum: [coordinator, evidence, consistency, rule, code]
+      description: code = a deterministic check, not a model call
+
+    StatusCounts:
+      type: object
+      required: [compliant, breach, warning, needs_review, not_applicable]
+      properties:
+        compliant: { type: integer }
+        breach: { type: integer }
+        warning: { type: integer }
+        needs_review: { type: integer }
+        not_applicable: { type: integer }
+
+    AssessmentSummary:
+      type: object
+      required: [id, bankId, bankName, productId, productName, rulebookVersionId, rulebookVersion, kind, status, stopReason, progress, stepsUsed, stepLimit, tokensIn, tokensOut, tokenLimit, model, startedAt, finishedAt, createdAt, counts]
+      properties:
+        id: { type: integer }
+        bankId: { type: ["integer", "null"] }
+        bankName: { type: ["string", "null"] }
+        productId: { type: ["integer", "null"] }
+        productName: { type: ["string", "null"] }
+        rulebookVersionId: { type: ["integer", "null"] }
+        rulebookVersion: { type: ["integer", "null"] }
+        kind: { type: string, enum: [agentic, baseline] }
+        status: { $ref: "#/components/schemas/AssessmentStatus" }
+        stopReason: { type: ["string", "null"], description: Plain reason the run ended }
+        progress: { type: ["string", "null"], description: What the run is doing now (while running) }
+        stepsUsed: { type: integer }
+        stepLimit: { type: integer }
+        tokensIn: { type: integer }
+        tokensOut: { type: integer }
+        tokenLimit: { type: integer, description: Limit on input plus output tokens for the whole run }
+        model: { type: ["string", "null"] }
+        startedAt: { type: ["string", "null"], format: date-time }
+        finishedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        counts: { $ref: "#/components/schemas/StatusCounts" }
+
+    AssessmentList:
+      type: object
+      required: [items, runningId]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AssessmentSummary" }
+        runningId: { type: ["integer", "null"] }
+
+    StartAssessmentInput:
+      type: object
+      required: [role, productId]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        productId: { type: integer }
+
+    CandidateDocument:
+      type: object
+      required: [id, originalName, docType, language, gapPages]
+      properties:
+        id: { type: integer }
+        originalName: { type: string }
+        docType: { $ref: "#/components/schemas/DocType" }
+        language: { $ref: "#/components/schemas/DocLanguage" }
+        gapPages:
+          type: array
+          items: { type: integer }
+
+    AssessmentCandidate:
+      type: object
+      required: [bankId, bankName, productId, productName, documents, missingDocTypes, awaitingCount, ready, notReadyReason, lastAssessment]
+      properties:
+        bankId: { type: integer }
+        bankName: { type: string }
+        productId: { type: integer }
+        productName: { type: string }
+        documents:
+          type: array
+          description: Confirmed documents that will be assessed
+          items: { $ref: "#/components/schemas/CandidateDocument" }
+        missingDocTypes:
+          type: array
+          description: Document types with no confirmed English document; rules for them become Needs review
+          items: { $ref: "#/components/schemas/DocType" }
+        awaitingCount: { type: integer, description: Documents for this product still awaiting confirmation (not included) }
+        ready: { type: boolean }
+        notReadyReason: { type: ["string", "null"] }
+        lastAssessment:
+          oneOf:
+            - { $ref: "#/components/schemas/AssessmentSummary" }
+            - { type: "null" }
+
+    AssessmentCandidates:
+      type: object
+      required: [items, activeRulebookVersionId, activeRuleCount, llmConfigured, llmMessage, runningId, limits]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AssessmentCandidate" }
+        activeRulebookVersionId: { type: ["integer", "null"] }
+        activeRuleCount: { type: integer }
+        llmConfigured: { type: boolean }
+        llmMessage: { type: string }
+        runningId: { type: ["integer", "null"] }
+        limits:
+          type: object
+          required: [stepLimit, tokenLimit]
+          properties:
+            stepLimit: { type: integer }
+            tokenLimit: { type: integer }
+
+    AgentStep:
+      type: object
+      required: [id, agent, stepNo, tool, summary, tokensIn, tokensOut, latencyMs, error, createdAt]
+      properties:
+        id: { type: integer }
+        agent: { $ref: "#/components/schemas/AgentName" }
+        stepNo: { type: integer }
+        tool: { type: ["string", "null"] }
+        summary: { type: string, description: One plain sentence on what this step did }
+        tokensIn: { type: integer }
+        tokensOut: { type: integer }
+        latencyMs: { type: ["integer", "null"] }
+        error: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+
+    EvidenceVerification:
+      type: string
+      enum: [exact, normalized, not_found]
+      description: exact = quote found verbatim on the cited page; normalized = found after whitespace/case normalisation; not_found = not on that page (finding becomes Warning)
+
+    Evidence:
+      type: object
+      required: [id, documentId, documentName, docType, language, pageNo, quote, verified]
+      properties:
+        id: { type: integer }
+        documentId: { type: integer }
+        documentName: { type: string }
+        docType: { oneOf: [{ $ref: "#/components/schemas/DocType" }, { type: "null" }] }
+        language: { oneOf: [{ $ref: "#/components/schemas/DocLanguage" }, { type: "null" }] }
+        pageNo: { type: integer }
+        quote: { type: string, description: The bank's words, as cited }
+        verified: { $ref: "#/components/schemas/EvidenceVerification" }
+
+    CodeCheck:
+      type: object
+      required: [label, result, detail]
+      description: A deterministic check run by code, not by the model
+      properties:
+        label: { type: string }
+        result: { type: string, enum: [pass, fail, info] }
+        detail: { type: string }
+
+    Finding:
+      type: object
+      required: [id, ruleId, ruleCode, ruleTitle, ruleText, checkType, threshold, proposedStatus, severity, rationale, verification, proposedBy, evidence, checks]
+      properties:
+        id: { type: integer }
+        ruleId: { type: ["integer", "null"] }
+        ruleCode: { type: string }
+        ruleTitle: { type: string }
+        ruleText: { type: string }
+        checkType: { $ref: "#/components/schemas/CheckType" }
+        threshold:
+          oneOf:
+            - { $ref: "#/components/schemas/Threshold" }
+            - { type: "null" }
+        proposedStatus: { $ref: "#/components/schemas/FindingStatus" }
+        severity: { $ref: "#/components/schemas/Severity" }
+        rationale: { type: string, description: The tool's plain explanation }
+        verification: { type: string, enum: [verified, unsupported] }
+        proposedBy: { type: string, description: Which agent or check produced the proposal }
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/Evidence" }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/CodeCheck" }
+
+    AssessmentAlert:
+      type: object
+      required: [kind, message, documentId, documentName, pageNo, quote]
+      properties:
+        kind: { type: string, enum: [injection, extraction_gap, missing_document, model_error] }
+        message: { type: string }
+        documentId: { type: ["integer", "null"] }
+        documentName: { type: ["string", "null"] }
+        pageNo: { type: ["integer", "null"] }
+        quote: { type: ["string", "null"] }
+
+    AssessmentDetail:
+      allOf:
+        - $ref: "#/components/schemas/AssessmentSummary"
+        - type: object
+          required: [documents, steps, findings, alerts]
+          properties:
+            documents:
+              type: array
+              items: { $ref: "#/components/schemas/CandidateDocument" }
+            steps:
+              type: array
+              items: { $ref: "#/components/schemas/AgentStep" }
+            findings:
+              type: array
+              items: { $ref: "#/components/schemas/Finding" }
+            alerts:
+              type: array
+              items: { $ref: "#/components/schemas/AssessmentAlert" }

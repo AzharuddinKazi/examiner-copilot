@@ -5,6 +5,7 @@ import llmRouter from "./llm";
 import auditRouter from "./audit";
 import libraryRouter from "./library";
 import documentsRouter from "./documents";
+import assessmentsRouter from "./assessments";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(llmRouter);
 router.use(auditRouter);
 router.use(libraryRouter);
 router.use(documentsRouter);
+router.use(assessmentsRouter);
 
 export default router;

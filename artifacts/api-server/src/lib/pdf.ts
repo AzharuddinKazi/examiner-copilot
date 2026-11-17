@@ -64,7 +64,8 @@ export async function extractPdf(buf: Buffer): Promise<PdfExtraction> {
     }
     const { text } = await extractText(pdf, { mergePages: false });
     const pages: ExtractedPage[] = text.map((raw, i) => {
-      const textRaw = raw ?? "";
+      // Some fonts (e.g. Arabic ligatures) map glyphs to NUL or other control characters; Postgres rejects NUL.
+      const textRaw = (raw ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
       const textNormalized = normalizeText(textRaw);
       const charCount = textNormalized.replace(/\s/g, "").length;
       return { pageNo: i + 1, textRaw, textNormalized, charCount, isGap: charCount < GAP_MIN_CHARS };

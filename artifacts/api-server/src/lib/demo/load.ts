@@ -82,7 +82,7 @@ export async function loadDemoData(dataset: Dataset, role: string) {
         tx,
         dataset,
         prepared,
-        d.leaveUnconfirmed ? undefined : { bankId: ids.bankId, productId: ids.productId, docType: d.docType, language: "en", role },
+        d.leaveUnconfirmed ? undefined : { bankId: ids.bankId, productId: ids.productId, docType: d.docType, language: d.language ?? "en", role },
       );
     }
 
@@ -91,7 +91,7 @@ export async function loadDemoData(dataset: Dataset, role: string) {
       products: DEMO_BANKS.length,
       rules: rules.length,
       documents: pdfs.length,
-      message: `Loaded 3 fictional banks, a ${rules.length}-rule sample rulebook (active) and ${pdfs.length} synthetic PDFs. ${unconfirmed} documents are left for you to confirm.`,
+      message: `Loaded 3 fictional banks, a ${rules.length}-rule sample rulebook (active) and ${pdfs.length} synthetic PDFs (2 in Arabic). ${unconfirmed} documents are left for you to confirm.`,
     };
     await appendAudit(
       { dataset, role, action: "demo.loaded", entityType: "workspace", entityId: null, summary: result.message, after: result },

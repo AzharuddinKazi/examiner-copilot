@@ -21,3 +21,8 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+OPENROUTER_MODEL = "nvidia/nemotron-3.5-super-vl:free"

@@ -578,6 +578,273 @@ export type RulebookVersionDetail = RulebookVersionSummary & ({
   rules: Rule[];
 });
 
+export type FindingStatus = typeof FindingStatus[keyof typeof FindingStatus];
+
+
+export const FindingStatus = {
+  compliant: 'compliant',
+  breach: 'breach',
+  warning: 'warning',
+  needs_review: 'needs_review',
+  not_applicable: 'not_applicable',
+} as const;
+
+/**
+ * stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)
+ */
+export type AssessmentStatus = typeof AssessmentStatus[keyof typeof AssessmentStatus];
+
+
+export const AssessmentStatus = {
+  queued: 'queued',
+  running: 'running',
+  complete: 'complete',
+  stopped: 'stopped',
+  failed: 'failed',
+} as const;
+
+/**
+ * code = a deterministic check, not a model call
+ */
+export type AgentName = typeof AgentName[keyof typeof AgentName];
+
+
+export const AgentName = {
+  coordinator: 'coordinator',
+  evidence: 'evidence',
+  consistency: 'consistency',
+  rule: 'rule',
+  code: 'code',
+} as const;
+
+export interface StatusCounts {
+  compliant: number;
+  breach: number;
+  warning: number;
+  needs_review: number;
+  not_applicable: number;
+}
+
+export type AssessmentSummaryKind = typeof AssessmentSummaryKind[keyof typeof AssessmentSummaryKind];
+
+
+export const AssessmentSummaryKind = {
+  agentic: 'agentic',
+  baseline: 'baseline',
+} as const;
+
+export interface AssessmentSummary {
+  id: number;
+  /** @nullable */
+  bankId: number | null;
+  /** @nullable */
+  bankName: string | null;
+  /** @nullable */
+  productId: number | null;
+  /** @nullable */
+  productName: string | null;
+  /** @nullable */
+  rulebookVersionId: number | null;
+  /** @nullable */
+  rulebookVersion: number | null;
+  kind: AssessmentSummaryKind;
+  status: AssessmentStatus;
+  /**
+     * Plain reason the run ended
+     * @nullable
+     */
+  stopReason: string | null;
+  /**
+     * What the run is doing now (while running)
+     * @nullable
+     */
+  progress: string | null;
+  stepsUsed: number;
+  stepLimit: number;
+  tokensIn: number;
+  tokensOut: number;
+  /** Limit on input plus output tokens for the whole run */
+  tokenLimit: number;
+  /** @nullable */
+  model: string | null;
+  /** @nullable */
+  startedAt: string | null;
+  /** @nullable */
+  finishedAt: string | null;
+  createdAt: string;
+  counts: StatusCounts;
+}
+
+export interface AssessmentList {
+  items: AssessmentSummary[];
+  /** @nullable */
+  runningId: number | null;
+}
+
+export interface StartAssessmentInput {
+  role: Role;
+  productId: number;
+}
+
+export interface CandidateDocument {
+  id: number;
+  originalName: string;
+  docType: DocType;
+  language: DocLanguage;
+  gapPages: number[];
+}
+
+export interface AssessmentCandidate {
+  bankId: number;
+  bankName: string;
+  productId: number;
+  productName: string;
+  /** Confirmed documents that will be assessed */
+  documents: CandidateDocument[];
+  /** Document types with no confirmed English document; rules for them become Needs review */
+  missingDocTypes: DocType[];
+  /** Documents for this product still awaiting confirmation (not included) */
+  awaitingCount: number;
+  ready: boolean;
+  /** @nullable */
+  notReadyReason: string | null;
+  lastAssessment: AssessmentSummary | null;
+}
+
+export type AssessmentCandidatesLimits = {
+  stepLimit: number;
+  tokenLimit: number;
+};
+
+export interface AssessmentCandidates {
+  items: AssessmentCandidate[];
+  /** @nullable */
+  activeRulebookVersionId: number | null;
+  activeRuleCount: number;
+  llmConfigured: boolean;
+  llmMessage: string;
+  /** @nullable */
+  runningId: number | null;
+  limits: AssessmentCandidatesLimits;
+}
+
+export interface AgentStep {
+  id: number;
+  agent: AgentName;
+  stepNo: number;
+  /** @nullable */
+  tool: string | null;
+  /** One plain sentence on what this step did */
+  summary: string;
+  tokensIn: number;
+  tokensOut: number;
+  /** @nullable */
+  latencyMs: number | null;
+  /** @nullable */
+  error: string | null;
+  createdAt: string;
+}
+
+/**
+ * exact = quote found verbatim on the cited page; normalized = found after whitespace/case normalisation; not_found = not on that page (finding becomes Warning)
+ */
+export type EvidenceVerification = typeof EvidenceVerification[keyof typeof EvidenceVerification];
+
+
+export const EvidenceVerification = {
+  exact: 'exact',
+  normalized: 'normalized',
+  not_found: 'not_found',
+} as const;
+
+export interface Evidence {
+  id: number;
+  documentId: number;
+  documentName: string;
+  docType: DocType | null;
+  language: DocLanguage | null;
+  pageNo: number;
+  /** The bank's words */
+  quote: string;
+  verified: EvidenceVerification;
+}
+
+export type CodeCheckResult = typeof CodeCheckResult[keyof typeof CodeCheckResult];
+
+
+export const CodeCheckResult = {
+  pass: 'pass',
+  fail: 'fail',
+  info: 'info',
+} as const;
+
+/**
+ * A deterministic check run by code, not by the model
+ */
+export interface CodeCheck {
+  label: string;
+  result: CodeCheckResult;
+  detail: string;
+}
+
+export type FindingVerification = typeof FindingVerification[keyof typeof FindingVerification];
+
+
+export const FindingVerification = {
+  verified: 'verified',
+  unsupported: 'unsupported',
+} as const;
+
+export interface Finding {
+  id: number;
+  /** @nullable */
+  ruleId: number | null;
+  ruleCode: string;
+  ruleTitle: string;
+  ruleText: string;
+  checkType: CheckType;
+  threshold: Threshold | null;
+  proposedStatus: FindingStatus;
+  severity: Severity;
+  /** The tool's plain explanation */
+  rationale: string;
+  verification: FindingVerification;
+  /** Which agent or check produced the proposal */
+  proposedBy: string;
+  evidence: Evidence[];
+  checks: CodeCheck[];
+}
+
+export type AssessmentAlertKind = typeof AssessmentAlertKind[keyof typeof AssessmentAlertKind];
+
+
+export const AssessmentAlertKind = {
+  injection: 'injection',
+  extraction_gap: 'extraction_gap',
+  missing_document: 'missing_document',
+  model_error: 'model_error',
+} as const;
+
+export interface AssessmentAlert {
+  kind: AssessmentAlertKind;
+  message: string;
+  /** @nullable */
+  documentId: number | null;
+  /** @nullable */
+  documentName: string | null;
+  /** @nullable */
+  pageNo: number | null;
+  /** @nullable */
+  quote: string | null;
+}
+
+export type AssessmentDetail = AssessmentSummary & {
+  documents: CandidateDocument[];
+  steps: AgentStep[];
+  findings: Finding[];
+  alerts: AssessmentAlert[];
+};
+
 export type ListAuditEventsParams = {
 /**
  * @minimum 1

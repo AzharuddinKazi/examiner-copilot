@@ -33,7 +33,8 @@ router.post("/llm/test", async (req, res): Promise<void> => {
   try {
     const r = await chatCompletion({
       messages: [{ role: "user", content: "Reply with the single word OK." }],
-      maxTokens: 5,
+      // Reasoning models spend tokens before answering; a tiny limit returns no content.
+      maxTokens: 512,
       timeoutMs: 20_000,
     });
     result = { ok: true, model: r.model, latencyMs: r.latencyMs, error: null, checkedAt };

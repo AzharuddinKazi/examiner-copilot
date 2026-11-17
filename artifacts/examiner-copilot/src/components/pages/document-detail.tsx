@@ -22,7 +22,7 @@ function PageText({ page, fileName, rtl }: { page: DocumentPage; fileName: strin
   const [open, setOpen] = useState(false);
   if (page.isGap) {
     return (
-      <div className="rounded-lg border border-[hsl(var(--tone-warn)/0.3)] bg-[hsl(var(--tone-warn-bg))] p-4" data-testid={`panel-gap-${page.pageNo}`}>
+      <div id={`page-${page.pageNo}`} className="scroll-mt-20 rounded-lg border border-[hsl(var(--tone-warn)/0.3)] bg-[hsl(var(--tone-warn-bg))] p-4" data-testid={`panel-gap-${page.pageNo}`}>
         <p className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--tone-warn))]">
           <AlertTriangle className="size-4" aria-hidden /> Page {page.pageNo}
         </p>
@@ -34,7 +34,7 @@ function PageText({ page, fileName, rtl }: { page: DocumentPage; fileName: strin
   const long = page.text.length > LONG;
   const shown = long && !open ? page.text.slice(0, LONG).trimEnd() + "…" : page.text;
   return (
-    <div>
+    <div id={`page-${page.pageNo}`} className="scroll-mt-20">
       <BankQuote document={fileName} page={page.pageNo} dir={rtl ? "rtl" : "ltr"} data-testid={`quote-page-${page.pageNo}`}>
         <span className="whitespace-pre-wrap break-words">{shown}</span>
       </BankQuote>

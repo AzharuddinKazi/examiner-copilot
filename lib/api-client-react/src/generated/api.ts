@@ -20,6 +20,10 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AssessmentCandidates,
+  AssessmentDetail,
+  AssessmentList,
+  AssessmentSummary,
   AuditChainVerification,
   AuditEvent,
   AuditEventPage,
@@ -49,6 +53,7 @@ import type {
   RulebookList,
   RulebookVersionDetail,
   RulebookVersionSummary,
+  StartAssessmentInput,
   WorkspaceProgress,
   WorkspaceStatus
 } from './api.schemas';
@@ -1883,5 +1888,413 @@ export const useRejectDocument = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getRejectDocumentMutationOptions(options));
+    }
+
+export const getListAssessmentCandidatesUrl = () => {
+
+
+
+
+  return `/api/assessments/candidates`
+}
+
+/**
+ * @summary Card products and whether each is ready to assess, plus run preconditions
+ */
+export const listAssessmentCandidates = async ( options?: Parameters<typeof customFetch>[1]): Promise<AssessmentCandidates> => {
+
+  return customFetch<AssessmentCandidates>(getListAssessmentCandidatesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAssessmentCandidatesQueryKey = () => {
+    return [
+    `/api/assessments/candidates`
+    ] as const;
+    }
+
+
+export const getListAssessmentCandidatesQueryOptions = <TData = Awaited<ReturnType<typeof listAssessmentCandidates>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAssessmentCandidates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAssessmentCandidatesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAssessmentCandidates>>> = ({ signal }) => listAssessmentCandidates({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAssessmentCandidates>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAssessmentCandidatesQueryResult = NonNullable<Awaited<ReturnType<typeof listAssessmentCandidates>>>
+export type ListAssessmentCandidatesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Card products and whether each is ready to assess, plus run preconditions
+ */
+
+export function useListAssessmentCandidates<TData = Awaited<ReturnType<typeof listAssessmentCandidates>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAssessmentCandidates>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAssessmentCandidatesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAssessmentsUrl = () => {
+
+
+
+
+  return `/api/assessments`
+}
+
+/**
+ * @summary Assessments for the active dataset, newest first
+ */
+export const listAssessments = async ( options?: Parameters<typeof customFetch>[1]): Promise<AssessmentList> => {
+
+  return customFetch<AssessmentList>(getListAssessmentsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAssessmentsQueryKey = () => {
+    return [
+    `/api/assessments`
+    ] as const;
+    }
+
+
+export const getListAssessmentsQueryOptions = <TData = Awaited<ReturnType<typeof listAssessments>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAssessments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAssessmentsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAssessments>>> = ({ signal }) => listAssessments({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAssessments>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAssessmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listAssessments>>>
+export type ListAssessmentsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Assessments for the active dataset, newest first
+ */
+
+export function useListAssessments<TData = Awaited<ReturnType<typeof listAssessments>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAssessments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAssessmentsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStartAssessmentUrl = () => {
+
+
+
+
+  return `/api/assessments`
+}
+
+/**
+ * @summary Start an assessment of one card product against the active rulebook version. Runs in the background.
+ */
+export const startAssessment = async (startAssessmentInput: StartAssessmentInput, options?: Parameters<typeof customFetch>[1]): Promise<AssessmentSummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AssessmentSummary>(getStartAssessmentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(startAssessmentInput)
+  }
+);}
+
+
+
+
+
+export const getStartAssessmentMutationKey = () => ['startAssessment'] as const;
+
+export const getStartAssessmentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAssessment>>, TError,StartAssessmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof startAssessment>>, TError,StartAssessmentMutationVariables, TContext> => {
+
+const mutationKey = getStartAssessmentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof startAssessment>>, StartAssessmentMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  startAssessment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StartAssessmentMutationResult = NonNullable<Awaited<ReturnType<typeof startAssessment>>>
+    export type StartAssessmentMutationBody = BodyType<StartAssessmentInput>
+    export type StartAssessmentMutationError = ErrorType<ErrorResponse>
+    export type StartAssessmentMutationVariables = {data: BodyType<StartAssessmentInput>}
+
+    /**
+ * @summary Start an assessment of one card product against the active rulebook version. Runs in the background.
+ */
+export const useStartAssessment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof startAssessment>>, TError,StartAssessmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof startAssessment>>,
+        TError,
+        StartAssessmentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStartAssessmentMutationOptions(options));
+    }
+
+export const getGetAssessmentUrl = (id: number,) => {
+
+
+
+
+  return `/api/assessments/${id}`
+}
+
+/**
+ * @summary One assessment with its agent trace, findings and evidence
+ */
+export const getAssessment = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<AssessmentDetail> => {
+
+  return customFetch<AssessmentDetail>(getGetAssessmentUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAssessmentQueryKey = (id: number,) => {
+    return [
+    `/api/assessments/${id}`
+    ] as const;
+    }
+
+
+export const getGetAssessmentQueryOptions = <TData = Awaited<ReturnType<typeof getAssessment>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssessment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAssessmentQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAssessment>>> = ({ signal }) => getAssessment(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAssessment>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAssessmentQueryResult = NonNullable<Awaited<ReturnType<typeof getAssessment>>>
+export type GetAssessmentQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary One assessment with its agent trace, findings and evidence
+ */
+
+export function useGetAssessment<TData = Awaited<ReturnType<typeof getAssessment>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAssessment>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAssessmentQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getStopAssessmentUrl = (id: number,) => {
+
+
+
+
+  return `/api/assessments/${id}/stop`
+}
+
+/**
+ * @summary Ask a running assessment to stop after its current step
+ */
+export const stopAssessment = async (id: number,
+    roleContext: RoleContext, options?: Parameters<typeof customFetch>[1]): Promise<AssessmentSummary> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AssessmentSummary>(getStopAssessmentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(roleContext)
+  }
+);}
+
+
+
+
+
+export const getStopAssessmentMutationKey = () => ['stopAssessment'] as const;
+
+export const getStopAssessmentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopAssessment>>, TError,StopAssessmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof stopAssessment>>, TError,StopAssessmentMutationVariables, TContext> => {
+
+const mutationKey = getStopAssessmentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof stopAssessment>>, StopAssessmentMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  stopAssessment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StopAssessmentMutationResult = NonNullable<Awaited<ReturnType<typeof stopAssessment>>>
+    export type StopAssessmentMutationBody = BodyType<RoleContext>
+    export type StopAssessmentMutationError = ErrorType<ErrorResponse>
+    export type StopAssessmentMutationVariables = {id: number;data: BodyType<RoleContext>}
+
+    /**
+ * @summary Ask a running assessment to stop after its current step
+ */
+export const useStopAssessment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof stopAssessment>>, TError,StopAssessmentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof stopAssessment>>,
+        TError,
+        StopAssessmentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getStopAssessmentMutationOptions(options));
     }
 

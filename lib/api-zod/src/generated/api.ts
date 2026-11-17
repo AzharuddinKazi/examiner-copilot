@@ -716,3 +716,282 @@ export const RejectDocumentResponse = zod.object({
 })
 
 
+/**
+ * @summary Card products and whether each is ready to assess, plus run preconditions
+ */
+export const ListAssessmentCandidatesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "bankId": zod.int(),
+  "bankName": zod.string(),
+  "productId": zod.int(),
+  "productName": zod.string(),
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "originalName": zod.string(),
+  "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),
+  "language": zod.enum(['en', 'ar']),
+  "gapPages": zod.array(zod.int())
+})).describe('Confirmed documents that will be assessed'),
+  "missingDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule')).describe('Document types with no confirmed English document; rules for them become Needs review'),
+  "awaitingCount": zod.int().describe('Documents for this product still awaiting confirmation (not included)'),
+  "ready": zod.boolean(),
+  "notReadyReason": zod.string().nullable(),
+  "lastAssessment": zod.union([zod.object({
+  "id": zod.int(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "rulebookVersionId": zod.int().nullable(),
+  "rulebookVersion": zod.int().nullable(),
+  "kind": zod.enum(['agentic', 'baseline']),
+  "status": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
+  "stopReason": zod.string().nullable().describe('Plain reason the run ended'),
+  "progress": zod.string().nullable().describe('What the run is doing now (while running)'),
+  "stepsUsed": zod.int(),
+  "stepLimit": zod.int(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "tokenLimit": zod.int().describe('Limit on input plus output tokens for the whole run'),
+  "model": zod.string().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "counts": zod.object({
+  "compliant": zod.int(),
+  "breach": zod.int(),
+  "warning": zod.int(),
+  "needs_review": zod.int(),
+  "not_applicable": zod.int()
+})
+}),zod.null()])
+})),
+  "activeRulebookVersionId": zod.int().nullable(),
+  "activeRuleCount": zod.int(),
+  "llmConfigured": zod.boolean(),
+  "llmMessage": zod.string(),
+  "runningId": zod.int().nullable(),
+  "limits": zod.object({
+  "stepLimit": zod.int(),
+  "tokenLimit": zod.int()
+})
+})
+
+
+/**
+ * @summary Assessments for the active dataset, newest first
+ */
+export const ListAssessmentsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "rulebookVersionId": zod.int().nullable(),
+  "rulebookVersion": zod.int().nullable(),
+  "kind": zod.enum(['agentic', 'baseline']),
+  "status": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
+  "stopReason": zod.string().nullable().describe('Plain reason the run ended'),
+  "progress": zod.string().nullable().describe('What the run is doing now (while running)'),
+  "stepsUsed": zod.int(),
+  "stepLimit": zod.int(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "tokenLimit": zod.int().describe('Limit on input plus output tokens for the whole run'),
+  "model": zod.string().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "counts": zod.object({
+  "compliant": zod.int(),
+  "breach": zod.int(),
+  "warning": zod.int(),
+  "needs_review": zod.int(),
+  "not_applicable": zod.int()
+})
+})),
+  "runningId": zod.int().nullable()
+})
+
+
+/**
+ * @summary Start an assessment of one card product against the active rulebook version. Runs in the background.
+ */
+export const StartAssessmentBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.'),
+  "productId": zod.int()
+})
+
+export const StartAssessmentResponse = zod.object({
+  "id": zod.int(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "rulebookVersionId": zod.int().nullable(),
+  "rulebookVersion": zod.int().nullable(),
+  "kind": zod.enum(['agentic', 'baseline']),
+  "status": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
+  "stopReason": zod.string().nullable().describe('Plain reason the run ended'),
+  "progress": zod.string().nullable().describe('What the run is doing now (while running)'),
+  "stepsUsed": zod.int(),
+  "stepLimit": zod.int(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "tokenLimit": zod.int().describe('Limit on input plus output tokens for the whole run'),
+  "model": zod.string().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "counts": zod.object({
+  "compliant": zod.int(),
+  "breach": zod.int(),
+  "warning": zod.int(),
+  "needs_review": zod.int(),
+  "not_applicable": zod.int()
+})
+})
+
+
+/**
+ * @summary One assessment with its agent trace, findings and evidence
+ */
+export const GetAssessmentParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetAssessmentResponse = zod.object({
+  "id": zod.int(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "rulebookVersionId": zod.int().nullable(),
+  "rulebookVersion": zod.int().nullable(),
+  "kind": zod.enum(['agentic', 'baseline']),
+  "status": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
+  "stopReason": zod.string().nullable().describe('Plain reason the run ended'),
+  "progress": zod.string().nullable().describe('What the run is doing now (while running)'),
+  "stepsUsed": zod.int(),
+  "stepLimit": zod.int(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "tokenLimit": zod.int().describe('Limit on input plus output tokens for the whole run'),
+  "model": zod.string().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "counts": zod.object({
+  "compliant": zod.int(),
+  "breach": zod.int(),
+  "warning": zod.int(),
+  "needs_review": zod.int(),
+  "not_applicable": zod.int()
+})
+}).and(zod.object({
+  "documents": zod.array(zod.object({
+  "id": zod.int(),
+  "originalName": zod.string(),
+  "docType": zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),
+  "language": zod.enum(['en', 'ar']),
+  "gapPages": zod.array(zod.int())
+})),
+  "steps": zod.array(zod.object({
+  "id": zod.int(),
+  "agent": zod.enum(['coordinator', 'evidence', 'consistency', 'rule', 'code']).describe('code = a deterministic check, not a model call'),
+  "stepNo": zod.int(),
+  "tool": zod.string().nullable(),
+  "summary": zod.string().describe('One plain sentence on what this step did'),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "latencyMs": zod.int().nullable(),
+  "error": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})),
+  "findings": zod.array(zod.object({
+  "id": zod.int(),
+  "ruleId": zod.int().nullable(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language']),
+  "threshold": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "raw": zod.string()
+}),zod.null()]),
+  "proposedStatus": zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "rationale": zod.string().describe('The tool\'s plain explanation'),
+  "verification": zod.enum(['verified', 'unsupported']),
+  "proposedBy": zod.string().describe('Which agent or check produced the proposal'),
+  "evidence": zod.array(zod.object({
+  "id": zod.int(),
+  "documentId": zod.int(),
+  "documentName": zod.string(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "pageNo": zod.int(),
+  "quote": zod.string().describe('The bank\'s words'),
+  "verified": zod.enum(['exact', 'normalized', 'not_found']).describe('exact = quote found verbatim on the cited page; normalized = found after whitespace/case normalisation; not_found = not on that page (finding becomes Warning)')
+})),
+  "checks": zod.array(zod.object({
+  "label": zod.string(),
+  "result": zod.enum(['pass', 'fail', 'info']),
+  "detail": zod.string()
+}).describe('A deterministic check run by code, not by the model'))
+})),
+  "alerts": zod.array(zod.object({
+  "kind": zod.enum(['injection', 'extraction_gap', 'missing_document', 'model_error']),
+  "message": zod.string(),
+  "documentId": zod.int().nullable(),
+  "documentName": zod.string().nullable(),
+  "pageNo": zod.int().nullable(),
+  "quote": zod.string().nullable()
+}))
+}))
+
+
+/**
+ * @summary Ask a running assessment to stop after its current step
+ */
+export const StopAssessmentParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const StopAssessmentBody = zod.object({
+  "role": zod.enum(['examiner', 'senior_examiner', 'viewer']).describe('Self-selected and unverified. Never treated as authentication.')
+})
+
+export const StopAssessmentResponse = zod.object({
+  "id": zod.int(),
+  "bankId": zod.int().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "rulebookVersionId": zod.int().nullable(),
+  "rulebookVersion": zod.int().nullable(),
+  "kind": zod.enum(['agentic', 'baseline']),
+  "status": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
+  "stopReason": zod.string().nullable().describe('Plain reason the run ended'),
+  "progress": zod.string().nullable().describe('What the run is doing now (while running)'),
+  "stepsUsed": zod.int(),
+  "stepLimit": zod.int(),
+  "tokensIn": zod.int(),
+  "tokensOut": zod.int(),
+  "tokenLimit": zod.int().describe('Limit on input plus output tokens for the whole run'),
+  "model": zod.string().nullable(),
+  "startedAt": zod.coerce.date().nullable(),
+  "finishedAt": zod.coerce.date().nullable(),
+  "createdAt": zod.coerce.date(),
+  "counts": zod.object({
+  "compliant": zod.int(),
+  "breach": zod.int(),
+  "warning": zod.int(),
+  "needs_review": zod.int(),
+  "not_applicable": zod.int()
+})
+})
+
+

@@ -6,6 +6,7 @@ const saved = { ...process.env };
 describe("LLM adapter never fabricates results", () => {
   beforeEach(() => {
     delete process.env["OPENROUTER_API_KEY"];
+    delete process.env["OPENAI_API_KEY"];
     delete process.env["OPENROUTER_MODEL"];
   });
   afterEach(() => {

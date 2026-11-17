@@ -4,6 +4,7 @@
  * milestones have source-traceable cases (document, page, exact quote).
  */
 import type { DocType } from "../suggest";
+import { FALCONRIDGE_AR_KFS_BASE64, MERIDIAN_AR_KFS_BASE64 } from "./arabic-pdfs";
 
 export interface DemoBank {
   key: "falconridge" | "meridian" | "saffron";
@@ -64,6 +65,10 @@ export interface DemoDocument {
   pages: DemoPage[];
   /** Left awaiting confirmation after loading, so the confirm step can be tried. */
   leaveUnconfirmed?: boolean;
+  /** Defaults to English. */
+  language?: "en" | "ar";
+  /** A pre-rendered PDF (used for Arabic, which pdf-lib cannot shape). */
+  pdfBase64?: string;
 }
 
 const SYNTHETIC = "Synthetic document for demonstration. Not a real bank or product.";
@@ -172,6 +177,16 @@ export const DEMO_DOCUMENTS: DemoDocument[] = [
     ],
   },
 
+  {
+    bank: "falconridge",
+    docType: "kfs",
+    language: "ar",
+    fileName: "Falconridge_Platinum_Cashback_KFS_Arabic.pdf",
+    title: "Key Facts Statement (Arabic) - Falconridge Platinum Cashback Card",
+    pages: [],
+    pdfBase64: FALCONRIDGE_AR_KFS_BASE64,
+  },
+
   // ---------------- Meridian Dunes: mismatch, deceptive clause, injection, fee outlier ----------------
   {
     bank: "meridian",
@@ -196,6 +211,15 @@ export const DEMO_DOCUMENTS: DemoDocument[] = [
         ],
       },
     ],
+  },
+  {
+    bank: "meridian",
+    docType: "kfs",
+    language: "ar",
+    fileName: "Meridian_Dunes_Titanium_KFS_Arabic.pdf",
+    title: "Key Facts Statement (Arabic) - Meridian Dunes Titanium Rewards Card",
+    pages: [],
+    pdfBase64: MERIDIAN_AR_KFS_BASE64,
   },
   {
     bank: "meridian",
@@ -281,9 +305,9 @@ export const DEMO_DOCUMENTS: DemoDocument[] = [
           SYNTHETIC,
           "Product: Saffron Coast Classic Card.",
           "Notwithstanding anything to the contrary contained elsewhere in the documentation governing the relationship between the Bank and the Cardholder, and subject always to the provisions relating to the computation of finance charges on the daily outstanding balance from the date of each transaction until the date of full repayment, the monthly interest rate applicable to retail purchases shall be 3.69%, which corresponds to an annual percentage rate (APR) of 44.28% where such rate is applied for twelve consecutive months without variation.",
-          "Annual fee: AED 250.",
+          "An annual fee of AED 250 shall be levied upon the card account on the anniversary of the date on which the card was first issued, irrespective of whether the card has been activated or used during the preceding period, and such fee shall form part of the outstanding balance on which finance charges may accrue.",
           "The minimum amount payable each month, which the Cardholder acknowledges is computed by reference to the aggregate of all amounts outstanding including principal, finance charges, fees and any amounts in excess of the credit limit, shall be 3% of the outstanding balance or AED 75, whichever is the greater, and payment of only such minimum amount will result in the continued accrual of finance charges on the remaining balance.",
-          "Interest-free period: up to 45 days on purchases.",
+          "The Cardholder may benefit from an interest-free period of up to 45 days on retail purchases, provided always that the full statement balance, including all fees and charges previously billed, is received by the Bank on or before the payment due date shown on the relevant statement.",
           "Late payment fee: AED 230.",
           "Foreign currency transaction fee: 2.99%.",
         ],

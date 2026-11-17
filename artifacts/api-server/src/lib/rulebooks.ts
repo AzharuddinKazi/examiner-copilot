@@ -106,3 +106,12 @@ export async function versionSummaries(dataset: Dataset, versionIds?: number[]) 
     activatedAt: v.activatedAt,
   }));
 }
+
+/** The single active rulebook version for the dataset, or null. */
+export async function activeVersionId(dataset: Dataset): Promise<number | null> {
+  const [row] = await db
+    .select({ id: rulebookVersionsTable.id })
+    .from(rulebookVersionsTable)
+    .where(and(eq(rulebookVersionsTable.dataset, dataset), eq(rulebookVersionsTable.status, "active")));
+  return row?.id ?? null;
+}

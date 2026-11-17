@@ -35,6 +35,7 @@ function drawScan(page: PDFPage) {
 
 /** Renders a synthetic disclosure PDF with a real text layer (except simulated scans). */
 export async function renderDemoPdf(doc: DemoDocument): Promise<Buffer> {
+  if (doc.pdfBase64) return Buffer.from(doc.pdfBase64, "base64");
   const pdf = await PDFDocument.create();
   pdf.setTitle(doc.title);
   pdf.setProducer("Examiner Co-Pilot demo generator");

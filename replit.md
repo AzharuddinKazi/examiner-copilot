@@ -8,7 +8,7 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 - API (Express 5): workflow `artifacts/api-server: API Server` — served at `/api`
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate hooks + zod from `lib/api-spec/openapi.yaml`
 - `pnpm --filter @workspace/db run push` — push DB schema (dev only)
-- `pnpm --filter @workspace/api-server test` — Vitest unit tests (audit hash chain, LLM adapter)
+- `pnpm --filter @workspace/api-server test` — Vitest unit tests (audit hash chain, LLM adapter, assessment decisions, injection handling, run limits)
 - `pnpm run typecheck` — full typecheck
 - Secrets: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (needed from Milestone 2; app shows a clear error without them)
 
@@ -45,7 +45,7 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 
 ## Product
 
-Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess → M3 review and decide → M4 notices → M5 overview and assurance → M6 market and what-if → M7 hardening.
+Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess (done) → M3 review and decide → M4 notices → M5 overview and assurance → M6 market and what-if → M7 hardening.
 
 ## User preferences
 
@@ -57,6 +57,14 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 - 14 business days count from an examiner-entered reference date; day 1 is the next business day; weekend Sat–Sun.
 - Disclosures PDF only; rulebook .xlsx only.
 
+- Model provider: OpenRouter. The key is stored as the secret `OPENAI_API_KEY` (`OPENROUTER_API_KEY` also accepted and wins if both exist). Model in env var `OPENROUTER_MODEL`, currently the free `nvidia/nemotron-3.5-super-vl:free` (user asked for a free model).
+
+## Assessment runs (M2)
+- Agents (Coordinator, Evidence, Consistency, Rule) only return JSON proposals; code in `lib/assess/` verifies every quote against stored page text and makes all numeric, cross-document, bilingual and readability decisions.
+- A Compliant/Breach with no verified quote becomes Warning; an absence Breach is allowed only if every page was readable; the Consistency agent can downgrade a code-found difference to Needs review but never clear it.
+- Each run is bounded (20 model calls, 250k tokens, 2 Coordinator rounds); one run at a time; a provider failure fails the run and writes no findings. Runs interrupted by a restart are marked failed at startup.
+- Document text is wrapped as untrusted data; instruction-like passages raise an alert and are ignored.
+
 ## Gotchas
 
 - `lib/api-client-react/tsconfig.json` needs `dom.iterable` or codegen's typecheck fails on `Headers.entries()`.
@@ -65,7 +73,12 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 
 - `pkill -f dist/index.mjs` also kills the dev API server (dev runs the built bundle). Kill a test process by PID instead.
 - Demo load only works on an empty demo dataset. To reload during development, delete the demo rows (documents, rulebooks, banks, stored_files, audit_log where dataset='demo') first.
-- The Arabic demo document is deferred: pdf-lib's standard fonts cannot render Arabic.
+- Arabic demo PDFs are pre-rendered (Chromium + Amiri font) and stored as base64; pdf-lib's standard fonts cannot render Arabic, and Noto Naskh extracts as garbled text.
+- PDF text extraction strips control characters: Arabic ligatures can extract as NUL, which Postgres rejects.
+- Arabic PDF text often comes out of reading order, so a bilingual 'difference' where the English figure also appears in the same Arabic quote is treated as a pairing error, not a breach.
+
+- Free OpenRouter models are often rate-limited upstream (429), and reasoning models return empty content if `max_tokens` is too small. The Nemotron model needs ~10k max_tokens per agent call; 6k sometimes ran out before answering.
+- Running `next build` while the dev server runs breaks the preview (blank page); restart the web workflow afterwards.
 
 ## Pointers
 

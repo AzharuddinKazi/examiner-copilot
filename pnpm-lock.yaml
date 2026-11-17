@@ -64,7 +64,7 @@ catalogs:
       specifier: ^7.3.2
       version: 7.3.7
     zod:
-      specifier: ^4.6.6
+      specifier: 4.6.7
       version: 4.6.7
 
 overrides:
@@ -213,6 +213,9 @@ importers:
       unpdf:
         specifier: ^2.2.1
         version: 2.2.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10

@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, jsonb, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, jsonb, primaryKey, boolean } from "drizzle-orm/pg-core";
 import {
   datasetEnum, assessmentKindEnum, assessmentStatusEnum, findingStatusEnum, severityEnum, verificationEnum, decisionEnum,
 } from "./enums";
@@ -14,7 +14,12 @@ export const assessmentsTable = pgTable("assessments", {
   kind: assessmentKindEnum("kind").notNull().default("agentic"),
   status: assessmentStatusEnum("status").notNull().default("queued"),
   stopReason: text("stop_reason"),
+  progress: text("progress"),
+  stopRequested: boolean("stop_requested").notNull().default(false),
+  alerts: jsonb("alerts").notNull().default([]),
   stepsUsed: integer("steps_used").notNull().default(0),
+  stepLimit: integer("step_limit").notNull().default(0),
+  tokenLimit: integer("token_limit").notNull().default(0),
   tokensIn: integer("tokens_in").notNull().default(0),
   tokensOut: integer("tokens_out").notNull().default(0),
   model: text("model"),
@@ -38,6 +43,7 @@ export const agentStepsTable = pgTable("agent_steps", {
   agent: text("agent").notNull(),
   stepNo: integer("step_no").notNull(),
   tool: text("tool"),
+  summary: text("summary").notNull().default(""),
   input: jsonb("input"),
   output: jsonb("output"),
   tokensIn: integer("tokens_in").notNull().default(0),
@@ -57,6 +63,7 @@ export const findingsTable = pgTable("findings", {
   rationale: text("rationale").notNull(),
   verification: verificationEnum("verification").notNull(),
   proposedBy: text("proposed_by").notNull(),
+  checks: jsonb("checks").notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -85,3 +92,5 @@ export const decisionsTable = pgTable("decisions", {
 
 export type AssessmentRow = typeof assessmentsTable.$inferSelect;
 export type FindingRow = typeof findingsTable.$inferSelect;
+export type EvidenceRow = typeof evidenceTable.$inferSelect;
+export type AgentStepRow = typeof agentStepsTable.$inferSelect;
