@@ -8,6 +8,7 @@ import {
   db,
   assessmentsTable,
   decisionsTable,
+  decisionApprovalsTable,
   documentPagesTable,
   findingsTable,
   evidenceTable,
@@ -59,17 +60,133 @@ export async function latestFinished(dataset: Dataset): Promise<AssessmentRow[]>
   });
 }
 
-function toDecision(d: typeof decisionsTable.$inferSelect) {
-  return { id: d.id, decision: d.decision, finalStatus: d.finalStatus, examinerNote: d.examinerNote, role: d.role, actor: d.actor, decidedAt: d.decidedAt };
+// ---------------- Maker-checker ----------------
+
+export type ApprovalStatus = "not_required" | "awaiting" | "approved" | "returned";
+type DecisionRow = typeof decisionsTable.$inferSelect;
+type ApprovalRow = typeof decisionApprovalsTable.$inferSelect;
+
+/** A Breach decision, and every Modify or Reject, needs a senior examiner's approval. Routine accepts do not. */
+export function needsApproval(decision: DecisionKind, finalStatus: Status | null): boolean {
+  return decision !== "accept" || finalStatus === "breach";
 }
 
-export async function latestDecisions(findingIds: number[]) {
-  const m = new Map<number, ReturnType<typeof toDecision>>();
+/** State of one decision from its checker steps (the latest step wins). */
+export function approvalStatus(d: Pick<DecisionRow, "needsApproval">, steps: Pick<ApprovalRow, "action">[]): ApprovalStatus {
+  if (!d.needsApproval) return "not_required";
+  const last = steps[steps.length - 1];
+  return !last ? "awaiting" : last.action === "approve" ? "approved" : "returned";
+}
+
+export const isFinal = (s: ApprovalStatus) => s === "not_required" || s === "approved";
+
+/**
+ * Who may approve or return. Only a senior examiner, never the person who made the decision, and only
+ * while it is awaiting approval. Enforced on the server; the UI only mirrors it.
+ */
+export function checkApprover(
+  maker: { userId: number | null; actor: string | null },
+  checker: { id: number; role: string; actor: string | null } | undefined,
+  state: ApprovalStatus,
+): void {
+  if (!checker) throw new ReviewError(401, "Sign in to continue.");
+  if (checker.role !== "senior_examiner") throw new ReviewError(403, "Only a senior examiner can approve or return a decision.");
+  const same = maker.userId !== null ? maker.userId === checker.id : !!maker.actor && maker.actor === checker.actor;
+  if (same) throw new ReviewError(403, "You made this decision, so a different senior examiner must check it.");
+  if (state !== "awaiting") throw new ReviewError(409, state === "not_required" ? "This decision does not need approval." : `This decision is already ${state}.`);
+}
+
+export interface DecisionView {
+  id: number;
+  decision: DecisionKind;
+  finalStatus: Status | null;
+  examinerNote: string | null;
+  role: string;
+  actor: string | null;
+  decidedAt: Date;
+  approvalStatus: ApprovalStatus;
+  makerIsYou: boolean;
+  checker: string | null;
+  checkerNote: string | null;
+  checkedAt: Date | null;
+}
+
+function toDecision(d: DecisionRow, steps: ApprovalRow[]): DecisionView {
+  const me = currentUser();
+  const last = steps[steps.length - 1];
+  return {
+    id: d.id,
+    decision: d.decision,
+    finalStatus: d.finalStatus,
+    examinerNote: d.examinerNote,
+    role: d.role,
+    actor: d.actor,
+    decidedAt: d.decidedAt,
+    approvalStatus: approvalStatus(d, steps),
+    makerIsYou: !!me && (d.makerUserId !== null ? d.makerUserId === me.id : !!d.actor && d.actor === actorLabel(me)),
+    checker: last?.actor ?? null,
+    checkerNote: last?.note ?? null,
+    checkedAt: last?.checkedAt ?? null,
+  };
+}
+
+/**
+ * Per finding: the latest decision (what the queue shows) and the latest final one (what scores,
+ * statistics and notices use). A decision awaiting approval or returned never counts as final.
+ */
+export interface DecisionState {
+  latest: DecisionView;
+  final: DecisionView | null;
+  history: DecisionView[];
+}
+
+/** Newest first in, state out. Pure, for tests. */
+export function decisionState(history: DecisionView[]): DecisionState | null {
+  if (!history.length) return null;
+  return { latest: history[0]!, final: history.find((d) => isFinal(d.approvalStatus)) ?? null, history };
+}
+
+async function loadHistories(findingIds: number[]): Promise<Map<number, DecisionView[]>> {
+  const m = new Map<number, DecisionView[]>();
   if (!findingIds.length) return m;
   const rows = await db.select().from(decisionsTable).where(inArray(decisionsTable.findingId, findingIds)).orderBy(desc(decisionsTable.id));
-  for (const r of rows) if (!m.has(r.findingId)) m.set(r.findingId, toDecision(r));
+  const steps = rows.length
+    ? await db.select().from(decisionApprovalsTable).where(inArray(decisionApprovalsTable.decisionId, rows.map((r) => r.id))).orderBy(decisionApprovalsTable.id)
+    : [];
+  for (const r of rows) {
+    const list = m.get(r.findingId) ?? [];
+    list.push(toDecision(r, steps.filter((s) => s.decisionId === r.id)));
+    m.set(r.findingId, list);
+  }
   return m;
 }
+
+export async function decisionStates(findingIds: number[]): Promise<Map<number, DecisionState>> {
+  const out = new Map<number, DecisionState>();
+  for (const [id, h] of await loadHistories(findingIds)) out.set(id, decisionState(h)!);
+  return out;
+}
+
+/** The latest decision per finding (pending or not), as shown in the queue. */
+export async function latestDecisions(findingIds: number[]) {
+  const m = new Map<number, DecisionView>();
+  for (const [id, s] of await decisionStates(findingIds)) m.set(id, s.latest);
+  return m;
+}
+
+/**
+ * Findings a draft notice may cite: an approved (or no-approval-needed) Breach or Warning. An unapproved
+ * Breach never reaches a notice. Pure, for tests and for the notices step.
+ */
+export function noticeEligible<T extends { decision: DecisionState | null }>(items: T[]): T[] {
+  return items.filter((i) => {
+    const s = i.decision?.final?.finalStatus;
+    return s === "breach" || s === "warning";
+  });
+}
+
+/** An item still needs work from the maker when it has no decision or its latest one was returned. */
+export const needsMaker = (d: DecisionView | null) => !d || d.approvalStatus === "returned";
 
 export async function reviewQueue(dataset: Dataset) {
   const assessments = await latestFinished(dataset);
@@ -81,10 +198,10 @@ export async function reviewQueue(dataset: Dataset) {
   ]);
   const fIds = findings.map((f) => f.id);
   const ruleIds = findings.map((f) => f.ruleId).filter((x): x is number => x !== null);
-  const [rules, evidence, decisions] = await Promise.all([
+  const [rules, evidence, states] = await Promise.all([
     db.select().from(rulesTable).where(inArray(rulesTable.id, ruleIds.length ? ruleIds : [-1])),
     db.select({ findingId: evidenceTable.findingId }).from(evidenceTable).where(inArray(evidenceTable.findingId, fIds.length ? fIds : [-1])),
-    latestDecisions(fIds),
+    decisionStates(fIds),
   ]);
   const byAssessment = new Map(assessments.map((a) => [a.id, a]));
   const items = findings
@@ -105,12 +222,14 @@ export async function reviewQueue(dataset: Dataset) {
         verification: f.verification,
         rationale: f.rationale,
         evidenceCount: evidence.filter((e) => e.findingId === f.id).length,
-        decision: decisions.get(f.id) ?? null,
+        decision: states.get(f.id)?.latest ?? null,
+        finalDecision: states.get(f.id)?.final ?? null,
+        challengerVerdict: (f.challenger as { verdict?: "supports" | "does_not_support" | "unclear" } | null)?.verdict ?? null,
       };
     })
     .sort(
       (x, y) =>
-        Number(x.decision !== null) - Number(y.decision !== null) ||
+        Number(!needsMaker(x.decision)) - Number(!needsMaker(y.decision)) ||
         STATUS_ORDER.indexOf(x.proposedStatus) - STATUS_ORDER.indexOf(y.proposedStatus) ||
         SEVERITY_ORDER.indexOf(x.severity) - SEVERITY_ORDER.indexOf(y.severity) ||
         (x.productName ?? "").localeCompare(y.productName ?? "") ||
@@ -126,22 +245,26 @@ export async function reviewQueue(dataset: Dataset) {
         assessmentId: a.id,
         finishedAt: a.finishedAt,
         total: mine.length,
-        undecided: mine.filter((i) => !i.decision).length,
+        undecided: mine.filter((i) => needsMaker(i.decision)).length,
         bulkAcceptable: mine.filter((i) => !i.decision && bulkEligible(i.proposedStatus, i.verification)).length,
       };
     })
     .sort((x, y) => (x.productName ?? "").localeCompare(y.productName ?? ""));
-  const decided = items.filter((i) => i.decision);
+  // Decided = a final decision stands (approved, or a routine accept). Pending ones are counted apart.
+  const decided = items.filter((i) => i.finalDecision && !needsMaker(i.decision) && i.decision?.approvalStatus !== "awaiting");
   return {
-    items,
+    items: items.map(({ finalDecision: _f, ...i }) => i),
     products: productsOut,
     counts: {
       total: items.length,
-      undecided: items.length - decided.length,
+      undecided: items.filter((i) => needsMaker(i.decision)).length,
       decided: decided.length,
-      accepted: decided.filter((i) => i.decision!.decision === "accept").length,
-      modified: decided.filter((i) => i.decision!.decision === "modify").length,
-      rejected: decided.filter((i) => i.decision!.decision === "reject").length,
+      accepted: decided.filter((i) => i.finalDecision!.decision === "accept").length,
+      modified: decided.filter((i) => i.finalDecision!.decision === "modify").length,
+      rejected: decided.filter((i) => i.finalDecision!.decision === "reject").length,
+      awaitingApproval: items.filter((i) => i.decision?.approvalStatus === "awaiting").length,
+      returned: items.filter((i) => i.decision?.approvalStatus === "returned").length,
+      disagreements: items.filter((i) => i.challengerVerdict === "does_not_support").length,
     },
   };
 }
@@ -170,12 +293,8 @@ export async function findingDetail(dataset: Dataset, findingId: number) {
   if (!f) return null;
   const [a] = await db.select().from(assessmentsTable).where(eq(assessmentsTable.id, f.assessmentId));
   if (!a) return null;
-  const [d, latest, history, queue] = await Promise.all([
-    detail(dataset, a),
-    latestFinished(dataset),
-    db.select().from(decisionsTable).where(eq(decisionsTable.findingId, f.id)).orderBy(desc(decisionsTable.id)),
-    reviewQueue(dataset),
-  ]);
+  const [d, latest, histories, queue] = await Promise.all([detail(dataset, a), latestFinished(dataset), loadHistories([f.id]), reviewQueue(dataset)]);
+  const decisions = histories.get(f.id) ?? [];
   const item = d.findings.find((x) => x.id === f.id)!;
   const ev = await db.select().from(evidenceTable).where(eq(evidenceTable.findingId, f.id));
   const pageKeys = [...new Map(ev.map((e) => [`${e.documentId}:${e.pageNo}`, e])).values()];
@@ -209,13 +328,12 @@ export async function findingDetail(dataset: Dataset, findingId: number) {
   if (order.length) {
     for (let k = 1; k <= order.length; k++) {
       const cand = queue.items[(Math.max(pos, -1) + k + order.length) % order.length]!;
-      if (!cand.decision && cand.findingId !== f.id) {
+      if (needsMaker(cand.decision) && cand.findingId !== f.id) {
         nextUndecidedId = cand.findingId;
         break;
       }
     }
   }
-  const decisions = history.map(toDecision);
   return {
     ...item,
     assessmentId: a.id,
@@ -279,8 +397,14 @@ export async function recordDecision(
       : input.decision === "modify"
         ? `Changed ${code} from ${STATUS_LABEL[f.proposedStatus]} to ${STATUS_LABEL[finalStatus!]}.`
         : `Rejected the proposed ${STATUS_LABEL[f.proposedStatus]} for ${code}.`;
+  const approval = needsApproval(input.decision, finalStatus);
+  const me = currentUser();
   await db.transaction(async (tx) => {
-    await tx.insert(decisionsTable).values({ dataset, findingId: f.id, decision: input.decision, finalStatus, examinerNote: note, role, actor: actorLabel(currentUser()) });
+    const [row] = await tx
+      .insert(decisionsTable)
+      .values({ dataset, findingId: f.id, decision: input.decision, finalStatus, examinerNote: note, role, actor: actorLabel(me), makerUserId: me?.id ?? null, needsApproval: approval })
+      .returning();
+    const text = `${summary}${approval ? " Awaiting approval by a senior examiner." : ""}`;
     await appendAudit(
       {
         dataset,
@@ -288,9 +412,9 @@ export async function recordDecision(
         action: prev ? "finding.decision_changed" : "finding.decided",
         entityType: "finding",
         entityId: String(f.id),
-        summary: prev ? `${summary} (replaces an earlier ${prev.decision})` : summary,
+        summary: prev ? `${text} (replaces an earlier ${prev.decision})` : text,
         before: prev ? { decision: prev.decision, finalStatus: prev.finalStatus } : null,
-        after: { decision: input.decision, proposedStatus: f.proposedStatus, finalStatus, note },
+        after: { decisionId: row!.id, decision: input.decision, proposedStatus: f.proposedStatus, finalStatus, note, approval: approval ? "awaiting" : "not_required" },
       },
       tx,
     );
@@ -311,7 +435,9 @@ export async function bulkAccept(dataset: Dataset, assessmentId: number, role: s
   const note = examinerNote?.trim() || null;
   const [product] = a.productId ? await db.select().from(productsTable).where(eq(productsTable.id, a.productId)) : [];
   await db.transaction(async (tx) => {
-    await tx.insert(decisionsTable).values(eligible.map((f) => ({ dataset, findingId: f.id, decision: "accept" as const, finalStatus: f.proposedStatus, examinerNote: note, role, actor: actorLabel(currentUser()) })));
+    const me = currentUser();
+    // Routine Compliant / Not applicable accepts: final at once, no approval step.
+    await tx.insert(decisionsTable).values(eligible.map((f) => ({ dataset, findingId: f.id, decision: "accept" as const, finalStatus: f.proposedStatus, examinerNote: note, role, actor: actorLabel(me), makerUserId: me?.id ?? null, needsApproval: false })));
     await appendAudit(
       {
         dataset,
@@ -326,4 +452,43 @@ export async function bulkAccept(dataset: Dataset, assessmentId: number, role: s
     );
   });
   return eligible.length;
+}
+
+/** The checker step: a senior examiner (not the maker) approves or returns a decision awaiting approval. */
+export async function reviewDecision(dataset: Dataset, decisionId: number, input: { action: "approve" | "return"; note?: string | null }) {
+  const [d] = await db.select().from(decisionsTable).where(and(eq(decisionsTable.dataset, dataset), eq(decisionsTable.id, decisionId)));
+  if (!d) throw new ReviewError(404, "Decision not found.");
+  const [newest] = await db.select({ id: decisionsTable.id }).from(decisionsTable).where(eq(decisionsTable.findingId, d.findingId)).orderBy(desc(decisionsTable.id)).limit(1);
+  if (newest && newest.id !== d.id) throw new ReviewError(409, "A newer decision on this finding replaced this one. Check that one instead.");
+  const steps = await db.select().from(decisionApprovalsTable).where(eq(decisionApprovalsTable.decisionId, d.id)).orderBy(decisionApprovalsTable.id);
+  const me = currentUser();
+  checkApprover({ userId: d.makerUserId, actor: d.actor }, me ? { id: me.id, role: me.role, actor: actorLabel(me) } : undefined, approvalStatus(d, steps));
+  const note = input.note?.trim() || null;
+  if (input.action === "return" && !note) throw new ReviewError(400, "Write a note telling the examiner what to change.");
+  const [f] = await db.select().from(findingsTable).where(eq(findingsTable.id, d.findingId));
+  const latest = await latestFinished(dataset);
+  if (!f || !latest.some((a) => a.id === f.assessmentId)) throw new ReviewError(409, "A newer assessment of this product exists; this decision is kept for the record.");
+  const [rule] = f.ruleId ? await db.select().from(rulesTable).where(eq(rulesTable.id, f.ruleId)) : [];
+  const code = rule?.code ?? `finding ${f.id}`;
+  const what = d.decision === "reject" ? `rejection of ${STATUS_LABEL[f.proposedStatus]}` : `${d.decision} as ${STATUS_LABEL[d.finalStatus!]}`;
+  await db.transaction(async (tx) => {
+    await tx.insert(decisionApprovalsTable).values({ dataset, decisionId: d.id, action: input.action, note, role: me!.role, actor: actorLabel(me), checkerUserId: me!.id });
+    await appendAudit(
+      {
+        dataset,
+        role: me!.role,
+        action: input.action === "approve" ? "finding.decision_approved" : "finding.decision_returned",
+        entityType: "finding",
+        entityId: String(f.id),
+        summary:
+          input.action === "approve"
+            ? `Approved the ${what} for ${code} made by ${d.actor ?? "an examiner"}.`
+            : `Returned the ${what} for ${code} to ${d.actor ?? "the examiner"}: ${note}`,
+        before: { decisionId: d.id, approval: "awaiting", maker: d.actor },
+        after: { decisionId: d.id, approval: input.action === "approve" ? "approved" : "returned", note },
+      },
+      tx,
+    );
+  });
+  return f.id;
 }

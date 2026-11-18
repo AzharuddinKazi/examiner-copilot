@@ -8,10 +8,13 @@ import {
   DecideFindingResponse,
   AcceptCompliantFindingsBody,
   AcceptCompliantFindingsResponse,
+  ApproveDecisionParams,
+  ApproveDecisionBody,
+  ApproveDecisionResponse,
 } from "@workspace/api-zod";
 import { getActiveDataset } from "../lib/dataset";
 import { requireWriter } from "../lib/roles";
-import { ReviewError, bulkAccept, findingDetail, recordDecision, reviewQueue } from "../lib/review";
+import { ReviewError, bulkAccept, findingDetail, recordDecision, reviewDecision, reviewQueue } from "../lib/review";
 
 const router: IRouter = Router();
 
@@ -51,6 +54,27 @@ router.post("/findings/:id/decisions", async (req, res): Promise<void> => {
     throw err;
   }
   res.status(201).json(DecideFindingResponse.parse(await findingDetail(dataset, params.data.id)));
+});
+
+router.post("/decisions/:id/approval", async (req, res): Promise<void> => {
+  const params = ApproveDecisionParams.safeParse(req.params);
+  const body = ApproveDecisionBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: "Choose approve or return." });
+    return;
+  }
+  const dataset = await getActiveDataset();
+  try {
+    // Role and self-approval are checked inside, against the signed-in person.
+    const findingId = await reviewDecision(dataset, params.data.id, body.data);
+    res.json(ApproveDecisionResponse.parse(await findingDetail(dataset, findingId)));
+  } catch (err) {
+    if (err instanceof ReviewError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
 });
 
 router.post("/review/accept-compliant", async (req, res): Promise<void> => {

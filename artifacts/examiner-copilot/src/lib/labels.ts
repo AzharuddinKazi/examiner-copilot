@@ -71,7 +71,7 @@ export const FINDING_STATUS_PLURAL: Record<FindingStatus, [string, string]> = {
   compliant: ["compliant", "compliant"], not_applicable: ["not applicable", "not applicable"],
 };
 export const AGENT_LABELS: Record<AgentName, string> = {
-  coordinator: "Coordinator", evidence: "Evidence", consistency: "Consistency", rule: "Rule", code: "Code check",
+  coordinator: "Coordinator", evidence: "Evidence", consistency: "Consistency", rule: "Rule", challenger: "Challenger", code: "Code check",
 };
 export const EVIDENCE_VERIFICATION_LABELS: Record<EvidenceVerification, string> = {
   exact: "Exact match", normalized: "Normalized match", not_found: "Not found on page",

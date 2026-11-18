@@ -7,7 +7,7 @@
  */
 
 /**
- * code = a deterministic check, not a model call
+ * code = a deterministic check, not a model call. coordinator and consistency appear only on older runs.
  */
 export type AgentName = typeof AgentName[keyof typeof AgentName];
 
@@ -17,5 +17,6 @@ export const AgentName = {
   evidence: 'evidence',
   consistency: 'consistency',
   rule: 'rule',
+  challenger: 'challenger',
   code: 'code',
 } as const;

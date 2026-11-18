@@ -8,7 +8,7 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 - API (Express 5): workflow `artifacts/api-server: API Server` — served at `/api`
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate hooks + zod from `lib/api-spec/openapi.yaml`
 - `pnpm --filter @workspace/db run push` — push DB schema (dev only)
-- `pnpm --filter @workspace/api-server test` — Vitest unit tests (audit hash chain, LLM adapter, assessment decisions, injection handling, run limits)
+- `pnpm --filter @workspace/api-server test` — Vitest unit tests (audit hash chain, LLM adapter, assessment decisions, injection handling, run limits, Challenger, maker-checker)
 - `pnpm run typecheck` — full typecheck
 - Secrets: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (needed from Milestone 2; app shows a clear error without them)
 
@@ -62,12 +62,14 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 - 14 business days count from an examiner-entered reference date; day 1 is the next business day; weekend Sat–Sun.
 - Disclosures PDF only; rulebook .xlsx or CSV (UTF-8). Rulebook check types include binary/subjective/calculation (judged by the Rule agent in batches of 12); document roles TC→tnc, SOFC→fees, ADVERT→advert.
 
-- Model provider: OpenRouter. The key is stored as the secret `OPENAI_API_KEY` (`OPENROUTER_API_KEY` also accepted and wins if both exist). Model in env var `OPENROUTER_MODEL`, currently `anthropic/claude-fable-5.2` (user asked for the best available model, Claude; paid per token on the user's OpenRouter key, which has a spending limit). Earlier the free Nemotron model was used.
+- Model provider: OpenRouter. The key is stored as the secret `OPENAI_API_KEY` (`OPENROUTER_API_KEY` also accepted and wins if both exist). Model in env var `OPENROUTER_MODEL`, currently `anthropic/claude-sonnet-5.5` (user: keep the cheapest for now; paid per token on the user's OpenRouter key). Optional `OPENROUTER_CHALLENGER_MODEL` for the Challenger; otherwise it uses the Rule agent's model. Earlier the free Nemotron model was used.
 
 ## Assessment runs (M2)
-- Agents (Coordinator, Evidence, Consistency, Rule) only return JSON proposals; code in `lib/assess/` verifies every quote against stored page text and makes all numeric, cross-document, bilingual and readability decisions.
-- A Compliant/Breach with no verified quote becomes Warning; an absence Breach is allowed only if every page was readable; the Consistency agent can downgrade a code-found difference to Needs review but never clear it.
-- Each run is bounded (20 model calls, 250k tokens, 2 Coordinator rounds); one run at a time; a provider failure fails the run and writes no findings. Runs interrupted by a restart are marked failed at startup.
+- Four model roles: Ingestion, Evidence, Rule, Challenger. They only return JSON proposals; code in `lib/assess/` verifies every quote against stored page text and makes all numeric, cross-document, bilingual and readability decisions. The Coordinator and Consistency agents were removed (their names stay in the AgentName enum only for older runs).
+- Follow-up is deterministic code: after the first pass, Evidence re-reads once each English document that has open evidence gaps for numeric rules.
+- Challenger: read-only, sees only the rule text, the code-verified quotes and the proposed verdict (never the Rule agent's reasoning). Runs on breaches, low-confidence judgements and code-found differences; answers supports / does_not_support / unclear plus one sentence, stored on the finding. It can only downgrade to Needs review, never upgrade or clear. Absence breaches have no quotes, so it mostly answers "unclear" on those.
+- A Compliant/Breach with no verified quote becomes Warning; an absence Breach is allowed only if every page was readable.
+- Each run is bounded (LIMITS: 200 model calls, 1.5M tokens); one run at a time; a provider failure fails the run and writes no findings. Runs interrupted by a restart are marked failed at startup.
 - Document text is wrapped as untrusted data; instruction-like passages raise an alert and are ignored.
 
 ## Ingestion agent
@@ -77,6 +79,7 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 ## Review and decide (M3)
 - Queue = findings from the latest finished (complete or stopped) assessment per product; older assessments are readable but closed to decisions (409).
 - Decisions are append-only; latest wins. Accept keeps the proposed status; Modify needs a different status and a note; Reject needs a note and stores no final status (no finding stands).
+- Maker-checker: a Breach decision and every Modify or Reject is "Awaiting approval" until a senior examiner other than the maker approves it or returns it with a note (server returns 403 for self-approval or a non-senior). Approval steps are an append-only table and each goes into the audit chain. A returned decision goes back to the maker's queue. Scores, statistics and notices use only the latest final decision (approved or no approval needed); `noticeEligible` in `lib/review.ts` is the filter for the notices step. Decisions made before maker-checker count as final.
 - Bulk accept covers only undecided, verified Compliant/Not applicable proposals of one assessment.
 
 ## Gotchas
@@ -97,7 +100,6 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
-- Assessment step/token budgets are switched off at the user's request (LIMITS = 0 means no limit in `lib/assess/run.ts`); runs continue until every rule is judged. Re-introduce limits later by setting non-zero values.
 
 ## End-to-end test run
 `artifacts/api-server/scripts/e2e-run.ts <productId>` runs the real assessment pipeline on a product in the dev database (costs model credit). Run it as a background task; it dies if its shell ends.

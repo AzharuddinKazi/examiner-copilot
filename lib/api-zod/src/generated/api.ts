@@ -1168,7 +1168,7 @@ export const GetAssessmentResponse = zod.object({
 })),
   "steps": zod.array(zod.object({
   "id": zod.int(),
-  "agent": zod.enum(['coordinator', 'evidence', 'consistency', 'rule', 'code']).describe('code = a deterministic check, not a model call'),
+  "agent": zod.enum(['coordinator', 'evidence', 'consistency', 'rule', 'challenger', 'code']).describe('code = a deterministic check, not a model call. coordinator and consistency appear only on older runs.'),
   "stepNo": zod.int(),
   "tool": zod.string().nullable(),
   "summary": zod.string().describe('One plain sentence on what this step did'),
@@ -1210,7 +1210,13 @@ export const GetAssessmentResponse = zod.object({
   "label": zod.string(),
   "result": zod.enum(['pass', 'fail', 'info']),
   "detail": zod.string()
-}).describe('A deterministic check run by code, not by the model'))
+}).describe('A deterministic check run by code, not by the model')),
+  "challenger": zod.union([zod.object({
+  "verdict": zod.enum(['supports', 'does_not_support', 'unclear']),
+  "note": zod.string().describe('One sentence from the Challenger agent'),
+  "reason": zod.enum(['breach', 'low_confidence', 'difference']).describe('Why the Challenger was asked'),
+  "downgraded": zod.boolean().describe('True when the Challenger\'s view moved the proposal to Needs review')
+}),zod.null()]).optional()
 })),
   "alerts": zod.array(zod.object({
   "kind": zod.enum(['injection', 'extraction_gap', 'missing_document', 'model_error']),
@@ -1455,6 +1461,7 @@ export const DeleteItemResponse = zod.object({
  */
 export const GetReviewQueueResponse = zod.object({
   "items": zod.array(zod.object({
+  "challengerVerdict": zod.union([zod.enum(['supports', 'does_not_support', 'unclear']),zod.null()]),
   "findingId": zod.int(),
   "assessmentId": zod.int(),
   "bankId": zod.int().nullable(),
@@ -1469,6 +1476,11 @@ export const GetReviewQueueResponse = zod.object({
   "rationale": zod.string(),
   "evidenceCount": zod.int(),
   "decision": zod.union([zod.object({
+  "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
+  "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
+  "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
   "id": zod.int(),
   "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
@@ -1489,6 +1501,9 @@ export const GetReviewQueueResponse = zod.object({
   "bulkAcceptable": zod.int().describe('Undecided')
 })),
   "counts": zod.object({
+  "awaitingApproval": zod.int(),
+  "returned": zod.int(),
+  "disagreements": zod.int().describe('Findings where the Challenger does not support the Rule agent'),
   "total": zod.int(),
   "undecided": zod.int(),
   "decided": zod.int(),
@@ -1538,7 +1553,13 @@ export const GetFindingResponse = zod.object({
   "label": zod.string(),
   "result": zod.enum(['pass', 'fail', 'info']),
   "detail": zod.string()
-}).describe('A deterministic check run by code, not by the model'))
+}).describe('A deterministic check run by code, not by the model')),
+  "challenger": zod.union([zod.object({
+  "verdict": zod.enum(['supports', 'does_not_support', 'unclear']),
+  "note": zod.string().describe('One sentence from the Challenger agent'),
+  "reason": zod.enum(['breach', 'low_confidence', 'difference']).describe('Why the Challenger was asked'),
+  "downgraded": zod.boolean().describe('True when the Challenger\'s view moved the proposal to Needs review')
+}),zod.null()]).optional()
 }).and(zod.object({
   "assessmentId": zod.int(),
   "assessmentStatus": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
@@ -1549,6 +1570,11 @@ export const GetFindingResponse = zod.object({
   "productName": zod.string().nullable(),
   "isLatest": zod.boolean().describe('false when a newer assessment of the product exists; decisions are then closed'),
   "decision": zod.union([zod.object({
+  "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
+  "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
+  "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
   "id": zod.int(),
   "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
@@ -1558,6 +1584,11 @@ export const GetFindingResponse = zod.object({
   "decidedAt": zod.coerce.date()
 }),zod.null()]),
   "history": zod.array(zod.object({
+  "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
+  "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
+  "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
   "id": zod.int(),
   "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
@@ -1635,7 +1666,13 @@ export const DecideFindingResponse = zod.object({
   "label": zod.string(),
   "result": zod.enum(['pass', 'fail', 'info']),
   "detail": zod.string()
-}).describe('A deterministic check run by code, not by the model'))
+}).describe('A deterministic check run by code, not by the model')),
+  "challenger": zod.union([zod.object({
+  "verdict": zod.enum(['supports', 'does_not_support', 'unclear']),
+  "note": zod.string().describe('One sentence from the Challenger agent'),
+  "reason": zod.enum(['breach', 'low_confidence', 'difference']).describe('Why the Challenger was asked'),
+  "downgraded": zod.boolean().describe('True when the Challenger\'s view moved the proposal to Needs review')
+}),zod.null()]).optional()
 }).and(zod.object({
   "assessmentId": zod.int(),
   "assessmentStatus": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
@@ -1646,6 +1683,11 @@ export const DecideFindingResponse = zod.object({
   "productName": zod.string().nullable(),
   "isLatest": zod.boolean().describe('false when a newer assessment of the product exists; decisions are then closed'),
   "decision": zod.union([zod.object({
+  "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
+  "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
+  "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
   "id": zod.int(),
   "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
@@ -1655,6 +1697,123 @@ export const DecideFindingResponse = zod.object({
   "decidedAt": zod.coerce.date()
 }),zod.null()]),
   "history": zod.array(zod.object({
+  "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
+  "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
+  "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "id": zod.int(),
+  "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
+  "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
+  "examinerNote": zod.string().nullable(),
+  "role": zod.string(),
+  "actor": zod.string().nullable(),
+  "decidedAt": zod.coerce.date()
+})).describe('Every decision on this finding, newest first'),
+  "sourcePages": zod.array(zod.object({
+  "documentId": zod.int(),
+  "documentName": zod.string(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "pageNo": zod.int(),
+  "text": zod.string(),
+  "isGap": zod.boolean(),
+  "highlights": zod.array(zod.object({
+  "start": zod.int(),
+  "end": zod.int(),
+  "evidenceId": zod.int()
+}))
+})),
+  "prevId": zod.int().nullable().describe('Previous finding in the review queue order'),
+  "nextId": zod.int().nullable(),
+  "nextUndecidedId": zod.int().nullable().describe('Next undecided finding after this one')
+}))
+
+
+/**
+ * @summary A senior examiner approves or returns a decision that awaits approval. The checker must be a different person from the maker.
+ */
+export const ApproveDecisionParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const approveDecisionBodyNoteMax = 2000;
+
+
+
+export const ApproveDecisionBody = zod.object({
+  "action": zod.enum(['approve', 'return']),
+  "note": zod.string().max(approveDecisionBodyNoteMax).nullish()
+})
+
+export const ApproveDecisionResponse = zod.object({
+  "id": zod.int(),
+  "ruleId": zod.int().nullable(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language', 'binary', 'subjective', 'calculation']),
+  "threshold": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "raw": zod.string()
+}),zod.null()]),
+  "proposedStatus": zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "rationale": zod.string().describe('The tool\'s plain explanation'),
+  "verification": zod.enum(['verified', 'unsupported']),
+  "proposedBy": zod.string().describe('Which agent or check produced the proposal'),
+  "verdict": zod.union([zod.literal('satisfied'),zod.literal('partially'),zod.literal('not_satisfied'),zod.literal('not_applicable'),zod.literal(null)]).nullish().describe('Rubric verdict after code checks (null when there is none)'),
+  "evidence": zod.array(zod.object({
+  "id": zod.int(),
+  "documentId": zod.int(),
+  "documentName": zod.string(),
+  "docType": zod.union([zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material'),zod.null()]),
+  "language": zod.union([zod.enum(['en', 'ar']),zod.null()]),
+  "pageNo": zod.int(),
+  "quote": zod.string().describe('The bank\'s words'),
+  "verified": zod.enum(['exact', 'normalized', 'not_found']).describe('exact = quote found verbatim on the cited page; normalized = found after whitespace/case normalisation; not_found = not on that page (finding becomes Warning)')
+})),
+  "checks": zod.array(zod.object({
+  "label": zod.string(),
+  "result": zod.enum(['pass', 'fail', 'info']),
+  "detail": zod.string()
+}).describe('A deterministic check run by code, not by the model')),
+  "challenger": zod.union([zod.object({
+  "verdict": zod.enum(['supports', 'does_not_support', 'unclear']),
+  "note": zod.string().describe('One sentence from the Challenger agent'),
+  "reason": zod.enum(['breach', 'low_confidence', 'difference']).describe('Why the Challenger was asked'),
+  "downgraded": zod.boolean().describe('True when the Challenger\'s view moved the proposal to Needs review')
+}),zod.null()]).optional()
+}).and(zod.object({
+  "assessmentId": zod.int(),
+  "assessmentStatus": zod.enum(['queued', 'running', 'complete', 'stopped', 'failed']).describe('stopped = ended early by a limit or by the examiner; failed = an error ended the run (no results are invented)'),
+  "assessmentFinishedAt": zod.coerce.date().nullable(),
+  "model": zod.string().nullable(),
+  "bankName": zod.string().nullable(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "isLatest": zod.boolean().describe('false when a newer assessment of the product exists; decisions are then closed'),
+  "decision": zod.union([zod.object({
+  "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
+  "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
+  "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "id": zod.int(),
+  "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
+  "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),
+  "examinerNote": zod.string().nullable(),
+  "role": zod.string(),
+  "actor": zod.string().nullable(),
+  "decidedAt": zod.coerce.date()
+}),zod.null()]),
+  "history": zod.array(zod.object({
+  "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
+  "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
+  "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
   "id": zod.int(),
   "decision": zod.enum(['accept', 'reject', 'modify']).describe('accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands'),
   "finalStatus": zod.union([zod.enum(['compliant', 'breach', 'warning', 'needs_review', 'not_applicable']),zod.null()]),

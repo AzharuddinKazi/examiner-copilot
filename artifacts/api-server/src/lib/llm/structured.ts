@@ -39,6 +39,7 @@ export async function structuredCall<S extends z.ZodType>(opts: {
   maxTokens: number;
   timeoutMs?: number;
   call?: CallModel;
+  model?: string;
 }): Promise<StructuredResult<z.infer<S>>> {
   const call = opts.call ?? chatCompletion;
   const jsonSchema = z.toJSONSchema(opts.schema, { target: "draft-7" }) as Record<string, unknown>;
@@ -55,6 +56,7 @@ export async function structuredCall<S extends z.ZodType>(opts: {
       maxTokens: opts.maxTokens,
       timeoutMs: opts.timeoutMs ?? 90_000,
       jsonSchema: { name: opts.name, schema: jsonSchema },
+      ...(opts.model ? { model: opts.model } : {}),
     });
     tokensIn += r.tokensIn;
     tokensOut += r.tokensOut;

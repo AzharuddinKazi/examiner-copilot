@@ -5,10 +5,23 @@
  * Examiner Co-Pilot API. Agents propose, examiners decide.
  * OpenAPI spec version: 0.1.0
  */
+import type { ApprovalStatus } from './approvalStatus';
 import type { DecisionKind } from './decisionKind';
 import type { FindingStatus } from './findingStatus';
 
 export interface Decision {
+  approvalStatus: ApprovalStatus;
+  /** True when the signed-in person recorded this decision (they cannot approve it) */
+  makerIsYou: boolean;
+  /**
+     * Senior examiner who approved or returned it
+     * @nullable
+     */
+  checker: string | null;
+  /** @nullable */
+  checkerNote: string | null;
+  /** @nullable */
+  checkedAt: Date | null;
   id: number;
   decision: DecisionKind;
   finalStatus: FindingStatus | null;

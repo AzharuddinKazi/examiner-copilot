@@ -1,7 +1,9 @@
 /**
- * The bounded assessment run. Code drives the order of work; the Coordinator may only add
- * focused re-reads within the remaining step and token budget. Each model call is one step.
- * On a provider failure the run fails with a clear reason and no findings are written.
+ * The bounded assessment run. Code drives the order of work and every follow-up; no model call
+ * picks what happens next. Agents: Evidence (reads and quotes), Rule (rubric verdicts) and
+ * Challenger (an independent second read that can only downgrade to Needs review). Each model call
+ * is one step, within the step and token limits. A provider failure fails the run; results finished
+ * before it are kept and the rest are marked as not assessed.
  */
 import { z } from "zod";
 import {
@@ -20,7 +22,7 @@ import {
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { LlmError, type ChatMessage } from "../llm/adapter";
 import { structuredCall } from "../llm/structured";
-import { readLlmConfig } from "../llm/config";
+import { challengerModel, readLlmConfig } from "../llm/config";
 import { appendAudit } from "../audit";
 import type { Dataset } from "../dataset";
 import { logger } from "../logger";
@@ -44,15 +46,13 @@ import {
   type RuleEvidence,
 } from "./decide";
 import {
-  consistencyMessages,
-  consistencySchema,
-  coordinatorMessages,
-  coordinatorSchema,
+  challengerMessages,
+  challengerSchema,
   evidenceMessages,
   evidenceSchema,
   ruleMessages,
   ruleSchema,
-  type OpenIssue,
+  type ChallengeItem,
   type RuleContext,
   type RuleJudgementOut,
 } from "./agents";
@@ -62,9 +62,14 @@ import { DOC_TYPE_ROLE, ROLE_LABEL, parseRoles, ruleMeta, type RuleMeta } from "
 import { getDocumentRoles, getScoringConfig } from "../scoring/settings";
 import type { Role } from "../scoring/config";
 
-/** 0 means no limit. Step and token budgets are switched off for now; runs go until every rule is judged. */
-export const LIMITS = { stepLimit: 0, tokenLimit: 0, coordinatorRounds: 2 } as const;
-const MAX_TOKENS = { evidence: 12000, rule: 16000, consistency: 8000, coordinator: 6000 } as const;
+/**
+ * Per-run ceilings so a run cannot spend without bound (0 would mean no limit). A full 223-rule run
+ * used about 30 model calls and 0.7M tokens, so these leave wide headroom.
+ */
+export const LIMITS = { stepLimit: 200, tokenLimit: 1_500_000 } as const;
+const MAX_TOKENS = { evidence: 12000, rule: 16000, challenger: 8000 } as const;
+/** Items the Challenger checks per call. It sees no documents, so calls are small. */
+const CHALLENGE_BATCH = 20;
 const DOC_LABEL = { kfs: "KFS", tnc: "T&C", rewards: "Rewards", fees: "Fees Schedule", advert: "Advert" } as const;
 
 export interface Alert {
@@ -96,7 +101,7 @@ class StopRun extends Error {
 let runningId: number | null = null;
 export const currentRun = () => runningId;
 
-type AgentName = "coordinator" | "evidence" | "consistency" | "rule" | "code";
+type AgentName = "evidence" | "rule" | "challenger" | "code";
 
 class RunContext {
   steps = 0;
@@ -146,16 +151,19 @@ class RunContext {
     maxTokens: number;
     input: unknown;
     summarize: (data: z.infer<S>) => string;
+    /** A model other than OPENROUTER_MODEL (the Challenger's own, when set). */
+    model?: string | null;
   }): Promise<z.infer<S> | null> {
     await this.checkStop();
     const over = budgetStop({ steps: this.steps, tokensUsed: this.tokensUsed, messages: opts.messages, maxTokens: opts.maxTokens });
     if (over) throw new StopRun(over);
     this.steps++;
     try {
-      const r = await structuredCall({ name: opts.name, schema: opts.schema, messages: opts.messages, maxTokens: opts.maxTokens, timeoutMs: 150_000 });
+      const r = await structuredCall({ name: opts.name, schema: opts.schema, messages: opts.messages, maxTokens: opts.maxTokens, timeoutMs: 150_000, model: opts.model ?? undefined });
       this.tokensIn += r.tokensIn;
       this.tokensOut += r.tokensOut;
-      this.model = r.model;
+      // The assessment records the main (Rule/Evidence) model; a separate Challenger model shows in its steps.
+      if (!opts.model) this.model = r.model;
       await this.log({
         agent: opts.agent,
         tool: opts.tool,
@@ -420,48 +428,6 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
       summary: `Verified quotes, ran threshold arithmetic and comparisons for ${[...decisions.values()].filter((d) => !d.proposedBy.startsWith("Code (applicability")).length} rule(s); ${conflicts.length} difference(s) between documents found.`,
     });
 
-    // ---- Consistency agent ----
-    if (conflicts.length) {
-      await ctx.progress("Consistency agent reviewing differences between documents");
-      const out = await ctx.call({
-        agent: "consistency",
-        tool: "compare",
-        name: "consistency",
-        schema: consistencySchema,
-        messages: consistencyMessages(
-          conflicts.map((c) => ({
-            key: c.key,
-            label: c.label,
-            aDoc: byId.get(c.a.documentId)!.name,
-            aValue: c.a.value,
-            aQuote: c.a.quote.quote,
-            bDoc: byId.get(c.b.documentId)!.name,
-            bValue: c.b.value,
-            bQuote: c.b.quote.quote,
-          })),
-        ),
-        maxTokens: MAX_TOKENS.consistency,
-        input: { conflicts: conflicts.map((c) => c.key) },
-        summarize: (o) => `Reviewed ${conflicts.length} difference(s): ${o.conflicts.filter((c) => c.verdict === "real_difference").length} real.`,
-      });
-      for (const c of conflicts) {
-        const rule = rules.find((r) => r.code === c.ruleCode)!;
-        const d = decisions.get(rule.id)!;
-        const v = out?.conflicts.find((x) => x.key === c.key);
-        d.proposedBy = "Evidence agent + code comparison + Consistency agent";
-        d.checks.push({
-          label: `Consistency agent: ${c.label}`,
-          result: !v ? "info" : v.verdict === "real_difference" ? "fail" : "info",
-          detail: v ? `${v.verdict.replace(/_/g, " ")}: ${v.explanation}` : "No verdict returned.",
-        });
-        if (v && v.verdict !== "real_difference" && d.status === "breach") {
-          // Code found different numbers; the model cannot clear that on its own. An examiner decides.
-          d.status = "needs_review";
-          d.rationale = `${d.rationale} The Consistency agent thinks this may not be a real difference (${v.explanation}), so it needs an examiner.`;
-        }
-      }
-    }
-
     // ---- Rule agent ----
     const judged = active.filter((r) => JUDGED.includes(r.checkType));
     const judgements = new Map<string, RuleJudgementOut>();
@@ -514,69 +480,117 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
       for (const r of judged) decisions.set(r.id, decideRubric(r, metas.get(r.code)!, judgements.get(r.code), docs));
     }
 
-    // ---- Coordinator: bounded follow-up ----
-    for (let round = 1; round <= LIMITS.coordinatorRounds; round++) {
-      const issues: OpenIssue[] = active
-        .filter((r) => [...NUMERIC, ...JUDGED].includes(r.checkType))
-        .map((r) => ({ r, d: decisions.get(r.id)! }))
-        .filter(({ d }) => ((d.status === "warning" && (d as RubricDecision).verdict !== "partially") || (d.status === "needs_review" && !/could not be read|no confirmed|examiner/i.test(d.rationale))))
-        .map(({ r, d }) => ({
-          ruleCode: r.code,
-          ruleTitle: r.title,
-          status: d.status.replace("_", " "),
-          problem: d.rationale,
-          documents: (JUDGED.includes(r.checkType) ? docsForRoles(metas.get(r.code)!.runsOnRoles, english) : applicableDocs(r, docs, "en")).map((x) => ({ id: x.id, name: x.name })),
-        }));
-      if (!issues.length) {
-        await ctx.log({ agent: "code", tool: "check_gaps", summary: round === 1 ? "No open evidence gaps; no follow-up needed." : "Follow-up resolved the open evidence gaps." });
-        break;
-      }
-      await ctx.progress(`Coordinator reviewing ${issues.length} open issue(s) (round ${round} of ${LIMITS.coordinatorRounds})`);
-      const plan = await ctx.call({
-        agent: "coordinator",
-        tool: "plan_next_step",
-        name: "coordinator",
-        schema: coordinatorSchema,
-        messages: coordinatorMessages(issues, LIMITS.stepLimit > 0 && LIMITS.tokenLimit > 0 ? { steps: LIMITS.stepLimit - ctx.steps, tokens: LIMITS.tokenLimit - ctx.tokensUsed } : null),
-        maxTokens: MAX_TOKENS.coordinator,
-        input: { round, issues: issues.map((i) => i.ruleCode) },
-        summarize: (o) => (o.done || !o.actions.length ? `Stopped follow-up: ${o.reason}` : `Chose ${o.actions.length} re-read(s): ${o.actions.map((a) => `${a.ruleCode} in document ${a.documentId}`).join(", ")}. ${o.reason}`),
-      });
-      if (!plan || plan.done || !plan.actions.length) break;
-      // The Coordinator can only pick from open issues and applicable documents.
-      const valid = plan.actions.filter((a) => issues.some((i) => i.ruleCode === a.ruleCode && i.documents.some((d) => d.id === a.documentId)));
-      if (!valid.length) {
-        await ctx.log({ agent: "code", tool: "check_plan", summary: "The Coordinator's choices did not match any open issue and applicable document, so they were ignored." });
-        break;
-      }
-      for (const a of valid) {
-        const rule = active.find((r) => r.code === a.ruleCode)!;
-        const doc = byId.get(a.documentId)!;
-        await ctx.progress(`Re-reading ${doc.name} for ${rule.code}`);
-        if (NUMERIC.includes(rule.checkType)) {
-          const out = await ctx.call({
-            agent: "evidence",
-            tool: "reread_document",
-            name: "evidence",
-            schema: evidenceSchema,
-            messages: evidenceMessages(doc, [rule], a.instruction),
-            maxTokens: MAX_TOKENS.evidence,
-            input: { documentId: doc.id, rule: rule.code, instruction: a.instruction },
-            summarize: (o) => `Re-read ${doc.name} for ${rule.code}: ${o.rules.some((x) => x.ruleCode === rule.code && x.found) ? "found relevant wording" : "nothing relevant found"}.`,
-          });
-          const hit = out?.rules.find((x) => x.ruleCode === rule.code);
-          if (hit) {
-            const idx = evidence.findIndex((e) => e.documentId === doc.id && e.ruleCode === rule.code);
-            if (idx >= 0) evidence.splice(idx, 1);
-            evidence.push({ documentId: doc.id, ...hit });
-            decisions.set(rule.id, decideNumeric(rule));
-          }
-        } else {
-          const out = await judge([rule], relevantDocs(rule), `${a.instruction} Look again especially at document ${doc.id} (${doc.name}).`);
-          const j = out?.judgements.find((x) => x.ruleCode === rule.code);
-          if (j) decisions.set(rule.id, decideRubric(rule, metas.get(rule.code)!, j, docs));
+    // ---- Code: one deterministic follow-up ----
+    // Numeric rules still open after the first pass get one more Evidence read of each document they
+    // need, focused on those rules. No model chooses this; unreadable pages and missing documents are skipped.
+    const open = active.filter((r) => NUMERIC.includes(r.checkType) && hasEvidenceGap(decisions.get(r.id)!));
+    const rereads = english
+      .map((d) => ({ doc: d, rules: open.filter((r) => r.appliesToDocTypes.includes(d.docType)) }))
+      .filter((j) => j.rules.length > 0);
+    if (!rereads.length) {
+      await ctx.log({ agent: "code", tool: "check_gaps", summary: "No open evidence gaps after the first pass; no follow-up needed." });
+    } else {
+      await ctx.log({ agent: "code", tool: "check_gaps", summary: `${open.length} rule(s) still have an evidence gap: re-reading ${rereads.length} document(s) once (${open.map((r) => r.code).join(", ")}).` });
+      let n = 0;
+      await pool(rereads, 2, async ({ doc, rules: rs }) => {
+        await ctx.progress(`Evidence agent re-reading ${doc.name} (${++n} of ${rereads.length})`);
+        const out = await ctx.call({
+          agent: "evidence",
+          tool: "reread_document",
+          name: "evidence",
+          schema: evidenceSchema,
+          messages: evidenceMessages(doc, rs, "A first reading found no usable figure for these rules. Read the whole document again carefully, including tables and footnotes, and quote the exact wording if it is there."),
+          maxTokens: MAX_TOKENS.evidence,
+          input: { documentId: doc.id, rules: rs.map((r) => r.code), followUp: true },
+          summarize: (o) => `Re-read ${doc.name}: found relevant wording for ${o.rules.filter((x) => x.found).length} of ${rs.length} rule(s).`,
+        });
+        for (const hit of out?.rules ?? []) {
+          if (!hit.found || !rs.some((r) => r.code === hit.ruleCode)) continue;
+          const idx = evidence.findIndex((e) => e.documentId === doc.id && e.ruleCode === hit.ruleCode);
+          if (idx >= 0) evidence.splice(idx, 1);
+          evidence.push({ documentId: doc.id, ...hit });
         }
+      });
+      for (const r of open) {
+        for (let i = conflicts.length - 1; i >= 0; i--) if (conflicts[i]!.ruleCode === r.code) conflicts.splice(i, 1);
+        decisions.set(r.id, decideNumeric(r));
       }
+    }
+
+    // ---- Challenger agent ----
+    const targets: { item: ChallengeItem; reason: ChallengeReason; ruleId: number }[] = [];
+    for (const r of active) {
+      const d = decisions.get(r.id)!;
+      const j = judgements.get(r.code);
+      const reason = challengeReason(d, j?.confidence ?? null);
+      if (!reason) continue;
+      targets.push({
+        reason,
+        ruleId: r.id,
+        item: {
+          key: r.code,
+          kind: "verdict",
+          ruleCode: r.code,
+          ruleText: r.text.startsWith(r.title) ? r.text : `${r.title}. ${r.text}`,
+          proposed: STATUS_WORD[d.status],
+          quotes: d.evidence.filter((e) => e.verified !== "not_found").map((e) => ({ document: byId.get(e.documentId)?.name ?? `document ${e.documentId}`, page: e.pageNo, quote: e.quote })),
+        },
+      });
+    }
+    for (const c of conflicts) {
+      const rule = rules.find((r) => r.code === c.ruleCode);
+      if (!rule) continue;
+      const d = decisions.get(rule.id)!;
+      targets.push({
+        reason: "difference",
+        ruleId: rule.id,
+        item: {
+          key: `diff:${c.key}`,
+          kind: "difference",
+          ruleCode: rule.code,
+          ruleText: rule.text,
+          proposed: STATUS_WORD[d.status],
+          quotes: [],
+          difference: {
+            label: c.label,
+            a: { document: byId.get(c.a.documentId)!.name, value: c.a.value, quote: c.a.quote.quote },
+            b: { document: byId.get(c.b.documentId)!.name, value: c.b.value, quote: c.b.quote.quote },
+          },
+        },
+      });
+    }
+    if (targets.length) {
+      const model = challengerModel();
+      const batches: (typeof targets)[] = [];
+      for (let i = 0; i < targets.length; i += CHALLENGE_BATCH) batches.push(targets.slice(i, i + CHALLENGE_BATCH));
+      let done = 0;
+      await pool(batches, 2, async (batch) => {
+        await ctx.progress(`Challenger agent checking ${batch.length} proposal(s) (${++done} of ${batches.length})`);
+        const out = await ctx.call({
+          agent: "challenger",
+          tool: "challenge",
+          name: "challenger",
+          schema: challengerSchema,
+          messages: challengerMessages(batch.map((t) => t.item)),
+          maxTokens: MAX_TOKENS.challenger,
+          model,
+          input: { items: batch.map((t) => ({ key: t.item.key, reason: t.reason })), model: model ?? "same as Rule agent" },
+          summarize: (o) => {
+            const no = o.items.filter((x) => x.verdict === "does_not_support").length;
+            return `Checked ${batch.length} proposal(s): ${o.items.filter((x) => x.verdict === "supports").length} supported, ${no} not supported, ${o.items.filter((x) => x.verdict === "unclear").length} unclear.`;
+          },
+        });
+        for (const t of batch) {
+          const v = out?.items.find((x) => x.key === t.item.key);
+          if (!v) continue;
+          const d = decisions.get(t.ruleId)!;
+          // A rule with several differences keeps the strongest objection.
+          if (d.challenger?.verdict === "does_not_support") continue;
+          decisions.set(t.ruleId, applyChallenge(d, { verdict: v.verdict, note: v.note, reason: t.reason }));
+        }
+      });
+    } else {
+      await ctx.log({ agent: "code", tool: "challenge", summary: "No breach, low-confidence proposal or document difference to challenge." });
     }
   } catch (err) {
     if (err instanceof StopRun) {
@@ -662,6 +676,7 @@ async function writeFindings(dataset: Dataset, assessmentId: number, rules: Asse
           proposedBy: d.proposedBy,
           verdict,
           checks: d.checks,
+          challenger: d.challenger ?? null,
         })
         .returning();
       if (d.evidence.length) {
@@ -681,4 +696,41 @@ export async function recoverInterruptedRuns(): Promise<void> {
     .where(inArray(assessmentsTable.status, ["queued", "running"]))
     .returning({ id: assessmentsTable.id });
   if (rows.length) logger.warn({ ids: rows.map((r) => r.id) }, "marked interrupted assessments as failed");
+}
+
+export type ChallengeReason = "breach" | "low_confidence" | "difference";
+const STATUS_WORD: Record<Decision["status"], string> = { compliant: "Compliant", breach: "Breach", warning: "Warning (partially satisfied or unsupported)", needs_review: "Needs review", not_applicable: "Not applicable" };
+
+/** Open evidence gap: a numeric rule left without a usable figure for a reason a re-read could fix. */
+export function hasEvidenceGap(d: Decision): boolean {
+  if (d.status !== "warning" && d.status !== "needs_review") return false;
+  return !/could not be read|no confirmed|not included|examiner/i.test(d.rationale);
+}
+
+/** Which proposals the Challenger checks: proposed breaches and low-confidence verdicts. Differences are added separately. */
+export function challengeReason(d: Decision, confidence: "high" | "medium" | "low" | null): ChallengeReason | null {
+  if (d.status === "not_applicable" || d.status === "needs_review") return null;
+  if (d.status === "breach") return "breach";
+  if (confidence === "low") return "low_confidence";
+  return null;
+}
+
+/**
+ * Applies the Challenger's view. It can only move a proposal to Needs review (when it does not support
+ * it); it never upgrades, clears or changes a verdict otherwise. Its answer is kept on the finding.
+ */
+export function applyChallenge(d: Decision, c: { verdict: "supports" | "does_not_support" | "unclear"; note: string; reason: ChallengeReason }): Decision {
+  const downgrade = c.verdict === "does_not_support" && d.status !== "needs_review" && d.status !== "not_applicable";
+  const label = c.verdict === "supports" ? "supports" : c.verdict === "does_not_support" ? "does not support" : "unclear";
+  const out: Decision = {
+    ...d,
+    checks: [...d.checks, { label: "Challenger agent", result: c.verdict === "does_not_support" ? "fail" : "info", detail: `${label}: ${c.note}` }],
+    challenger: { verdict: c.verdict, note: c.note, reason: c.reason, downgraded: downgrade },
+  };
+  if (downgrade) {
+    out.status = "needs_review";
+    out.rationale = `${d.rationale} The Challenger agent does not support this ${d.status.replace("_", " ")} (${c.note}), so an examiner needs to decide.`;
+    if ("verdict" in out) (out as RubricDecision).verdict = null;
+  }
+  return out;
 }

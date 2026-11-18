@@ -167,6 +167,7 @@ export async function detail(dataset: Dataset, a: AssessmentRow) {
             };
           }),
         checks: (f.checks as { label: string; result: string; detail: string }[]) ?? [],
+        challenger: (f.challenger as { verdict: "supports" | "does_not_support" | "unclear"; note: string; reason: "breach" | "low_confidence" | "difference"; downgraded: boolean } | null) ?? null,
       };
     })
     .sort((x, y) => order.indexOf(x.proposedStatus) - order.indexOf(y.proposedStatus) || x.ruleCode.localeCompare(y.ruleCode, undefined, { numeric: true }));

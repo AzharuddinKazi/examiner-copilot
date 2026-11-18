@@ -59,6 +59,8 @@ export interface Decision {
   evidence: VerifiedQuote[];
   checks: CodeCheck[];
   proposedBy: string;
+  /** Set when the Challenger agent read this proposal. */
+  challenger?: { verdict: "supports" | "does_not_support" | "unclear"; note: string; reason: "breach" | "low_confidence" | "difference"; downgraded: boolean };
 }
 
 /** What the Evidence agent reported for one rule in one document. */

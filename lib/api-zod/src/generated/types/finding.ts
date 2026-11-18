@@ -5,6 +5,7 @@
  * Examiner Co-Pilot API. Agents propose, examiners decide.
  * OpenAPI spec version: 0.1.0
  */
+import type { ChallengerReview } from './challengerReview';
 import type { CheckType } from './checkType';
 import type { CodeCheck } from './codeCheck';
 import type { Evidence } from './evidence';
@@ -37,4 +38,5 @@ export interface Finding {
   verdict?: FindingVerdict;
   evidence: Evidence[];
   checks: CodeCheck[];
+  challenger?: ChallengerReview | null;
 }

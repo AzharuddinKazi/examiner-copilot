@@ -57,7 +57,8 @@ async function countAssessments(dataset: Dataset) {
 /** Counts only the latest finished assessment per product, matching the review queue. */
 async function countFindings(dataset: Dataset) {
   const { counts } = await reviewQueue(dataset);
-  return { total: counts.total, decided: counts.decided, pending: counts.undecided };
+  // Decided counts only final decisions (approved, or routine accepts); awaiting approval is shown apart.
+  return { total: counts.total, decided: counts.decided, pending: counts.undecided, awaiting: counts.awaitingApproval };
 }
 
 async function countLibrary(dataset: Dataset) {
@@ -135,18 +136,21 @@ router.get("/workspace/progress", async (_req, res): Promise<void> => {
       title: "Review and decide",
       question: "Do you agree with this finding?",
       href: "/review",
-      state: findings.total === 0 ? "not_started" : findings.pending > 0 ? "in_progress" : "done",
+      state: findings.total === 0 ? "not_started" : findings.pending > 0 || findings.awaiting > 0 ? "in_progress" : "done",
       counts: [
         { label: "Proposed findings", value: findings.total },
         { label: "Decided", value: findings.decided },
         { label: "Awaiting decision", value: findings.pending },
+        { label: "Awaiting approval", value: findings.awaiting },
       ],
       summary:
         findings.total === 0
           ? "No findings to review yet."
           : findings.pending > 0
             ? `${plural(findings.pending, "finding")} awaiting an examiner decision.`
-            : "Every proposed finding has a decision.",
+            : findings.awaiting > 0
+              ? `${plural(findings.awaiting, "decision")} awaiting a senior examiner's approval.`
+              : "Every proposed finding has a final decision.",
     },
     {
       key: "notices" as const,

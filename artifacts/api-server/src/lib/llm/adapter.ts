@@ -38,6 +38,8 @@ export interface ChatRequest {
   jsonSchema?: { name: string; schema: Record<string, unknown> };
   /** Retries on 429 with backoff. Default 2. */
   rateLimitRetries?: number;
+  /** Use this model instead of OPENROUTER_MODEL (for example the Challenger's own model). */
+  model?: string;
 }
 
 export interface ChatResult {
@@ -73,7 +75,9 @@ export async function chatCompletion(req: ChatRequest): Promise<ChatResult> {
 }
 
 async function chatCompletionOnce(req: ChatRequest): Promise<ChatResult> {
-  const { apiKey, model } = readLlmConfig();
+  const cfg = readLlmConfig();
+  const apiKey = cfg.apiKey;
+  const model = req.model || cfg.model;
   if (!apiKey) throw new LlmError("missing_key", "No OpenRouter key is set in Secrets (OPENROUTER_API_KEY or OPENAI_API_KEY). No model call was made.");
   if (!model) throw new LlmError("missing_model", "OPENROUTER_MODEL is not set in Secrets. No model call was made.");
 

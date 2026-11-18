@@ -19,7 +19,11 @@ import { SEVERITY_PILL } from "@/lib/labels";
 import { useCanWrite, ViewerReason } from "@/lib/write-access";
 import { cn } from "@/lib/utils";
 
-type Filter = "undecided" | "decided" | "all";
+type Filter = "undecided" | "to_approve" | "awaiting" | "returned" | "disagrees" | "decided" | "all";
+
+/** Needs work from the maker: no decision yet, or a senior examiner returned it. */
+const needsMaker = (i: ReviewItem) => !i.decision || i.decision.approvalStatus === "returned";
+const isFinal = (i: ReviewItem) => !!i.decision && (i.decision.approvalStatus === "not_required" || i.decision.approvalStatus === "approved");
 
 function QueueRow({ i }: { i: ReviewItem }) {
   const sev = SEVERITY_PILL[i.severity];
@@ -36,6 +40,7 @@ function QueueRow({ i }: { i: ReviewItem }) {
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">
             {i.productName ?? "Deleted product"}
             {i.verification === "unsupported" ? <span className="text-[hsl(var(--tone-bad))]"> · quote not found in the document</span> : null}
+            {i.challengerVerdict === "does_not_support" ? <span className="text-[hsl(var(--tone-warn))]" data-testid={`text-disagrees-${i.findingId}`}> · Challenger disagrees with the Rule agent</span> : null}
           </span>
         </span>
         <span className="flex flex-wrap items-center gap-1.5 sm:justify-end">
@@ -87,13 +92,24 @@ export function ReviewView() {
   const bulk = useAcceptCompliantFindings();
   const invalidate = useReviewInvalidate();
   const { toast } = useToast();
+  const isSenior = useCanWrite().role === "senior_examiner";
   const [filter, setFilter] = useState<Filter>("undecided");
   const [bulkFor, setBulkFor] = useState<ReviewProduct | null>(null);
   const d = q.data;
 
   const shown = useMemo(() => {
     if (!d) return [];
-    return d.items.filter((i) => (filter === "all" ? true : filter === "decided" ? !!i.decision : !i.decision));
+    return d.items.filter((i) => {
+      switch (filter) {
+        case "all": return true;
+        case "decided": return isFinal(i);
+        case "awaiting": return i.decision?.approvalStatus === "awaiting";
+        case "to_approve": return i.decision?.approvalStatus === "awaiting" && !i.decision.makerIsYou;
+        case "returned": return i.decision?.approvalStatus === "returned";
+        case "disagrees": return i.challengerVerdict === "does_not_support";
+        default: return needsMaker(i);
+      }
+    });
   }, [d, filter]);
 
   if (q.isLoading) {
@@ -107,9 +123,19 @@ export function ReviewView() {
     );
   }
 
-  const firstUndecided = d.items.find((i) => !i.decision);
+  const firstUndecided = d.items.find(needsMaker);
   const c = d.counts;
-  const serious = d.items.filter((i) => !i.decision && (i.proposedStatus === "breach" || i.proposedStatus === "warning" || i.proposedStatus === "needs_review")).length;
+  const serious = d.items.filter((i) => needsMaker(i) && (i.proposedStatus === "breach" || i.proposedStatus === "warning" || i.proposedStatus === "needs_review")).length;
+  const toApprove = d.items.filter((i) => i.decision?.approvalStatus === "awaiting" && !i.decision.makerIsYou);
+  const filters: [Filter, string][] = [
+    ["undecided", `To decide (${c.undecided})`],
+    ...(isSenior ? ([["to_approve", `To approve (${toApprove.length})`]] as [Filter, string][]) : []),
+    ["awaiting", `Awaiting approval (${c.awaitingApproval})`],
+    ["returned", `Returned (${c.returned})`],
+    ["disagrees", `Disagrees with Rule agent (${c.disagreements})`],
+    ["decided", `Decided (${c.decided})`],
+    ["all", `All (${c.total})`],
+  ];
 
   const runBulk = () => {
     if (!bulkFor) return;
@@ -147,9 +173,17 @@ export function ReviewView() {
             <div className="space-y-3">
               <p className="text-[15px]" data-testid="text-answer">
                 {c.undecided === 0
-                  ? `All ${c.total} findings have a decision: ${c.accepted} accepted, ${c.modified} changed, ${c.rejected} rejected.`
-                  : `${c.undecided} of ${c.total} findings await your decision${serious ? `, ${serious} of them breach, warning or needs review` : ""}.`}
+                  ? c.awaitingApproval
+                    ? `Every finding has a decision; ${c.awaitingApproval} await a senior examiner's approval before they count.`
+                    : `All ${c.total} findings have a final decision: ${c.accepted} accepted, ${c.modified} changed, ${c.rejected} rejected.`
+                  : `${c.undecided} of ${c.total} findings await your decision${serious ? `, ${serious} of them breach, warning or needs review` : ""}${c.returned ? `; ${c.returned} were returned with a note` : ""}.`}
               </p>
+              {isSenior && toApprove.length ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[hsl(var(--tone-warn)/0.35)] bg-[hsl(var(--tone-warn-bg))] px-4 py-3 text-sm" data-testid="banner-to-approve">
+                  <span><strong className="font-semibold">{toApprove.length} decision{toApprove.length === 1 ? "" : "s"} to approve.</strong> Made by another examiner; they do not count until you approve them.</span>
+                  <Button size="sm" variant="outline" className="bg-card" onClick={() => setFilter("to_approve")} data-testid="button-show-to-approve">Show them</Button>
+                </div>
+              ) : null}
               <ul className="divide-y divide-border rounded-lg border border-card-border bg-card" data-testid="list-review-products">
                 {d.products.map((p) => <ProductRow key={p.assessmentId} p={p} onBulk={setBulkFor} canWrite={canWrite} />)}
               </ul>
@@ -160,7 +194,7 @@ export function ReviewView() {
         reason={
           c.total ? (
             <p className="text-sm text-muted-foreground">
-              The queue holds findings from the latest finished assessment of each product, most serious first. The agents proposed them; nothing is final until you decide. Decisions are added to the record, never overwritten.
+              The queue holds findings from the latest finished assessment of each product, most serious first. The agents proposed them; nothing is final until you decide. A Breach, or any change or rejection, also needs a different senior examiner to approve it; until then it does not count in scores or notices. Decisions are added to the record, never overwritten.
             </p>
           ) : undefined
         }
@@ -168,13 +202,13 @@ export function ReviewView() {
           c.total ? (
             <div className="space-y-3">
               <div className="flex flex-wrap gap-1" role="group" aria-label="Show findings">
-                {([["undecided", `Undecided (${c.undecided})`], ["decided", `Decided (${c.decided})`], ["all", `All (${c.total})`]] as const).map(([k, label]) => (
+                {filters.map(([k, label]) => (
                   <Button key={k} size="sm" variant={filter === k ? "secondary" : "ghost"} aria-pressed={filter === k} onClick={() => setFilter(k)} data-testid={`filter-review-${k}`}>{label}</Button>
                 ))}
               </div>
               {shown.length === 0 ? (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="text-filter-empty">
-                  {filter === "undecided" ? <><CheckCircle2 className="size-4" aria-hidden /> Every finding has a decision.</> : "No decisions yet."}
+                  {filter === "undecided" ? <><CheckCircle2 className="size-4" aria-hidden /> Every finding has a decision.</> : filter === "to_approve" ? "Nothing waiting for your approval." : "Nothing here."}
                 </p>
               ) : (
                 <ul className={cn("divide-y divide-border overflow-hidden rounded-lg border border-card-border bg-card")} data-testid="list-review">

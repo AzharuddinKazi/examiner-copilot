@@ -10,9 +10,9 @@ import {
   type AssessDoc,
   type AssessRule,
 } from "../lib/assess/decide";
-import { evidenceMessages, ruleMessages, DATA_NOT_INSTRUCTIONS } from "../lib/assess/agents";
+import { challengerMessages, evidenceMessages, ruleMessages, DATA_NOT_INSTRUCTIONS } from "../lib/assess/agents";
 import { structuredCall } from "../lib/llm/structured";
-import { budgetStop } from "../lib/assess/run";
+import { LIMITS, applyChallenge, budgetStop, challengeReason, hasEvidenceGap } from "../lib/assess/run";
 import { LlmError } from "../lib/llm/adapter";
 import { z } from "zod";
 
@@ -211,5 +211,51 @@ describe("absence findings and reading gaps", () => {
   it("sends a quote-less Breach to review when a content page could not be read", () => {
     const d = decideJudgement(rule({ checkType: "subjective", appliesToDocTypes: ["tnc"] }), { ruleCode: "R-1", status: "breach", rationale: "Absent.", quotes: [] }, [withScan]);
     expect(d.status).toBe("needs_review");
+  });
+});
+
+describe("Challenger agent", () => {
+  const breach = decideJudgement(rule({}), { ruleCode: "R-1", status: "breach", rationale: "The fee is above the cap.", quotes: [{ documentId: 1, page: 2, quote: "Late payment fee: AED 230." }] }, [KFS]);
+  const compliant = decideJudgement(rule({}), { ruleCode: "R-1", status: "compliant", rationale: "Stated.", quotes: [{ documentId: 1, page: 1, quote: "Annual fee: AED 300." }] }, [KFS]);
+
+  it("runs only on breaches and low-confidence proposals", () => {
+    expect(challengeReason(breach, "high")).toBe("breach");
+    expect(challengeReason(compliant, "low")).toBe("low_confidence");
+    expect(challengeReason(compliant, "high")).toBeNull();
+    expect(challengeReason({ ...compliant, status: "not_applicable" }, "low")).toBeNull();
+  });
+  it("downgrades a breach it does not support to Needs review and keeps its answer", () => {
+    const d = applyChallenge(breach, { verdict: "does_not_support", note: "The quote is a late fee, not the capped fee.", reason: "breach" });
+    expect(d.status).toBe("needs_review");
+    expect(d.challenger).toMatchObject({ verdict: "does_not_support", downgraded: true });
+  });
+  it("can never upgrade or clear a finding", () => {
+    expect(applyChallenge(breach, { verdict: "supports", note: "Matches.", reason: "breach" }).status).toBe("breach");
+    expect(applyChallenge(breach, { verdict: "unclear", note: "Cannot tell.", reason: "breach" }).status).toBe("breach");
+    const nr = { ...breach, status: "needs_review" as const };
+    expect(applyChallenge(nr, { verdict: "supports", note: "x", reason: "breach" }).status).toBe("needs_review");
+    const na = { ...breach, status: "not_applicable" as const };
+    expect(applyChallenge(na, { verdict: "does_not_support", note: "x", reason: "breach" }).status).toBe("not_applicable");
+  });
+  it("sees the rule, verified quotes and proposed verdict, never the Rule agent's reasoning", () => {
+    const msgs = challengerMessages([{ key: "R-1", kind: "verdict", ruleCode: "R-1", ruleText: "The late fee must be stated.", proposed: "Breach", quotes: [{ document: "kfs.pdf", page: 2, quote: "Late payment fee: AED 230." }] }]);
+    expect(msgs[0]!.content).toContain(DATA_NOT_INSTRUCTIONS);
+    expect(msgs[1]!.content).toContain("Late payment fee: AED 230.");
+    expect(msgs[1]!.content).toContain("<proposed_verdict>Breach</proposed_verdict>");
+    expect(msgs[1]!.content).not.toContain(breach.rationale);
+  });
+});
+
+describe("deterministic follow-up and run limits", () => {
+  it("re-reads only for gaps a re-read could fix", () => {
+    const base = { ruleId: 1, evidence: [], checks: [], proposedBy: "x" };
+    expect(hasEvidenceGap({ ...base, status: "warning", rationale: "No figure was found for this rule." })).toBe(true);
+    expect(hasEvidenceGap({ ...base, status: "needs_review", rationale: "Page 3 could not be read." })).toBe(false);
+    expect(hasEvidenceGap({ ...base, status: "needs_review", rationale: "No confirmed KFS document is included for this product." })).toBe(false);
+    expect(hasEvidenceGap({ ...base, status: "compliant", rationale: "ok" })).toBe(false);
+  });
+  it("has non-zero default limits so a run cannot spend without bound", () => {
+    expect(LIMITS.stepLimit).toBeGreaterThan(0);
+    expect(LIMITS.tokenLimit).toBeGreaterThan(0);
   });
 });

@@ -66,6 +66,8 @@ export const findingsTable = pgTable("findings", {
   /** Rubric verdict from the Rule agent after code checks: satisfied, partially, not_satisfied, not_applicable. */
   verdict: text("verdict"),
   checks: jsonb("checks").notNull().default([]),
+  /** The Challenger agent's read of the proposal: { verdict, note, reason, downgraded }. Null when it was not asked. */
+  challenger: jsonb("challenger"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -91,7 +93,24 @@ export const decisionsTable = pgTable("decisions", {
   examinerNote: text("examiner_note"),
   role: text("role").notNull(),
   actor: text("actor"),
+  /** The person who recorded it (the maker). Null on rows from before maker-checker. */
+  makerUserId: integer("maker_user_id"),
+  /** Breach decisions and every Modify or Reject wait for a senior examiner (the checker) before they count. */
+  needsApproval: boolean("needs_approval").notNull().default(false),
   decidedAt: timestamp("decided_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Append-only checker steps on a decision: approve, or return to the maker with a note. */
+export const decisionApprovalsTable = pgTable("decision_approvals", {
+  id: serial("id").primaryKey(),
+  dataset: datasetEnum("dataset").notNull(),
+  decisionId: integer("decision_id").notNull().references(() => decisionsTable.id, { onDelete: "cascade" }),
+  action: text("action").notNull(),
+  note: text("note"),
+  role: text("role").notNull(),
+  actor: text("actor"),
+  checkerUserId: integer("checker_user_id"),
+  checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type AssessmentRow = typeof assessmentsTable.$inferSelect;

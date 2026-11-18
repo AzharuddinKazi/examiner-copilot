@@ -726,7 +726,7 @@ export const AssessmentStatus = {
 } as const;
 
 /**
- * code = a deterministic check, not a model call
+ * code = a deterministic check, not a model call. coordinator and consistency appear only on older runs.
  */
 export type AgentName = typeof AgentName[keyof typeof AgentName];
 
@@ -736,6 +736,7 @@ export const AgentName = {
   evidence: 'evidence',
   consistency: 'consistency',
   rule: 'rule',
+  challenger: 'challenger',
   code: 'code',
 } as const;
 
@@ -930,6 +931,37 @@ export const FindingVerdict = {
   not_applicable: 'not_applicable',
 } as const;
 
+export type ChallengerVerdict = typeof ChallengerVerdict[keyof typeof ChallengerVerdict];
+
+
+export const ChallengerVerdict = {
+  supports: 'supports',
+  does_not_support: 'does_not_support',
+  unclear: 'unclear',
+} as const;
+
+/**
+ * Why the Challenger was asked
+ */
+export type ChallengerReviewReason = typeof ChallengerReviewReason[keyof typeof ChallengerReviewReason];
+
+
+export const ChallengerReviewReason = {
+  breach: 'breach',
+  low_confidence: 'low_confidence',
+  difference: 'difference',
+} as const;
+
+export interface ChallengerReview {
+  verdict: ChallengerVerdict;
+  /** One sentence from the Challenger agent */
+  note: string;
+  /** Why the Challenger was asked */
+  reason: ChallengerReviewReason;
+  /** True when the Challenger's view moved the proposal to Needs review */
+  downgraded: boolean;
+}
+
 export interface Finding {
   id: number;
   /** @nullable */
@@ -953,6 +985,7 @@ export interface Finding {
   verdict?: FindingVerdict;
   evidence: Evidence[];
   checks: CodeCheck[];
+  challenger?: ChallengerReview | null;
 }
 
 export type AssessmentAlertKind = typeof AssessmentAlertKind[keyof typeof AssessmentAlertKind];
@@ -1015,7 +1048,32 @@ export const DecisionKind = {
   modify: 'modify',
 } as const;
 
+/**
+ * not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note
+ */
+export type ApprovalStatus = typeof ApprovalStatus[keyof typeof ApprovalStatus];
+
+
+export const ApprovalStatus = {
+  not_required: 'not_required',
+  awaiting: 'awaiting',
+  approved: 'approved',
+  returned: 'returned',
+} as const;
+
 export interface Decision {
+  approvalStatus: ApprovalStatus;
+  /** True when the signed-in person recorded this decision (they cannot approve it) */
+  makerIsYou: boolean;
+  /**
+     * Senior examiner who approved or returned it
+     * @nullable
+     */
+  checker: string | null;
+  /** @nullable */
+  checkerNote: string | null;
+  /** @nullable */
+  checkedAt: string | null;
   id: number;
   decision: DecisionKind;
   finalStatus: FindingStatus | null;
@@ -1037,6 +1095,23 @@ export interface DecisionInput {
   examinerNote?: string | null;
 }
 
+export type ApprovalInputAction = typeof ApprovalInputAction[keyof typeof ApprovalInputAction];
+
+
+export const ApprovalInputAction = {
+  approve: 'approve',
+  return: 'return',
+} as const;
+
+export interface ApprovalInput {
+  action: ApprovalInputAction;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  note?: string | null;
+}
+
 export type ReviewItemVerification = typeof ReviewItemVerification[keyof typeof ReviewItemVerification];
 
 
@@ -1046,6 +1121,7 @@ export const ReviewItemVerification = {
 } as const;
 
 export interface ReviewItem {
+  challengerVerdict: ChallengerVerdict | null;
   findingId: number;
   assessmentId: number;
   /** @nullable */
@@ -1083,6 +1159,10 @@ export interface ReviewProduct {
 }
 
 export type ReviewQueueCounts = {
+  awaitingApproval: number;
+  returned: number;
+  /** Findings where the Challenger does not support the Rule agent */
+  disagreements: number;
   total: number;
   undecided: number;
   decided: number;

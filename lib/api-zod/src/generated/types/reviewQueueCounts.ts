@@ -7,6 +7,10 @@
  */
 
 export type ReviewQueueCounts = {
+  awaitingApproval: number;
+  returned: number;
+  /** Findings where the Challenger does not support the Rule agent */
+  disagreements: number;
   total: number;
   undecided: number;
   decided: number;

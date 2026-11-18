@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import {
-  getGetFindingQueryKey, useDecideFinding, useGetFinding,
-  type DecisionKind, type FindingDetail, type FindingStatus, type SourcePage,
+  getGetFindingQueryKey, useApproveDecision, useDecideFinding, useGetFinding,
+  type Decision, type DecisionKind, type FindingDetail, type FindingStatus, type SourcePage,
 } from "@workspace/api-client-react";
 import { AlertTriangle, ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, Info, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,47 @@ import { ROLE_LABELS, type RoleValue } from "@/lib/role";
 import { CHECK_TYPE_LABELS, DOC_TYPE_SHORT, EVIDENCE_VERIFICATION_LABELS, FINDING_STATUS_LABELS, FINDING_STATUS_ORDER, SEVERITY_PILL } from "@/lib/labels";
 import { useCanWrite, ViewerReason } from "@/lib/write-access";
 import { cn } from "@/lib/utils";
+
+/** A decision that needs a senior examiner's sign-off before it counts. Mirrors the server rule. */
+const needsApproval = (kind: DecisionKind, finalStatus: FindingStatus | null) => kind !== "accept" || finalStatus === "breach";
+
+/** The checker step: approve, or return to the maker with a note. Shown only to a senior examiner who did not make the decision. */
+function ApprovalPanel({ f, d }: { f: FindingDetail; d: Decision }) {
+  const { role } = useCanWrite();
+  const approve = useApproveDecision();
+  const invalidate = useReviewInvalidate();
+  const { toast } = useToast();
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { setNote(""); setError(null); }, [d.id]);
+  if (d.approvalStatus !== "awaiting" || !f.isLatest) return null;
+  if (d.makerIsYou) {
+    return <p className="text-xs text-muted-foreground" data-testid="text-own-decision">You made this decision, so a different senior examiner must approve it.</p>;
+  }
+  if (role !== "senior_examiner") {
+    return <p className="text-xs text-muted-foreground" data-testid="text-needs-senior">A senior examiner must approve this decision before it counts.</p>;
+  }
+  const send = (action: "approve" | "return") => {
+    if (action === "return" && !note.trim()) { setError("Write a note telling the examiner what to change."); return; }
+    setError(null);
+    approve.mutate({ id: d.id, data: { action, note: note.trim() || null } }, {
+      onSuccess: () => { invalidate(f.id); toast({ title: action === "approve" ? `Approved: ${f.ruleCode}` : `Returned: ${f.ruleCode}`, description: "Recorded in the audit log." }); },
+      onError: (e) => setError(parseApiError(e).message),
+    });
+  };
+  return (
+    <div className="space-y-2 border-t border-dashed border-border pt-3" data-testid="form-approval">
+      <Label htmlFor="a-note">Checker note <span className="font-normal text-muted-foreground">(required to return)</span></Label>
+      <Textarea id="a-note" rows={2} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should change, or why you approve"
+        className="font-serif text-[15px] italic text-pen placeholder:not-italic" data-testid="input-checker-note" />
+      {error ? <p role="alert" className="text-sm text-[hsl(var(--tone-bad))]" data-testid="text-approval-error">{error}</p> : null}
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => send("approve")} disabled={approve.isPending} data-testid="button-approve">Approve</Button>
+        <Button size="sm" variant="outline" className="bg-card" onClick={() => send("return")} disabled={approve.isPending} data-testid="button-return">Return to examiner</Button>
+      </div>
+    </div>
+  );
+}
 
 /** Who decided: the signed-in person, with their role at the time. */
 const who = (d: { actor: string | null; role: string }) =>
@@ -170,6 +211,9 @@ function DecisionForm({ f, onDone }: { f: FindingDetail; onDone: (next: number |
           className="mt-1.5 font-serif text-[15px] italic text-pen placeholder:not-italic" data-testid="input-examiner-note" />
       </div>
       {error ? <p role="alert" className="text-sm text-[hsl(var(--tone-bad))]" data-testid="text-decision-error">{error}</p> : null}
+      {needsApproval(kind, kind === "modify" ? (status || null) : kind === "accept" ? f.proposedStatus : null) ? (
+        <p className="text-xs text-muted-foreground" data-testid="text-approval-needed">A different senior examiner must approve this decision before it counts in scores or notices.</p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={submit} disabled={!canWrite || !valid || decide.isPending} data-testid="button-submit-decision">
           {decide.isPending ? "Recording…" : f.decision ? "Record new decision" : "Record decision"}
@@ -232,12 +276,32 @@ export function FindingView({ id }: { id: number }) {
             <StatusPill variant={sev.variant} label={`${sev.label} severity`} />
             {f.verification === "unsupported" ? <StatusPill variant="error" label="Unsupported quote" /> : null}
           </div>
+          {f.challenger ? (
+            <p className={cn("rounded-md border px-3 py-2 text-sm", f.challenger.verdict === "does_not_support" ? "border-[hsl(var(--tone-warn)/0.35)] bg-[hsl(var(--tone-warn-bg))]" : "border-border bg-card")} data-testid="text-challenger">
+              <span className="font-medium">Challenger: {f.challenger.verdict === "supports" ? "supports" : f.challenger.verdict === "does_not_support" ? "does not support" : "unclear"}.</span>{" "}
+              <ToolText as="span" className="text-sm">{f.challenger.note}</ToolText>
+              {f.challenger.downgraded ? <span className="text-muted-foreground"> Because it disagrees with the Rule agent, the proposal was moved to Needs review.</span> : null}
+            </p>
+          ) : null}
           {f.decision ? (
             <div className="space-y-2 rounded-lg border border-pen/30 bg-card p-4" data-testid="block-current-decision">
-              <p className="flex flex-wrap items-center gap-2 text-sm"><span className="text-muted-foreground">You decided</span> <DecisionOutcome d={f.decision} /></p>
+              <p className="flex flex-wrap items-center gap-2 text-sm"><span className="text-muted-foreground">{f.decision.makerIsYou ? "You decided" : `${who(f.decision)} decided`}</span> <DecisionOutcome d={f.decision} /></p>
               {f.decision.examinerNote ? (
                 <ExaminerNote author={`${who(f.decision)} · ${format(new Date(f.decision.decidedAt), "d MMM yyyy, HH:mm")}`}>{f.decision.examinerNote}</ExaminerNote>
               ) : null}
+              {f.decision.approvalStatus === "awaiting" ? (
+                <p className="text-xs text-muted-foreground">Awaiting approval: it does not count in scores or notices yet.</p>
+              ) : null}
+              {(f.decision.approvalStatus === "approved" || f.decision.approvalStatus === "returned") && f.decision.checkedAt ? (
+                <div className="space-y-1" data-testid="block-checker">
+                  <p className="text-xs text-muted-foreground">
+                    {f.decision.approvalStatus === "approved" ? "Approved" : "Returned"} by {f.decision.checker?.replace(/\s*<.*>$/, "") ?? "a senior examiner"} · {format(new Date(f.decision.checkedAt), "d MMM yyyy, HH:mm")}
+                  </p>
+                  {f.decision.checkerNote ? <ExaminerNote author="Checker note">{f.decision.checkerNote}</ExaminerNote> : null}
+                  {f.decision.approvalStatus === "returned" ? <p className="text-xs font-medium text-[hsl(var(--tone-bad))]">Returned to the examiner: record a new decision below.</p> : null}
+                </div>
+              ) : null}
+              <ApprovalPanel f={f} d={f.decision} />
             </div>
           ) : (
             <p className="text-sm text-muted-foreground" data-testid="text-undecided">No decision yet.</p>
@@ -303,6 +367,11 @@ export function FindingView({ id }: { id: number }) {
                       <DecisionOutcome d={h} />
                     </p>
                     {h.examinerNote ? <ExaminerNote author={who(h)}>{h.examinerNote}</ExaminerNote> : null}
+                    {h.checkedAt ? (
+                      <p className="text-xs text-muted-foreground">
+                        {h.approvalStatus === "approved" ? "Approved" : "Returned"} by {h.checker?.replace(/\s*<.*>$/, "") ?? "a senior examiner"} · {format(new Date(h.checkedAt), "d MMM yyyy, HH:mm")}{h.checkerNote ? `: ${h.checkerNote}` : ""}
+                      </p>
+                    ) : null}
                   </li>
                 ))}
               </ol>

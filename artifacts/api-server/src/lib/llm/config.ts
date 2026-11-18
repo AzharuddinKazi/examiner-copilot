@@ -26,3 +26,8 @@ export function describeConfig(c: LlmConfig): string {
   if (!c.model) return "OPENROUTER_MODEL is missing from Secrets. Add the model id (for example a model that supports tool calling and JSON-schema output).";
   return `The model connection is configured. Use "Test connection" to confirm it works.`;
 }
+
+/** The Challenger agent may use a different model from the Rule agent; otherwise it uses OPENROUTER_MODEL. */
+export function challengerModel(): string | null {
+  return process.env["OPENROUTER_CHALLENGER_MODEL"]?.trim() || null;
+}

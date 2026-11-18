@@ -1,6 +1,6 @@
 /**
- * Builds the scorecard of one assessment: each rule's outcome (from the examiner's latest
- * decision, else the proposal), rated with the configured rubric and rolled up to themes and
+ * Builds the scorecard of one assessment: each rule's outcome (from the examiner's latest final
+ * decision, else the proposal; a decision still awaiting approval keeps the rule out of the rating), rated with the configured rubric and rolled up to themes and
  * the product. Complaints are shown next to theme ratings and never change a score.
  */
 import {
@@ -17,7 +17,7 @@ import {
 } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
 import type { Dataset } from "../dataset";
-import { latestDecisions } from "../review";
+import { decisionStates } from "../review";
 import { getDocumentRoles, getScoringConfig } from "./settings";
 import { rewardSignals, type Role } from "./config";
 import { DOC_TYPE_ROLE, ROLE_LABEL, parseRoles, ruleMeta } from "./rule-meta";
@@ -55,12 +55,15 @@ export function outcomeFor(input: {
   status: string | null;
   rejected: boolean;
   decided: boolean;
+  /** An examiner decision exists but is awaiting approval or was returned, and no earlier one is final. */
+  pending?: boolean;
   verdict: string | null;
   verification: string;
   proposedBy: string;
   scoredUnder: string | null;
 }): { outcome: ScoreClass; basis: string } {
   if (input.scoredUnder) return { outcome: "Scored under", basis: `Scored under ${input.scoredUnder}.` };
+  if (input.pending) return { outcome: "Not assessed", basis: "An examiner decision is awaiting a senior examiner's approval; it does not count until approved." };
   if (input.rejected) return { outcome: "Not assessed", basis: "The examiner rejected the proposal; no finding stands." };
   const who = input.decided ? "Examiner decision" : "Proposal";
   switch (input.status) {
@@ -87,7 +90,7 @@ export async function buildScorecard(dataset: Dataset, assessmentId: number) {
   const ruleIds = findings.map((f) => f.ruleId).filter((x): x is number => x !== null);
   const [rules, decisions, product, docLinks] = await Promise.all([
     ruleIds.length ? db.select().from(rulesTable).where(inArray(rulesTable.id, ruleIds)) : Promise.resolve([]),
-    latestDecisions(findings.map((f) => f.id)),
+    decisionStates(findings.map((f) => f.id)),
     a.productId ? db.select().from(productsTable).where(eq(productsTable.id, a.productId)).then((r) => r[0] ?? null) : Promise.resolve(null),
     db.select().from(assessmentDocumentsTable).where(eq(assessmentDocumentsTable.assessmentId, a.id)),
   ]);
@@ -98,12 +101,14 @@ export async function buildScorecard(dataset: Dataset, assessmentId: number) {
     const r = f.ruleId ? ruleById.get(f.ruleId) : undefined;
     if (!r) continue;
     const meta = ruleMeta(r);
-    const d = decisions.get(f.id);
+    const st = decisions.get(f.id);
+    const d = st?.final ?? null;
     const status = d ? d.finalStatus : f.proposedStatus;
     const { outcome, basis } = outcomeFor({
       status,
       rejected: !!d && d.decision === "reject",
       decided: !!d,
+      pending: !!st && !d,
       verdict: f.verdict,
       verification: f.verification,
       proposedBy: f.proposedBy,

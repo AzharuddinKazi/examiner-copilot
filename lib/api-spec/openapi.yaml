@@ -969,6 +969,54 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /decisions/{id}/approval:
+    post:
+      operationId: approveDecision
+      tags: [review]
+      summary: A senior examiner approves or returns a decision that awaits approval. The checker must be a different person from the maker.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalInput"
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FindingDetail"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not a senior examiner, or the checker is the maker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The decision is not awaiting approval, or a newer decision replaced it
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /review/accept-compliant:
     post:
       operationId: acceptCompliantFindings
@@ -2178,8 +2226,8 @@ components:
 
     AgentName:
       type: string
-      enum: [coordinator, evidence, consistency, rule, code]
-      description: code = a deterministic check, not a model call
+      enum: [coordinator, evidence, consistency, rule, challenger, code]
+      description: code = a deterministic check, not a model call. coordinator and consistency appear only on older runs.
 
     StatusCounts:
       type: object
@@ -2358,6 +2406,23 @@ components:
         checks:
           type: array
           items: { $ref: "#/components/schemas/CodeCheck" }
+        challenger:
+          oneOf:
+            - { $ref: "#/components/schemas/ChallengerReview" }
+            - { type: "null" }
+
+    ChallengerVerdict:
+      type: string
+      enum: [supports, does_not_support, unclear]
+
+    ChallengerReview:
+      type: object
+      required: [verdict, note, reason, downgraded]
+      properties:
+        verdict: { $ref: "#/components/schemas/ChallengerVerdict" }
+        note: { type: string, description: One sentence from the Challenger agent }
+        reason: { type: string, enum: [breach, low_confidence, difference], description: Why the Challenger was asked }
+        downgraded: { type: boolean, description: True when the Challenger's view moved the proposal to Needs review }
 
     AssessmentAlert:
       type: object
@@ -2460,10 +2525,20 @@ components:
       enum: [accept, reject, modify]
       description: accept = the proposed status stands; modify = the examiner sets a different status; reject = the proposal is dismissed and no finding stands
 
+    ApprovalStatus:
+      type: string
+      enum: [not_required, awaiting, approved, returned]
+      description: not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note
+
     Decision:
       type: object
-      required: [id, decision, finalStatus, examinerNote, role, actor, decidedAt]
+      required: [id, decision, finalStatus, examinerNote, role, actor, decidedAt, approvalStatus, makerIsYou, checker, checkerNote, checkedAt]
       properties:
+        approvalStatus: { $ref: "#/components/schemas/ApprovalStatus" }
+        makerIsYou: { type: boolean, description: True when the signed-in person recorded this decision (they cannot approve it) }
+        checker: { type: ["string", "null"], description: Senior examiner who approved or returned it }
+        checkerNote: { type: ["string", "null"] }
+        checkedAt: { type: ["string", "null"], format: date-time }
         id: { type: integer }
         decision: { $ref: "#/components/schemas/DecisionKind" }
         finalStatus:
@@ -2486,10 +2561,21 @@ components:
             - { type: "null" }
         examinerNote: { type: ["string", "null"], maxLength: 2000 }
 
+    ApprovalInput:
+      type: object
+      required: [action]
+      properties:
+        action: { type: string, enum: [approve, return] }
+        note: { type: ["string", "null"], maxLength: 2000 }
+
     ReviewItem:
       type: object
-      required: [findingId, assessmentId, bankId, bankName, productId, productName, ruleCode, ruleTitle, proposedStatus, severity, verification, rationale, evidenceCount, decision]
+      required: [findingId, assessmentId, bankId, bankName, productId, productName, ruleCode, ruleTitle, proposedStatus, severity, verification, rationale, evidenceCount, decision, challengerVerdict]
       properties:
+        challengerVerdict:
+          oneOf:
+            - { $ref: "#/components/schemas/ChallengerVerdict" }
+            - { type: "null" }
         findingId: { type: integer }
         assessmentId: { type: integer }
         bankId: { type: ["integer", "null"] }
@@ -2533,8 +2619,11 @@ components:
           items: { $ref: "#/components/schemas/ReviewProduct" }
         counts:
           type: object
-          required: [total, undecided, decided, accepted, modified, rejected]
+          required: [total, undecided, decided, accepted, modified, rejected, awaitingApproval, returned, disagreements]
           properties:
+            awaitingApproval: { type: integer }
+            returned: { type: integer }
+            disagreements: { type: integer, description: Findings where the Challenger does not support the Rule agent }
             total: { type: integer }
             undecided: { type: integer }
             decided: { type: integer }
