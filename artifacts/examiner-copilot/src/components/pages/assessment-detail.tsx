@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { DeleteButton } from "@/components/delete-button";
 import {
   getGetAssessmentQueryKey, useGetAssessment, useStartAssessment, useStopAssessment,
   type AgentStep, type AssessmentAlert, type AssessmentDetail, type CodeCheck, type Evidence, type Finding, type FindingStatus,
@@ -16,6 +17,7 @@ import { PageFrame } from "@/components/page-frame";
 import { EmptyState, QueryError } from "@/components/states";
 import { BankQuote, StatusPill, ToolText } from "@/components/voice";
 import { DocChip, UsageBar, countsSentence, totalCount } from "@/components/assess/shared";
+import { ScorecardPanel } from "@/components/assess/scorecard";
 import { useAssessInvalidate } from "@/components/pages/assess";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
@@ -115,6 +117,7 @@ function FindingCard({ f, defaultOpen }: { f: Finding; defaultOpen: boolean }) {
         </span>
         <span className="flex flex-wrap items-center gap-1.5">
           <StatusPill variant={f.proposedStatus} />
+          {f.verdict === "partially" ? <StatusPill variant="warning" label="Partially satisfied" data-testid={`badge-partially-${f.id}`} /> : null}
           {f.proposedStatus === "breach" || f.proposedStatus === "warning" || f.proposedStatus === "needs_review"
             ? <StatusPill variant={sev.variant} label={`${sev.label} severity`} />
             : <span className="sr-only">{sev.label} severity</span>}
@@ -291,6 +294,7 @@ export function AssessmentDetailView({ id }: { id: number }) {
                 <RotateCw className={start.isPending ? "animate-spin" : ""} aria-hidden /> Run again
               </Button>
             )}
+            {!live ? <DeleteButton kind="assessment" id={a.id} label={`#${a.id} · ${a.productName ?? "Product removed"}`} variant="text" onDeleted={() => router.push("/assess")} /> : null}
             {live ? (
               <Button disabled data-testid="button-review">Review and decide</Button>
             ) : (
@@ -337,6 +341,7 @@ export function AssessmentDetailView({ id }: { id: number }) {
       }
       evidence={
         <div className="space-y-6">
+          {!live && a.findings.length ? <ScorecardPanel assessmentId={a.id} /> : null}
           {findings.length === 0 ? (
             live ? <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div> : (
               <EmptyState icon={Info} title="No findings" testId="empty-findings">This run produced no proposals.</EmptyState>

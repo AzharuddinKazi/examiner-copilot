@@ -4,7 +4,7 @@ import { useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
 import {
   getListBanksQueryKey, getListDocumentsQueryKey, getListRulebooksQueryKey,
-  useListDocuments, useUploadDocument,
+  useListBanks, useListDocuments, useUploadDocument,
   type DocumentSummary,
 } from "@workspace/api-client-react";
 import { AlertTriangle, CheckCircle2, FileText, FileUp, Loader2, XCircle } from "lucide-react";
@@ -13,11 +13,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
 import { EmptyState, QueryError } from "@/components/states";
 import { StatusPill, ToolText } from "@/components/voice";
+import { DocumentGroups } from "@/components/documents/document-groups";
 import { ConfirmDocumentDialog } from "@/components/documents/confirm-dialog";
 import { RejectDocumentDialog } from "@/components/documents/reject-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
-import { DOC_TYPE_LABELS, DOC_TYPE_SHORT, LANGUAGE_LABELS, docStatusPill, formatBytes, gapText } from "@/lib/labels";
+import { DOC_TYPE_LABELS, DOC_TYPE_SHORT, formatBytes, gapText } from "@/lib/labels";
 import { useCanWrite, useInvalidate, ViewerReason } from "@/lib/write-access";
 import { cn } from "@/lib/utils";
 
@@ -47,104 +48,15 @@ function Counts({ c }: { c: { total: number; awaiting: number; confirmed: number
   );
 }
 
-function RowActions({ doc, onConfirm, onReject }: { doc: DocumentSummary; onConfirm: () => void; onReject: () => void }) {
-  const { canWrite } = useCanWrite();
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      <Button size="sm" variant={doc.status === "confirmed" ? "outline" : "default"} onClick={onConfirm} disabled={!canWrite} data-testid={`button-confirm-${doc.id}`}>
-        {doc.status === "confirmed" ? "Change" : "Confirm"}
-      </Button>
-      {doc.status !== "rejected" ? (
-        <Button size="sm" variant="ghost" onClick={onReject} disabled={!canWrite} data-testid={`button-reject-${doc.id}`}>Reject</Button>
-      ) : null}
-    </div>
-  );
-}
-
-function DocMeta({ doc }: { doc: DocumentSummary }) {
-  return (
-    <span className="text-xs text-muted-foreground">
-      {doc.bankName ?? "No bank yet"}{doc.productName ? ` · ${doc.productName}` : ""}
-    </span>
-  );
-}
-
-function GapWarning({ doc }: { doc: DocumentSummary }) {
-  if (doc.gapPages.length === 0) return null;
-  return (
-    <span className="inline-flex items-center gap-1 text-xs text-[hsl(var(--tone-warn))]" data-testid={`text-gap-${doc.id}`}>
-      <AlertTriangle className="size-3.5" aria-hidden /> {gapText(doc.gapPages.length)}
-    </span>
-  );
-}
-
-function DocumentTable({ docs, onConfirm, onReject }: {
-  docs: DocumentSummary[]; onConfirm: (d: DocumentSummary) => void; onReject: (d: DocumentSummary) => void;
-}) {
-  return (
-    <>
-      <div className="hidden overflow-x-auto rounded-lg border border-card-border bg-card md:block">
-        <table className="w-full text-sm" data-testid="table-documents">
-          <thead>
-            <tr className="border-b border-border text-left text-xs text-muted-foreground">
-              <th className="px-4 py-2.5 font-medium">Document</th>
-              <th className="px-3 py-2.5 font-medium">Type</th>
-              <th className="px-3 py-2.5 font-medium">Language</th>
-              <th className="px-3 py-2.5 text-right font-medium">Pages</th>
-              <th className="px-3 py-2.5 font-medium">Status</th>
-              <th className="px-4 py-2.5 font-medium"><span className="sr-only">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {docs.map((d) => {
-              const pill = docStatusPill(d.status);
-              return (
-                <tr key={d.id} className="border-b border-border align-top last:border-0 hover:bg-muted/40" data-testid={`row-document-${d.id}`}>
-                  <td className="max-w-[280px] px-4 py-3">
-                    <Link href={`/upload/${d.id}`} className="block truncate font-medium underline-offset-2 hover:underline" data-testid={`link-document-${d.id}`}>{d.originalName}</Link>
-                    <DocMeta doc={d} />
-                    <div><GapWarning doc={d} /></div>
-                  </td>
-                  <td className="px-3 py-3" title={d.docType ? DOC_TYPE_LABELS[d.docType] : undefined}>{d.docType ? DOC_TYPE_SHORT[d.docType] : <span className="text-muted-foreground">—</span>}</td>
-                  <td className="px-3 py-3">{d.language ? LANGUAGE_LABELS[d.language] : <span className="text-muted-foreground">—</span>}</td>
-                  <td className="px-3 py-3 text-right font-mono">{d.pageCount}</td>
-                  <td className="px-3 py-3"><StatusPill variant={pill.variant} label={pill.label} data-testid={`status-document-${d.id}`} /></td>
-                  <td className="px-4 py-3"><RowActions doc={d} onConfirm={() => onConfirm(d)} onReject={() => onReject(d)} /></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <ul className="space-y-2 md:hidden" data-testid="list-documents">
-        {docs.map((d) => {
-          const pill = docStatusPill(d.status);
-          return (
-            <li key={d.id} className="rounded-lg border border-card-border bg-card p-3" data-testid={`card-document-${d.id}`}>
-              <div className="flex items-start justify-between gap-2">
-                <Link href={`/upload/${d.id}`} className="min-w-0 break-all font-medium underline-offset-2 hover:underline" data-testid={`link-document-mobile-${d.id}`}>{d.originalName}</Link>
-                <StatusPill variant={pill.variant} label={pill.label} />
-              </div>
-              <DocMeta doc={d} />
-              <p className="mt-1 text-xs text-muted-foreground">
-                {d.docType ? DOC_TYPE_LABELS[d.docType] : "Type not set"} · {d.language ? LANGUAGE_LABELS[d.language] : "Language not set"} · <span className="font-mono">{d.pageCount}</span> pages
-              </p>
-              <GapWarning doc={d} />
-              <div className="mt-2"><RowActions doc={d} onConfirm={() => onConfirm(d)} onReject={() => onReject(d)} /></div>
-            </li>
-          );
-        })}
-      </ul>
-    </>
-  );
-}
-
 export function UploadView() {
   const { canWrite } = useCanWrite();
   const docs = useListDocuments({
     query: { queryKey: getListDocumentsQueryKey(), refetchInterval: (qq) => (qq.state.data?.items.some((d) => d.agentProposal?.status === "running") ? 3000 : false) },
   });
+  const banks = useListBanks();
   const upload = useUploadDocument();
+  const { toast } = useToast();
+  const [batch, setBatch] = useState<{ done: number; duplicate: number; failed: number; total: number } | null>(null);
   const invalidate = useInvalidate();
   const inputRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<UploadRow[]>([]);
@@ -169,6 +81,8 @@ export function UploadView() {
     });
     setRows((rs) => [...next.map(({ file: _f, ...r }) => r), ...rs]);
     setBusy(true);
+    setBatch(null);
+    const tally = { done: 0, duplicate: 0, failed: next.filter((r) => r.state === "error").length, total: next.length };
     for (const r of next) {
       if (r.state !== "queued") continue;
       patch(r.key, { state: "uploading" });
@@ -178,13 +92,22 @@ export function UploadView() {
           state: "done", docId: d.id,
           message: d.gapPages.length ? `Uploaded, ${d.pageCount} pages. ${gapText(d.gapPages.length)}.` : `Uploaded, ${d.pageCount} pages with text.`,
         });
+        // Show each document as soon as it is in, so its suggestion and the agent's progress appear.
+        invalidate([getListDocumentsQueryKey()]);
+        tally.done++;
       } catch (e) {
         const pe = parseApiError(e);
-        if (pe.status === 409 && pe.existingId) patch(r.key, { state: "duplicate", docId: pe.existingId, message: pe.message });
-        else patch(r.key, { state: "error", message: pe.message });
+        if (pe.status === 409 && pe.existingId) { patch(r.key, { state: "duplicate", docId: pe.existingId, message: pe.message }); tally.duplicate++; }
+        else { patch(r.key, { state: "error", message: pe.message }); tally.failed++; }
       }
     }
     setBusy(false);
+    setBatch(tally);
+    toast({
+      title: tally.done ? `Upload finished: ${tally.done} of ${tally.total} ${tally.total === 1 ? "file" : "files"} added` : "Upload finished: no new files added",
+      description: [tally.duplicate && `${tally.duplicate} already uploaded`, tally.failed && `${tally.failed} could not be read`].filter(Boolean).join(", ") || "Check the suggested bank, product and type below, then confirm.",
+      variant: tally.failed && !tally.done ? "destructive" : undefined,
+    });
     invalidate([getListDocumentsQueryKey(), getListBanksQueryKey()]);
     if (inputRef.current) inputRef.current.value = "";
   };
@@ -207,6 +130,27 @@ export function UploadView() {
           : `All ${c!.confirmed} kept documents are confirmed${c!.rejected ? ` and ${c!.rejected} rejected` : ""}. You can move on to assessment.`}
       </p>
       <Counts c={c!} />
+      {busy ? (
+        <p className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm" role="status" data-testid="banner-uploading">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          Uploading {rows.filter((r) => r.state === "done" || r.state === "duplicate" || r.state === "error").length} of {rows.length} — reading text and matching bank and product…
+        </p>
+      ) : batch ? (
+        <div className={cn("flex items-start gap-2 rounded-md border px-3 py-2 text-sm",
+          batch.failed && !batch.done ? "border-[hsl(var(--tone-bad)/0.3)] bg-[hsl(var(--tone-bad-bg))]" : "border-[hsl(var(--tone-ok)/0.3)] bg-[hsl(var(--tone-ok-bg))]")}
+          role="status" data-testid="banner-upload-done">
+          {batch.failed && !batch.done ? <XCircle className="mt-0.5 size-4 shrink-0 text-[hsl(var(--tone-bad))]" aria-hidden /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[hsl(var(--tone-ok))]" aria-hidden />}
+          <div className="flex-1">
+            <p className="font-medium">
+              Upload finished. {batch.done} {batch.done === 1 ? "file" : "files"} added{batch.duplicate ? `, ${batch.duplicate} already uploaded` : ""}{batch.failed ? `, ${batch.failed} failed` : ""}.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {batch.done ? "Each file is shown below under the bank and card product it was matched to. Check the suggestions and confirm." : "See the upload list at the bottom of the page for details."}
+            </p>
+          </div>
+          <button type="button" className="text-xs underline underline-offset-2" onClick={() => setBatch(null)} data-testid="button-dismiss-upload">Dismiss</button>
+        </div>
+      ) : null}
     </div>
   );
 
@@ -235,9 +179,9 @@ export function UploadView() {
           <div className="space-y-2">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
         ) : docs.isError ? null : items.length === 0 ? (
           <EmptyState icon={FileText} title="No documents yet" testId="empty-documents">
-            <p>Upload the four disclosures for a card product:</p>
+            <p>Upload the four disclosures for a card product, plus any adverts:</p>
             <ul className="mx-auto mt-3 grid max-w-md gap-1.5 text-left sm:grid-cols-2">
-              {(["kfs", "tnc", "rewards", "fees"] as const).map((t) => (
+              {(["kfs", "tnc", "rewards", "fees", "advert"] as const).map((t) => (
                 <li key={t} className="rounded-md border border-border bg-background px-3 py-2 text-xs">
                   <span className="font-mono text-[11px] text-muted-foreground">{DOC_TYPE_SHORT[t]}</span>
                   <span className="block font-medium text-foreground">{DOC_TYPE_LABELS[t]}</span>
@@ -246,7 +190,7 @@ export function UploadView() {
             </ul>
           </EmptyState>
         ) : (
-          <DocumentTable docs={items} onConfirm={setConfirmDoc} onReject={setRejectDoc} />
+          <DocumentGroups docs={items} banks={banks.data?.items ?? []} onConfirm={setConfirmDoc} onReject={setRejectDoc} />
         )
       }
       action={
@@ -300,7 +244,7 @@ export function UploadView() {
       }
       next={{ href: "/assess", label: "Assess" }}
     />
-    {confirmDoc ? <ConfirmDocumentDialog doc={confirmDoc} open onOpenChange={(o) => !o && setConfirmDoc(null)} /> : null}
+    {confirmDoc ? <ConfirmDocumentDialog doc={items.find((d) => d.id === confirmDoc.id) ?? confirmDoc} open onOpenChange={(o) => !o && setConfirmDoc(null)} /> : null}
     {rejectDoc ? <RejectDocumentDialog doc={rejectDoc} open onOpenChange={(o) => !o && setRejectDoc(null)} /> : null}
     </>
   );

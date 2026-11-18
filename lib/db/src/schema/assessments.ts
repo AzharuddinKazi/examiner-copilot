@@ -63,6 +63,8 @@ export const findingsTable = pgTable("findings", {
   rationale: text("rationale").notNull(),
   verification: verificationEnum("verification").notNull(),
   proposedBy: text("proposed_by").notNull(),
+  /** Rubric verdict from the Rule agent after code checks: satisfied, partially, not_satisfied, not_applicable. */
+  verdict: text("verdict"),
   checks: jsonb("checks").notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

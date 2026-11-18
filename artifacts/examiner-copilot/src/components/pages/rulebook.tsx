@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
 import { EmptyState, QueryError } from "@/components/states";
 import { StatusPill, type StatusVariant } from "@/components/voice";
+import { DeleteButton } from "@/components/delete-button";
 import { ImportWizard } from "@/components/rulebook/import-wizard";
 import { useCanWrite, ViewerReason } from "@/lib/write-access";
 
@@ -66,16 +67,20 @@ export function RulebookView() {
           <div className="space-y-4">
             {books.map((b) => (
               <section key={b.id} className="rounded-lg border border-card-border bg-card" data-testid={`card-rulebook-${b.id}`}>
-                <h3 className="border-b border-border px-4 py-3 font-semibold">{b.name}</h3>
+                <h3 className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 font-semibold">
+                  <span>{b.name}</span>
+                  <DeleteButton kind="rulebook" id={b.id} label={`${b.name}, all ${b.versions.length} version(s)`} />
+                </h3>
                 <ul className="divide-y divide-border">
                   {[...b.versions].sort((x, y) => y.version - x.version).map((v) => (
-                    <li key={v.id}>
-                      <Link href={`/library/rulebook/${v.id}`} className="grid gap-1 px-4 py-3 text-sm hover:bg-muted/40 sm:grid-cols-[60px_100px_1fr_auto] sm:items-center" data-testid={`link-version-${v.id}`}>
+                    <li key={v.id} className="flex items-center pr-2 hover:bg-muted/40">
+                      <Link href={`/library/rulebook/${v.id}`} className="grid min-w-0 flex-1 gap-1 px-4 py-3 text-sm sm:grid-cols-[60px_100px_1fr_auto] sm:items-center" data-testid={`link-version-${v.id}`}>
                         <span className="font-mono">v{v.version}</span>
                         <StatusPill variant={VERSION_PILL[v.status].variant} label={VERSION_PILL[v.status].label} className="w-fit" />
                         <span className="min-w-0 truncate text-muted-foreground"><span className="font-mono text-foreground">{v.ruleCount}</span> rules{v.sourceFileName ? ` · ${v.sourceFileName}` : ""}</span>
                         <span className="font-mono text-xs text-muted-foreground">created {fmt(v.createdAt)}{v.activatedAt ? ` · active ${fmt(v.activatedAt)}` : ""}</span>
                       </Link>
+                      <DeleteButton kind="rulebook_version" id={v.id} label={`${b.name} v${v.version} (${v.ruleCount} rules)`} />
                     </li>
                   ))}
                 </ul>

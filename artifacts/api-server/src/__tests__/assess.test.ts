@@ -6,6 +6,7 @@ import {
   decideBilingual,
   decideReadability,
   decideJudgement,
+  readingGaps,
   type AssessDoc,
   type AssessRule,
 } from "../lib/assess/decide";
@@ -192,5 +193,23 @@ describe("bounded execution", () => {
     expect(budgetStop({ steps: 0, tokensUsed: 900, messages: msgs, maxTokens: 50 }, { stepLimit: 20, tokenLimit: 1000 })).toMatch(/Token limit/);
     expect(budgetStop({ steps: 0, tokensUsed: 0, messages: msgs, maxTokens: 50 }, { stepLimit: 20, tokenLimit: 1000 })).toBeNull();
     expect(budgetStop({ steps: 999, tokensUsed: 9_999_999, messages: msgs, maxTokens: 50 }, { stepLimit: 0, tokenLimit: 0 })).toBeNull();
+  });
+});
+
+describe("absence findings and reading gaps", () => {
+  const withCover = doc(5, "tnc", ["Card terms", "Fees are charged monthly.", "adcb.com"], { gapPages: [3] });
+  const withScan = doc(6, "tnc", ["Card terms", "", "More terms"], { gapPages: [2] });
+  it("does not treat a cover or back page with a little text as a reading gap", () => {
+    expect(readingGaps(withCover)).toEqual([]);
+    expect(readingGaps(withScan)).toEqual([2]);
+  });
+  it("keeps a quote-less judgement Breach as an absence finding when every content page was read", () => {
+    const d = decideJudgement(rule({ checkType: "subjective", appliesToDocTypes: ["tnc"] }), { ruleCode: "R-1", status: "breach", rationale: "No complaints route is given.", quotes: [] }, [withCover]);
+    expect(d.status).toBe("breach");
+    expect(d.rationale).not.toMatch(/quotes could not be found/);
+  });
+  it("sends a quote-less Breach to review when a content page could not be read", () => {
+    const d = decideJudgement(rule({ checkType: "subjective", appliesToDocTypes: ["tnc"] }), { ruleCode: "R-1", status: "breach", rationale: "Absent.", quotes: [] }, [withScan]);
+    expect(d.status).toBe("needs_review");
   });
 });

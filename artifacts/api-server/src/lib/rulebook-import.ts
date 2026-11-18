@@ -146,7 +146,11 @@ async function parseXlsx(buf: Buffer): Promise<ParsedSheet> {
   } catch {
     throw new WorkbookError("The workbook could not be read. It may be damaged or password-protected.");
   }
-  for (const ws of wb.worksheets) {
+  // Prefer a sheet named like "Rules"; never read guide or notes sheets as rules.
+  const NOTES = /^(guide|notes?|instructions?|read ?me|help|about)$/i;
+  const sheets = wb.worksheets.filter((w) => !NOTES.test(w.name.trim()));
+  const ordered = [...sheets.filter((w) => /rule/i.test(w.name)), ...sheets.filter((w) => !/rule/i.test(w.name))];
+  for (const ws of ordered) {
     const all: { row: number; cells: string[] }[] = [];
     ws.eachRow({ includeEmpty: false }, (r, rowNumber) => {
       const cells: string[] = [];
@@ -156,7 +160,11 @@ async function parseXlsx(buf: Buffer): Promise<ParsedSheet> {
     const sheet = toSheet(ws.name, all);
     if (sheet) return sheet;
   }
-  throw new WorkbookError("No worksheet has a header row and at least one rule row.");
+  throw new WorkbookError(
+    ordered.length
+      ? `No worksheet has a header row and at least one rule row. Add one rule per row under the headers on the "${ordered[0]!.name}" sheet.`
+      : "No worksheet has a header row and at least one rule row.",
+  );
 }
 
 function lastNonEmpty(cells: string[]): number {

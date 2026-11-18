@@ -60,6 +60,8 @@ export function ConfirmDocumentDialog({
   const [versionLabel, setVersionLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Fill the form once when the dialog opens. The document list refreshes every few seconds
+  // while the agent works; that must not wipe what the examiner has already chosen.
   useEffect(() => {
     if (!open) return;
     setBankId(doc.bankId ? String(doc.bankId) : sugStr(s?.bankId, ap?.bankId));
@@ -68,7 +70,17 @@ export function ConfirmDocumentDialog({
     setLanguage(doc.language ?? sugStr(s?.language, ap?.language));
     setVersionLabel(doc.versionLabel ?? "");
     setError(null);
-  }, [open, doc, s, ap]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, doc.id]);
+  // When the agent's proposal arrives while the dialog is open, it only fills fields still empty.
+  useEffect(() => {
+    if (!open || !ap) return;
+    setBankId((v) => v || sugStr(s?.bankId, ap.bankId));
+    setProductId((v) => v || sugStr(s?.productId, ap.productId));
+    setDocType((v) => v || sugStr(s?.docType, ap.docType));
+    setLanguage((v) => v || sugStr(s?.language, ap.language));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, ap?.status]);
 
   const bankList = banks.data?.items ?? [];
   const products = useMemo(() => bankList.find((b) => String(b.id) === bankId)?.products ?? [], [bankList, bankId]);

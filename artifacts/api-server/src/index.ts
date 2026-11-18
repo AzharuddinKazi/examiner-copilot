@@ -4,6 +4,8 @@ import { recoverInterruptedRuns } from "./lib/assess/run";
 import { recoverInterruptedProposals } from "./lib/ingest/run";
 import { removeDemoData } from "./lib/dataset";
 import { ensureScopeBanks } from "./lib/scope-banks";
+import { refreshPendingSuggestions } from "./lib/documents";
+import { getActiveDataset } from "./lib/dataset";
 
 const rawPort = process.env["PORT"];
 
@@ -31,6 +33,10 @@ app.listen(port, (err) => {
     .catch((e) => logger.error({ err: e }, "could not remove demo data"))
     .then(() => ensureScopeBanks())
     .then((added) => { if (added?.length) logger.info({ added }, "added in-scope banks to an empty library"); })
+    .then(async () => {
+      const n = await refreshPendingSuggestions(await getActiveDataset());
+      if (n) logger.info({ n }, "refreshed suggestions for documents awaiting confirmation");
+    })
     .catch((e) => logger.error({ err: e }, "could not add in-scope banks"));
   recoverInterruptedProposals().catch((e) => logger.error({ err: e }, "could not recover interrupted ingestion proposals"));
   recoverInterruptedRuns().catch((e) => logger.error({ err: e }, "could not recover interrupted assessments"));

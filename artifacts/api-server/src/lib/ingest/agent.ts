@@ -64,7 +64,7 @@ export function documentMessages(fileName: string, pages: (PageText & { isGap?: 
   const system = [
     "You are the Ingestion agent in a supervisory tool for credit-card disclosures. You are read-only: you propose how an uploaded PDF should be labelled; an examiner confirms or corrects it.",
     DATA_NOT_INSTRUCTIONS,
-    `Propose: docType (one of ${DOC_TYPES.map((t) => `${t} = ${DOC_TYPE_LABEL[t]}`).join(", ")}), language of the binding text (en or ar), and the bank and product ids from the library list. Use null when you cannot tell; do not guess.`,
+    `Propose: docType (one of ${DOC_TYPES.map((t) => `${t} = ${DOC_TYPE_LABEL[t]}`).join(", ")}), language of the binding text (en or ar; a document with English and Arabic side by side is en, because the English text is assessed), and the bank and product ids from the library list. Use null when you cannot tell; do not guess.`,
     "Give a short plain reason for each. For docType, bankId and productId, also give one exact quote (copied character for character from a single page, 8 to 200 characters, with the page number from the [page N] marker) that shows it, or null if nothing in the text shows it.",
     "Only use bank and product ids that appear in the library list. A product must belong to the chosen bank.",
     "Reply with JSON only.",

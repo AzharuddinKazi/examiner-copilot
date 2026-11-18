@@ -177,3 +177,29 @@ export async function getPages(documentId: number) {
     .where(eq(documentPagesTable.documentId, documentId))
     .orderBy(asc(documentPagesTable.pageNo));
 }
+
+/**
+ * Re-runs the rule-based suggestion for documents that still await confirmation, so a bank or
+ * product added after upload (or improved matching) is reflected. Confirmed and rejected
+ * documents are never touched; examiners' choices are not changed.
+ */
+export async function refreshPendingSuggestions(dataset: Dataset): Promise<number> {
+  const pending = await db
+    .select()
+    .from(documentsTable)
+    .where(and(eq(documentsTable.dataset, dataset), inArray(documentsTable.status, ["uploaded", "proposed"])));
+  if (!pending.length) return 0;
+  const banks = await loadBanksForMatch(dataset);
+  let changed = 0;
+  for (const d of pending) {
+    const pages = await getPages(d.id);
+    const next = suggestDocument(d.originalName, pages.map((p) => p.textNormalized), banks);
+    if (JSON.stringify(next) === JSON.stringify(d.ingestionProposal)) continue;
+    await db
+      .update(documentsTable)
+      .set({ ingestionProposal: next, status: hasAnySuggestion(next) ? "proposed" : d.status })
+      .where(eq(documentsTable.id, d.id));
+    changed++;
+  }
+  return changed;
+}

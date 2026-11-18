@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, Building2, FlaskConical, Gauge, ScrollText, ShieldQuestion, type LucideIcon } from "lucide-react";
+import { BarChart3, BookOpen, Building2, Scale, FlaskConical, Gauge, ScrollText, ShieldQuestion, type LucideIcon } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon };
 export const FLOW: { key: "upload" | "assess" | "review" | "notices"; number: number; href: string; label: string }[] = [
@@ -9,7 +9,7 @@ export const FLOW: { key: "upload" | "assess" | "review" | "notices"; number: nu
 ];
 export const GROUPS: { title: string; items: NavItem[] }[] = [
   { title: "Market", items: [{ href: "/market", label: "Market view", icon: BarChart3 }, { href: "/market/what-if", label: "What-if sandbox", icon: FlaskConical }] },
-  { title: "Library", items: [{ href: "/library/rulebook", label: "Rulebook", icon: BookOpen }, { href: "/library/banks", label: "Banks and products", icon: Building2 }] },
+  { title: "Library", items: [{ href: "/library/rulebook", label: "Rulebook", icon: BookOpen }, { href: "/library/banks", label: "Banks and products", icon: Building2 }, { href: "/library/scoring", label: "Scoring and complaints", icon: Scale }] },
   {
     title: "Assurance",
     items: [

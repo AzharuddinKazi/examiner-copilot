@@ -1,0 +1,93 @@
+{
+ "version": "v1.0-hackathon (18 Nov 2026)",
+ "principle": "Rules run on ROLES, not files. The engine splits every uploaded file into sections, tags each section with a role, and runs each rule on all sections that carry its role. One file can hold several roles (rewards terms inside the card T&C); one role can be spread across several files (general banking T&C + card agreement).",
+ "roles": {
+  "TC": {
+   "subtypes": {
+    "CARD_AGREEMENT": [
+     "credit card terms",
+     "cardholder agreement",
+     "credit limit",
+     "minimum amount due",
+     "payment due date",
+     "finance charges",
+     "statement of account",
+     "supplementary card"
+    ],
+    "GENERAL_BANKING": [
+     "general terms and conditions of accounts",
+     "banking services",
+     "current account",
+     "cheque book",
+     "online banking",
+     "privacy policy",
+     "set-off"
+    ]
+   },
+   "note": "A debit-card section (\"shall not be used to obtain credit\") is not the card agreement."
+  },
+  "REWARDS": {
+   "signals": [
+    "cashback",
+    "reward points",
+    "miles",
+    "redemption",
+    "forfeiture",
+    "expiry of points",
+    "qualifying transactions",
+    "merchant category code",
+    "MCC",
+    "tier",
+    "programme",
+    "welcome bonus"
+   ],
+   "note": "Can be a stand-alone file, a section inside the card T&C, or a tier grid. Tag the section, not the file."
+  },
+  "KFS": {
+   "signals": [
+    "key facts statement",
+    "KFS",
+    "warning",
+    "APR",
+    "cooling-off",
+    "monthly percentage rate"
+   ]
+  },
+  "SOFC": {
+   "signals": [
+    "schedule of charges",
+    "schedule of fees",
+    "tariff",
+    "fee types",
+    "inclusive of VAT"
+   ]
+  },
+  "ADVERT": {
+   "signals": [
+    "image or web page",
+    "headline benefit",
+    "apply now",
+    "T&Cs apply",
+    "up to"
+   ],
+   "metadata_required": [
+    "source_url",
+    "capture_date",
+    "language"
+   ],
+   "note": "Multi-product promotions that do not name the card are out of scope for that card."
+  }
+ },
+ "section_output_format": {
+  "file_id": "str",
+  "section_id": "str",
+  "role": "TC|REWARDS|KFS|SOFC|ADVERT|OTHER",
+  "subtype": "CARD_AGREEMENT|GENERAL_BANKING|null",
+  "language": "en|ar|bilingual",
+  "page_from": "int",
+  "page_to": "int",
+  "confidence": "0-1",
+  "title": "str"
+ },
+ "low_confidence_rule": "Section role confidence below 0.7 goes to examiner confirmation before scoring."
+}

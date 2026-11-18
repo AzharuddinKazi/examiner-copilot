@@ -15,6 +15,10 @@ export const productsTable = pgTable("products", {
   bankId: integer("bank_id").notNull().references(() => banksTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   cardTier: text("card_tier"),
+  /** Islamic (Sharia-compliant) card: rules marked "Islamic cards only" apply. */
+  isIslamic: boolean("is_islamic").notNull().default(false),
+  /** Document roles the card does not have by design (e.g. REWARDS when there is no rewards programme). */
+  absentRoles: text("absent_roles").array().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

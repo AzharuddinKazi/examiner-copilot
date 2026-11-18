@@ -150,6 +150,7 @@ export async function detail(dataset: Dataset, a: AssessmentRow) {
         rationale: f.rationale,
         verification: f.verification,
         proposedBy: f.proposedBy,
+        verdict: (f.verdict as "satisfied" | "partially" | "not_satisfied" | "not_applicable" | null) ?? null,
         evidence: evidence
           .filter((e) => e.findingId === f.id)
           .map((e) => {

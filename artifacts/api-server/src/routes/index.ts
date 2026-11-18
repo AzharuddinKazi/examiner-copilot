@@ -7,7 +7,9 @@ import libraryRouter from "./library";
 import documentsRouter from "./documents";
 import assessmentsRouter from "./assessments";
 import reviewRouter from "./review";
+import deletionsRouter from "./deletions";
 import usersRouter from "./users";
+import scoringRouter from "./scoring";
 import { requireUser } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -23,5 +25,7 @@ router.use(libraryRouter);
 router.use(documentsRouter);
 router.use(assessmentsRouter);
 router.use(reviewRouter);
+router.use(deletionsRouter);
+router.use(scoringRouter);
 
 export default router;

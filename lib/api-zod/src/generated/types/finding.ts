@@ -9,6 +9,7 @@ import type { CheckType } from './checkType';
 import type { CodeCheck } from './codeCheck';
 import type { Evidence } from './evidence';
 import type { FindingStatus } from './findingStatus';
+import type { FindingVerdict } from './findingVerdict';
 import type { FindingVerification } from './findingVerification';
 import type { Severity } from './severity';
 import type { Threshold } from './threshold';
@@ -29,6 +30,11 @@ export interface Finding {
   verification: FindingVerification;
   /** Which agent or check produced the proposal */
   proposedBy: string;
+  /**
+     * Rubric verdict after code checks (null when there is none)
+     * @nullable
+     */
+  verdict?: FindingVerdict;
   evidence: Evidence[];
   checks: CodeCheck[];
 }

@@ -37,7 +37,7 @@ const DOC_TYPE_LABEL: Record<DocType, string> = {
 const DOC_TYPE_PATTERNS: Record<DocType, RegExp[]> = {
   kfs: [/key\s*facts?(\s*statement)?/i, /\bkfs\b/i, /بيان\s*الحقائق\s*الأساسية/, /الحقائق\s*الأساسية/],
   tnc: [/terms\s*(and|&)\s*conditions/i, /\bt\s*&\s*c\b/i, /\btnc\b/i, /الشروط\s*والأحكام/],
-  rewards: [/rewards?\s*(programme|program|terms)/i, /\brewards?\b/i, /المكافآت/],
+  rewards: [/rewards?\s*(programme|program|terms)/i, /\brewards?\b/i, /cash\s*back\s*(grid|table|categories|programme|program|terms)/i, /المكافآت/],
   fees: [/schedule\s*of\s*(fees|charges)/i, /fees?\s*(schedule|and\s*charges)/i, /جدول\s*الرسوم/, /الرسوم\s*والتكاليف/],
   advert: [/\badvert(isement)?s?\b/i, /\bmarketing\b/i, /\bpromo(tion(al)?)?\b/i, /\bbrochure\b/i, /\bleaflet\b/i, /إعلان/],
 };
@@ -82,8 +82,11 @@ export function suggestLanguage(text: string): SuggestionItem<DocLanguage> {
   if (total < 20) return { value: null, reason: "Too little text to tell the language." };
   const share = arabic / total;
   const pct = Math.round(share * 100);
-  if (share >= 0.4) return { value: "ar", reason: `${pct}% of letters are Arabic script.` };
+  if (share >= 0.75) return { value: "ar", reason: `${pct}% of letters are Arabic script.` };
   if (share <= 0.15) return { value: "en", reason: `${100 - pct}% of letters are Latin script.` };
+  // Arabic needs fewer letters than English for the same words, so a side-by-side bilingual
+  // document shows roughly 30-60% Arabic letters. The English text is the one assessed.
+  if (share >= 0.25) return { value: "en", reason: `English and Arabic side by side (${pct}% Arabic letters); the English text is assessed.` };
   return { value: null, reason: `Mixed script (${pct}% Arabic). Choose the language of the binding text.` };
 }
 
@@ -94,6 +97,23 @@ function escapeRe(s: string): string {
 function occurrences(text: string, needle: string): number {
   if (needle.trim().length < 3) return 0;
   const pattern = escapeRe(needle.trim()).replace(/\s+/g, "\\s+");
+  return (text.match(new RegExp(pattern, "gi")) ?? []).length;
+}
+
+/** Words that every card name shares; they say nothing about which product it is. */
+const GENERIC_PRODUCT_WORDS = /\b(credit|debit|covered|card|cards|cc|the|bank)\b/gi;
+
+/**
+ * Counts a product name in the text, tolerant of spacing and generic words:
+ * "Supersaver Credit Card" matches "Super Saver", "SUPER-SAVER" and "supersaver".
+ */
+export function productOccurrences(text: string, name: string): number {
+  const exact = occurrences(text, name);
+  if (exact > 0) return exact;
+  const core = name.replace(GENERIC_PRODUCT_WORDS, " ").replace(/[^\p{L}\p{N}]+/gu, "").toLowerCase();
+  if (core.length < 3) return 0;
+  // Allow any spaces, hyphens or underscores between the letters of the distinctive part.
+  const pattern = [...core].map(escapeRe).join("[\\s\\-_]*");
   return (text.match(new RegExp(pattern, "gi")) ?? []).length;
 }
 
@@ -128,7 +148,7 @@ export function suggestBankAndProduct(
   const bankId = { value: bank.id, reason: `"${bank.nameEn}" appears ${scored[0]!.n} time(s) in the document.` };
 
   const products = bank.products
-    .map((p) => ({ p, n: occurrences(haystack, p.name) }))
+    .map((p) => ({ p, n: productOccurrences(haystack, p.name) }))
     .filter((x) => x.n > 0)
     .sort((a, b) => b.n - a.n || b.p.name.length - a.p.name.length);
   if (products.length === 0) {

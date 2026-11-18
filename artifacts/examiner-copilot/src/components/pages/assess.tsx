@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
 import { EmptyState, QueryError } from "@/components/states";
 import { StatusPill, ToolText } from "@/components/voice";
+import { DeleteButton } from "@/components/delete-button";
 import { CountPills, DocChip, UsageBar, countsSentence } from "@/components/assess/shared";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
@@ -243,8 +244,8 @@ function HistoryList({ items }: { items: AssessmentSummary[] }) {
         const pill = assessmentStatusPill(a.status);
         const dur = formatDuration(a.startedAt, a.finishedAt);
         return (
-          <li key={a.id}>
-            <Link href={`/assess/${a.id}`} className="flex flex-col gap-2 px-4 py-3 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none md:flex-row md:items-center md:gap-4" data-testid={`link-history-${a.id}`}>
+          <li key={a.id} className="flex items-center pr-2 hover:bg-muted/40">
+            <Link href={`/assess/${a.id}`} className="flex min-w-0 flex-1 flex-col gap-2 px-4 py-3 focus-visible:bg-muted/40 focus-visible:outline-none md:flex-row md:items-center md:gap-4" data-testid={`link-history-${a.id}`}>
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2">
                   <StatusPill variant={pill.variant} label={pill.label} />
@@ -258,6 +259,7 @@ function HistoryList({ items }: { items: AssessmentSummary[] }) {
                 {format(new Date(a.createdAt), "d MMM, HH:mm")}{dur ? ` · ${dur}` : ""}
               </ToolText>
             </Link>
+            {a.status !== "queued" && a.status !== "running" ? <DeleteButton kind="assessment" id={a.id} label={`#${a.id} · ${a.productName ?? "Product removed"}`} /> : null}
           </li>
         );
       })}

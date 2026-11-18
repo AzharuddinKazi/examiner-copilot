@@ -26,6 +26,8 @@ tags:
     description: Agent runs that propose a status per rule, with evidence checked by code
   - name: review
     description: Examiner decisions on proposed findings (append-only)
+  - name: scoring
+    description: Scoring rubric, document roles and complaint data
 paths:
   /healthz:
     get:
@@ -824,6 +826,64 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /deletions/{kind}/{id}:
+    parameters:
+      - name: kind
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/DeleteKind"
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      operationId: getDeleteImpact
+      tags: [library]
+      summary: What deleting this item would also delete
+      responses:
+        "200":
+          description: Impact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteImpact"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteItem
+      tags: [library]
+      summary: Delete an item and everything that depends on it
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteImpact"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: An assessment that uses this is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /review/queue:
     get:
       operationId: getReviewQueue
@@ -951,6 +1011,527 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /scoring/settings/{kind}:
+    get:
+      operationId: getScoringSettings
+      tags: [scoring]
+      summary: The scoring rubric or the document-role settings (saved copy, else the loaded default)
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/SettingsKind" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoringSettings"
+        "404":
+          description: Unknown kind
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: saveScoringSettings
+      tags: [scoring]
+      summary: Replace the settings (validated)
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/SettingsKind" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScoringSettingsInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoringSettings"
+        "400":
+          description: Invalid settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: resetScoringSettings
+      tags: [scoring]
+      summary: Delete the saved copy and go back to the loaded default
+      parameters:
+        - name: kind
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/SettingsKind" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoringSettings"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /complaint-themes:
+    get:
+      operationId: listComplaintThemes
+      tags: [scoring]
+      summary: Complaint category to theme mapping
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplaintThemeList"
+    post:
+      operationId: createComplaintTheme
+      tags: [scoring]
+      summary: Map a complaint category to a theme
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplaintThemeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplaintTheme"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Category already mapped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /complaint-themes/import:
+    post:
+      operationId: importComplaintThemes
+      tags: [scoring]
+      summary: Add or update mappings from a CSV with category and theme columns
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/FileUploadInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportSummary"
+        "400":
+          description: Invalid file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /complaint-themes/{id}:
+    patch:
+      operationId: updateComplaintTheme
+      tags: [scoring]
+      summary: Change a mapping
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplaintThemeInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplaintTheme"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Category already mapped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteComplaintTheme
+      tags: [scoring]
+      summary: Remove a mapping
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /complaints:
+    get:
+      operationId: listComplaints
+      tags: [scoring]
+      summary: Complaint counts per bank and category
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplaintList"
+    post:
+      operationId: createComplaint
+      tags: [scoring]
+      summary: Add a complaint count
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplaintInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Complaint"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /complaints/import:
+    post:
+      operationId: importComplaints
+      tags: [scoring]
+      summary: Add complaint counts from a CSV with bank, category, count and optional product and period columns
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/FileUploadInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportSummary"
+        "400":
+          description: Invalid file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /complaints/{id}:
+    patch:
+      operationId: updateComplaint
+      tags: [scoring]
+      summary: Change a complaint count
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplaintInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Complaint"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteComplaint
+      tags: [scoring]
+      summary: Remove a complaint count
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /products/{id}:
+    patch:
+      operationId: updateProduct
+      tags: [library]
+      summary: Change a card product (name, tier, Islamic flag, roles absent by design)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Name already used
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rules/{id}:
+    patch:
+      operationId: updateRule
+      tags: [library]
+      summary: Edit a rule in a draft rulebook version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rule"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Version is not a draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteRule
+      tags: [library]
+      summary: Remove a rule from a draft rulebook version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: Viewer cannot change data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Version is not a draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assessments/{id}/scorecard:
+    get:
+      operationId: getAssessmentScorecard
+      tags: [assessments]
+      summary: Rubric ratings per rule, theme and product, from the latest decisions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scorecard"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 
 components:
   schemas:
@@ -1149,6 +1730,26 @@ components:
           type: string
           format: date-time
 
+    DeleteKind:
+      type: string
+      enum: [bank, product, document, rulebook, rulebook_version, assessment]
+
+    DeleteImpact:
+      type: object
+      required: [kind, id, name, products, documents, assessments, rulebookVersions, rules, notices, removesActiveRulebook, blockedReason]
+      properties:
+        kind: { $ref: "#/components/schemas/DeleteKind" }
+        id: { type: integer }
+        name: { type: string }
+        products: { type: integer }
+        documents: { type: integer }
+        assessments: { type: integer }
+        rulebookVersions: { type: integer }
+        rules: { type: integer }
+        notices: { type: integer }
+        removesActiveRulebook: { type: boolean }
+        blockedReason: { type: string, nullable: true }
+
     ErrorResponse:
       type: object
       required: [error]
@@ -1172,12 +1773,17 @@ components:
 
     Product:
       type: object
-      required: [id, bankId, name, cardTier, documentCount]
+      required: [id, bankId, name, cardTier, isIslamic, absentRoles, documentCount]
       properties:
         id: { type: integer }
         bankId: { type: integer }
         name: { type: string }
         cardTier: { type: ["string", "null"] }
+        isIslamic: { type: boolean }
+        absentRoles:
+          type: array
+          description: Document roles the card does not have by design (rules that only run on them are Not applicable)
+          items: { $ref: "#/components/schemas/DocRole" }
         documentCount: { type: integer }
 
     Bank:
@@ -1742,6 +2348,10 @@ components:
         rationale: { type: string, description: The tool's plain explanation }
         verification: { type: string, enum: [verified, unsupported] }
         proposedBy: { type: string, description: Which agent or check produced the proposal }
+        verdict:
+          type: ["string", "null"]
+          enum: [satisfied, partially, not_satisfied, not_applicable, null]
+          description: Rubric verdict after code checks (null when there is none)
         evidence:
           type: array
           items: { $ref: "#/components/schemas/Evidence" }
@@ -1996,3 +2606,212 @@ components:
       required: [accepted]
       properties:
         accepted: { type: integer }
+
+    SettingsKind:
+      type: string
+      enum: [scoring, document_roles]
+
+    ScoringSettings:
+      type: object
+      required: [kind, content, isDefault, updatedAt, updatedBy]
+      properties:
+        kind: { $ref: "#/components/schemas/SettingsKind" }
+        content: { type: object, additionalProperties: true }
+        isDefault: { type: boolean, description: True when no edited copy is saved and the loaded file is used }
+        updatedAt: { type: ["string", "null"], format: date-time }
+        updatedBy: { type: ["string", "null"] }
+
+    ScoringSettingsInput:
+      type: object
+      required: [content]
+      properties:
+        content: { type: object, additionalProperties: true }
+
+    ComplaintTheme:
+      type: object
+      required: [id, category, theme, knownTheme, complaintCount]
+      properties:
+        id: { type: integer }
+        category: { type: string }
+        theme: { type: string }
+        knownTheme: { type: boolean, description: The theme is one of the scoring themes }
+        complaintCount: { type: integer, description: Complaints recorded under this category }
+
+    ComplaintThemeList:
+      type: object
+      required: [items, themes, unmappedCategories]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ComplaintTheme" }
+        themes:
+          type: array
+          items: { type: string }
+        unmappedCategories:
+          type: array
+          items: { type: string }
+
+    ComplaintThemeInput:
+      type: object
+      required: [category, theme]
+      properties:
+        category: { type: string, minLength: 1, maxLength: 200 }
+        theme: { type: string, minLength: 1, maxLength: 200 }
+
+    Complaint:
+      type: object
+      required: [id, bankId, bankName, productId, productName, category, theme, count, period]
+      properties:
+        id: { type: integer }
+        bankId: { type: integer }
+        bankName: { type: string }
+        productId: { type: ["integer", "null"] }
+        productName: { type: ["string", "null"] }
+        category: { type: string }
+        theme: { type: ["string", "null"], description: From the category mapping; null when unmapped }
+        count: { type: integer }
+        period: { type: ["string", "null"] }
+
+    ComplaintList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Complaint" }
+
+    ComplaintInput:
+      type: object
+      required: [bankId, category, count]
+      properties:
+        bankId: { type: integer }
+        productId: { type: ["integer", "null"] }
+        category: { type: string, minLength: 1, maxLength: 200 }
+        count: { type: integer, minimum: 0, maximum: 100000000 }
+        period: { type: ["string", "null"], maxLength: 60 }
+
+    ImportSummary:
+      type: object
+      required: [added, updated, skipped, errors]
+      properties:
+        added: { type: integer }
+        updated: { type: integer }
+        skipped: { type: integer }
+        errors:
+          type: array
+          items: { type: string }
+
+    ProductUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        cardTier: { type: ["string", "null"], maxLength: 60 }
+        isIslamic: { type: boolean }
+        absentRoles:
+          type: array
+          items: { $ref: "#/components/schemas/DocRole" }
+
+    DocRole:
+      type: string
+      enum: [TC, REWARDS, KFS, SOFC, ADVERT]
+
+    RuleUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 300 }
+        text: { type: string, minLength: 1, maxLength: 5000 }
+        category: { type: ["string", "null"], maxLength: 200 }
+        severity: { $ref: "#/components/schemas/Severity" }
+        checkType: { $ref: "#/components/schemas/CheckType" }
+        appliesToDocTypes:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/DocType" }
+        details:
+          type: array
+          items: { $ref: "#/components/schemas/RuleDetail" }
+
+    ScoreClass:
+      type: string
+      enum: [Satisfied, Partially, Not satisfied, Not applicable, Scored under, Not assessed, "Not assessed: document missing"]
+
+    ScoredRule:
+      type: object
+      required: [ruleId, code, title, theme, severity, outcome, basis, contradiction, findingId, rating]
+      properties:
+        ruleId: { type: integer }
+        code: { type: string }
+        title: { type: string }
+        theme: { type: ["string", "null"] }
+        severity: { $ref: "#/components/schemas/Severity" }
+        outcome: { $ref: "#/components/schemas/ScoreClass" }
+        basis: { type: string }
+        contradiction: { type: boolean }
+        findingId: { type: ["integer", "null"] }
+        rating: { type: ["integer", "null"] }
+
+    ThemeComplaints:
+      type: object
+      required: [count, peerMedian, corroborated]
+      properties:
+        count: { type: integer }
+        peerMedian: { type: ["number", "null"] }
+        corroborated: { type: boolean }
+
+    ThemeScore:
+      type: object
+      required: [theme, mean, rating, label, percentage, capped, nearCutoff, assessed, notApplicable, notAssessed, documentMissing, scoredUnder, rulesAt4, complaints]
+      properties:
+        theme: { type: string }
+        mean: { type: ["number", "null"] }
+        rating: { type: ["integer", "null"] }
+        label: { type: ["string", "null"] }
+        percentage: { type: ["number", "null"] }
+        capped: { type: boolean }
+        nearCutoff: { type: boolean }
+        assessed: { type: integer }
+        notApplicable: { type: integer }
+        notAssessed: { type: integer }
+        documentMissing: { type: integer }
+        scoredUnder: { type: integer }
+        rulesAt4: { type: integer }
+        complaints:
+          oneOf:
+            - { $ref: "#/components/schemas/ThemeComplaints" }
+            - { type: "null" }
+
+    Scorecard:
+      type: object
+      required: [assessmentId, rating, label, mean, percentage, nearCutoff, capReasons, coverage, provisional, provisionalLabel, missingRoles, themes, rules, contradictions, configVersion, hasComplaintData]
+      properties:
+        assessmentId: { type: integer }
+        rating: { type: ["integer", "null"] }
+        label: { type: ["string", "null"] }
+        mean: { type: ["number", "null"] }
+        percentage: { type: ["number", "null"] }
+        nearCutoff: { type: boolean }
+        capReasons:
+          type: array
+          items: { type: string }
+        coverage:
+          type: object
+          required: [assessed, notAssessed, documentMissing, ratio]
+          properties:
+            assessed: { type: integer }
+            notAssessed: { type: integer }
+            documentMissing: { type: integer }
+            ratio: { type: ["number", "null"] }
+        provisional: { type: boolean }
+        provisionalLabel: { type: ["string", "null"] }
+        missingRoles:
+          type: array
+          items: { type: string }
+        themes:
+          type: array
+          items: { $ref: "#/components/schemas/ThemeScore" }
+        rules:
+          type: array
+          items: { $ref: "#/components/schemas/ScoredRule" }
+        contradictions: { type: integer }
+        configVersion: { type: string }
+        hasComplaintData: { type: boolean }

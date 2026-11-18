@@ -5,6 +5,7 @@
  * Examiner Co-Pilot API. Agents propose, examiners decide.
  * OpenAPI spec version: 0.1.0
  */
+import type { DocRole } from './docRole';
 
 export interface Product {
   id: number;
@@ -12,5 +13,8 @@ export interface Product {
   name: string;
   /** @nullable */
   cardTier: string | null;
+  isIslamic: boolean;
+  /** Document roles the card does not have by design (rules that only run on them are Not applicable) */
+  absentRoles: DocRole[];
   documentCount: number;
 }

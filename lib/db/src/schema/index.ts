@@ -6,3 +6,4 @@ export * from "./assessments";
 export * from "./notices";
 export * from "./files";
 export * from "./users";
+export * from "./scoring";

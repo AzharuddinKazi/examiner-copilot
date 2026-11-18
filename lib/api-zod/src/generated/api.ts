@@ -196,6 +196,8 @@ export const ListBanksResponse = zod.object({
   "bankId": zod.int(),
   "name": zod.string(),
   "cardTier": zod.string().nullable(),
+  "isIslamic": zod.boolean(),
+  "absentRoles": zod.array(zod.enum(['TC', 'REWARDS', 'KFS', 'SOFC', 'ADVERT'])).describe('Document roles the card does not have by design (rules that only run on them are Not applicable)'),
   "documentCount": zod.int()
 })),
   "documentCount": zod.int()
@@ -228,6 +230,8 @@ export const CreateBankResponse = zod.object({
   "bankId": zod.int(),
   "name": zod.string(),
   "cardTier": zod.string().nullable(),
+  "isIslamic": zod.boolean(),
+  "absentRoles": zod.array(zod.enum(['TC', 'REWARDS', 'KFS', 'SOFC', 'ADVERT'])).describe('Document roles the card does not have by design (rules that only run on them are Not applicable)'),
   "documentCount": zod.int()
 })),
   "documentCount": zod.int()
@@ -258,6 +262,8 @@ export const CreateProductResponse = zod.object({
   "bankId": zod.int(),
   "name": zod.string(),
   "cardTier": zod.string().nullable(),
+  "isIslamic": zod.boolean(),
+  "absentRoles": zod.array(zod.enum(['TC', 'REWARDS', 'KFS', 'SOFC', 'ADVERT'])).describe('Document roles the card does not have by design (rules that only run on them are Not applicable)'),
   "documentCount": zod.int()
 })
 
@@ -1189,6 +1195,7 @@ export const GetAssessmentResponse = zod.object({
   "rationale": zod.string().describe('The tool\'s plain explanation'),
   "verification": zod.enum(['verified', 'unsupported']),
   "proposedBy": zod.string().describe('Which agent or check produced the proposal'),
+  "verdict": zod.union([zod.literal('satisfied'),zod.literal('partially'),zod.literal('not_satisfied'),zod.literal('not_applicable'),zod.literal(null)]).nullish().describe('Rubric verdict after code checks (null when there is none)'),
   "evidence": zod.array(zod.object({
   "id": zod.int(),
   "documentId": zod.int(),
@@ -1398,6 +1405,52 @@ export const RequestRulebookAgentMappingResponse = zod.object({
 
 
 /**
+ * @summary What deleting this item would also delete
+ */
+export const GetDeleteImpactParams = zod.object({
+  "kind": zod.enum(['bank', 'product', 'document', 'rulebook', 'rulebook_version', 'assessment']),
+  "id": zod.coerce.number().int()
+})
+
+export const GetDeleteImpactResponse = zod.object({
+  "kind": zod.enum(['bank', 'product', 'document', 'rulebook', 'rulebook_version', 'assessment']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "products": zod.int(),
+  "documents": zod.int(),
+  "assessments": zod.int(),
+  "rulebookVersions": zod.int(),
+  "rules": zod.int(),
+  "notices": zod.int(),
+  "removesActiveRulebook": zod.boolean(),
+  "blockedReason": zod.string().nullable()
+})
+
+
+/**
+ * @summary Delete an item and everything that depends on it
+ */
+export const DeleteItemParams = zod.object({
+  "kind": zod.enum(['bank', 'product', 'document', 'rulebook', 'rulebook_version', 'assessment']),
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteItemResponse = zod.object({
+  "kind": zod.enum(['bank', 'product', 'document', 'rulebook', 'rulebook_version', 'assessment']),
+  "id": zod.int(),
+  "name": zod.string(),
+  "products": zod.int(),
+  "documents": zod.int(),
+  "assessments": zod.int(),
+  "rulebookVersions": zod.int(),
+  "rules": zod.int(),
+  "notices": zod.int(),
+  "removesActiveRulebook": zod.boolean(),
+  "blockedReason": zod.string().nullable()
+})
+
+
+/**
  * @summary Findings from the latest finished assessment of each product, with the latest examiner decision
  */
 export const GetReviewQueueResponse = zod.object({
@@ -1470,6 +1523,7 @@ export const GetFindingResponse = zod.object({
   "rationale": zod.string().describe('The tool\'s plain explanation'),
   "verification": zod.enum(['verified', 'unsupported']),
   "proposedBy": zod.string().describe('Which agent or check produced the proposal'),
+  "verdict": zod.union([zod.literal('satisfied'),zod.literal('partially'),zod.literal('not_satisfied'),zod.literal('not_applicable'),zod.literal(null)]).nullish().describe('Rubric verdict after code checks (null when there is none)'),
   "evidence": zod.array(zod.object({
   "id": zod.int(),
   "documentId": zod.int(),
@@ -1566,6 +1620,7 @@ export const DecideFindingResponse = zod.object({
   "rationale": zod.string().describe('The tool\'s plain explanation'),
   "verification": zod.enum(['verified', 'unsupported']),
   "proposedBy": zod.string().describe('Which agent or check produced the proposal'),
+  "verdict": zod.union([zod.literal('satisfied'),zod.literal('partially'),zod.literal('not_satisfied'),zod.literal('not_applicable'),zod.literal(null)]).nullish().describe('Rubric verdict after code checks (null when there is none)'),
   "evidence": zod.array(zod.object({
   "id": zod.int(),
   "documentId": zod.int(),
@@ -1642,6 +1697,416 @@ export const AcceptCompliantFindingsBody = zod.object({
 
 export const AcceptCompliantFindingsResponse = zod.object({
   "accepted": zod.int()
+})
+
+
+/**
+ * @summary The scoring rubric or the document-role settings (saved copy, else the loaded default)
+ */
+export const GetScoringSettingsParams = zod.object({
+  "kind": zod.enum(['scoring', 'document_roles'])
+})
+
+export const GetScoringSettingsResponse = zod.object({
+  "kind": zod.enum(['scoring', 'document_roles']),
+  "content": zod.record(zod.string(), zod.unknown()),
+  "isDefault": zod.boolean().describe('True when no edited copy is saved and the loaded file is used'),
+  "updatedAt": zod.coerce.date().nullable(),
+  "updatedBy": zod.string().nullable()
+})
+
+
+/**
+ * @summary Replace the settings (validated)
+ */
+export const SaveScoringSettingsParams = zod.object({
+  "kind": zod.enum(['scoring', 'document_roles'])
+})
+
+export const SaveScoringSettingsBody = zod.object({
+  "content": zod.record(zod.string(), zod.unknown())
+})
+
+export const SaveScoringSettingsResponse = zod.object({
+  "kind": zod.enum(['scoring', 'document_roles']),
+  "content": zod.record(zod.string(), zod.unknown()),
+  "isDefault": zod.boolean().describe('True when no edited copy is saved and the loaded file is used'),
+  "updatedAt": zod.coerce.date().nullable(),
+  "updatedBy": zod.string().nullable()
+})
+
+
+/**
+ * @summary Delete the saved copy and go back to the loaded default
+ */
+export const ResetScoringSettingsParams = zod.object({
+  "kind": zod.enum(['scoring', 'document_roles'])
+})
+
+export const ResetScoringSettingsResponse = zod.object({
+  "kind": zod.enum(['scoring', 'document_roles']),
+  "content": zod.record(zod.string(), zod.unknown()),
+  "isDefault": zod.boolean().describe('True when no edited copy is saved and the loaded file is used'),
+  "updatedAt": zod.coerce.date().nullable(),
+  "updatedBy": zod.string().nullable()
+})
+
+
+/**
+ * @summary Complaint category to theme mapping
+ */
+export const ListComplaintThemesResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "category": zod.string(),
+  "theme": zod.string(),
+  "knownTheme": zod.boolean().describe('The theme is one of the scoring themes'),
+  "complaintCount": zod.int().describe('Complaints recorded under this category')
+})),
+  "themes": zod.array(zod.string()),
+  "unmappedCategories": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Map a complaint category to a theme
+ */
+export const createComplaintThemeBodyCategoryMax = 200;
+
+export const createComplaintThemeBodyThemeMax = 200;
+
+
+
+export const CreateComplaintThemeBody = zod.object({
+  "category": zod.string().min(1).max(createComplaintThemeBodyCategoryMax),
+  "theme": zod.string().min(1).max(createComplaintThemeBodyThemeMax)
+})
+
+export const CreateComplaintThemeResponse = zod.object({
+  "id": zod.int(),
+  "category": zod.string(),
+  "theme": zod.string(),
+  "knownTheme": zod.boolean().describe('The theme is one of the scoring themes'),
+  "complaintCount": zod.int().describe('Complaints recorded under this category')
+})
+
+
+/**
+ * @summary Add or update mappings from a CSV with category and theme columns
+ */
+export const ImportComplaintThemesBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const ImportComplaintThemesResponse = zod.object({
+  "added": zod.int(),
+  "updated": zod.int(),
+  "skipped": zod.int(),
+  "errors": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Change a mapping
+ */
+export const UpdateComplaintThemeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateComplaintThemeBodyCategoryMax = 200;
+
+export const updateComplaintThemeBodyThemeMax = 200;
+
+
+
+export const UpdateComplaintThemeBody = zod.object({
+  "category": zod.string().min(1).max(updateComplaintThemeBodyCategoryMax),
+  "theme": zod.string().min(1).max(updateComplaintThemeBodyThemeMax)
+})
+
+export const UpdateComplaintThemeResponse = zod.object({
+  "id": zod.int(),
+  "category": zod.string(),
+  "theme": zod.string(),
+  "knownTheme": zod.boolean().describe('The theme is one of the scoring themes'),
+  "complaintCount": zod.int().describe('Complaints recorded under this category')
+})
+
+
+/**
+ * @summary Remove a mapping
+ */
+export const DeleteComplaintThemeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteComplaintThemeResponse = zod.void()
+
+
+/**
+ * @summary Complaint counts per bank and category
+ */
+export const ListComplaintsResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.int(),
+  "bankId": zod.int(),
+  "bankName": zod.string(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "category": zod.string(),
+  "theme": zod.string().nullable().describe('From the category mapping; null when unmapped'),
+  "count": zod.int(),
+  "period": zod.string().nullable()
+}))
+})
+
+
+/**
+ * @summary Add a complaint count
+ */
+export const createComplaintBodyCategoryMax = 200;
+
+export const createComplaintBodyCountMin = 0;
+export const createComplaintBodyCountMax = 100000000;
+
+export const createComplaintBodyPeriodMax = 60;
+
+
+
+export const CreateComplaintBody = zod.object({
+  "bankId": zod.int(),
+  "productId": zod.int().nullish(),
+  "category": zod.string().min(1).max(createComplaintBodyCategoryMax),
+  "count": zod.int().min(createComplaintBodyCountMin).max(createComplaintBodyCountMax),
+  "period": zod.string().max(createComplaintBodyPeriodMax).nullish()
+})
+
+export const CreateComplaintResponse = zod.object({
+  "id": zod.int(),
+  "bankId": zod.int(),
+  "bankName": zod.string(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "category": zod.string(),
+  "theme": zod.string().nullable().describe('From the category mapping; null when unmapped'),
+  "count": zod.int(),
+  "period": zod.string().nullable()
+})
+
+
+/**
+ * @summary Add complaint counts from a CSV with bank, category, count and optional product and period columns
+ */
+export const ImportComplaintsBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const ImportComplaintsResponse = zod.object({
+  "added": zod.int(),
+  "updated": zod.int(),
+  "skipped": zod.int(),
+  "errors": zod.array(zod.string())
+})
+
+
+/**
+ * @summary Change a complaint count
+ */
+export const UpdateComplaintParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateComplaintBodyCategoryMax = 200;
+
+export const updateComplaintBodyCountMin = 0;
+export const updateComplaintBodyCountMax = 100000000;
+
+export const updateComplaintBodyPeriodMax = 60;
+
+
+
+export const UpdateComplaintBody = zod.object({
+  "bankId": zod.int(),
+  "productId": zod.int().nullish(),
+  "category": zod.string().min(1).max(updateComplaintBodyCategoryMax),
+  "count": zod.int().min(updateComplaintBodyCountMin).max(updateComplaintBodyCountMax),
+  "period": zod.string().max(updateComplaintBodyPeriodMax).nullish()
+})
+
+export const UpdateComplaintResponse = zod.object({
+  "id": zod.int(),
+  "bankId": zod.int(),
+  "bankName": zod.string(),
+  "productId": zod.int().nullable(),
+  "productName": zod.string().nullable(),
+  "category": zod.string(),
+  "theme": zod.string().nullable().describe('From the category mapping; null when unmapped'),
+  "count": zod.int(),
+  "period": zod.string().nullable()
+})
+
+
+/**
+ * @summary Remove a complaint count
+ */
+export const DeleteComplaintParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteComplaintResponse = zod.void()
+
+
+/**
+ * @summary Change a card product (name, tier, Islamic flag, roles absent by design)
+ */
+export const UpdateProductParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateProductBodyNameMin = 2;
+export const updateProductBodyNameMax = 120;
+
+export const updateProductBodyCardTierMax = 60;
+
+
+
+export const UpdateProductBody = zod.object({
+  "name": zod.string().min(updateProductBodyNameMin).max(updateProductBodyNameMax).optional(),
+  "cardTier": zod.string().max(updateProductBodyCardTierMax).nullish(),
+  "isIslamic": zod.boolean().optional(),
+  "absentRoles": zod.array(zod.enum(['TC', 'REWARDS', 'KFS', 'SOFC', 'ADVERT'])).optional()
+})
+
+export const UpdateProductResponse = zod.object({
+  "id": zod.int(),
+  "bankId": zod.int(),
+  "name": zod.string(),
+  "cardTier": zod.string().nullable(),
+  "isIslamic": zod.boolean(),
+  "absentRoles": zod.array(zod.enum(['TC', 'REWARDS', 'KFS', 'SOFC', 'ADVERT'])).describe('Document roles the card does not have by design (rules that only run on them are Not applicable)'),
+  "documentCount": zod.int()
+})
+
+
+/**
+ * @summary Edit a rule in a draft rulebook version
+ */
+export const UpdateRuleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateRuleBodyTitleMax = 300;
+
+export const updateRuleBodyTextMax = 5000;
+
+export const updateRuleBodyCategoryMax = 200;
+
+
+
+
+export const UpdateRuleBody = zod.object({
+  "title": zod.string().min(1).max(updateRuleBodyTitleMax).optional(),
+  "text": zod.string().min(1).max(updateRuleBodyTextMax).optional(),
+  "category": zod.string().max(updateRuleBodyCategoryMax).nullish(),
+  "severity": zod.enum(['low', 'medium', 'high']).optional(),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language', 'binary', 'subjective', 'calculation']).optional(),
+  "appliesToDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material')).min(1).optional(),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})).optional()
+})
+
+export const UpdateRuleResponse = zod.object({
+  "id": zod.int(),
+  "code": zod.string(),
+  "title": zod.string(),
+  "text": zod.string(),
+  "category": zod.string().nullable(),
+  "appliesToDocTypes": zod.array(zod.enum(['kfs', 'tnc', 'rewards', 'fees', 'advert']).describe('kfs = Key Facts Statement, tnc = Terms and Conditions, rewards = Rewards terms, fees = Fees Schedule, advert = Advertisement or marketing material')),
+  "checkType": zod.enum(['presence', 'max_value', 'min_value', 'cross_document', 'bilingual', 'readability', 'prohibited_language', 'binary', 'subjective', 'calculation']),
+  "threshold": zod.union([zod.object({
+  "value": zod.number().nullable(),
+  "unit": zod.string().nullable(),
+  "raw": zod.string()
+}),zod.null()]),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "details": zod.array(zod.object({
+  "label": zod.string(),
+  "value": zod.string()
+})).describe('Extra spreadsheet columns kept with the rule (for example evidence to look for, pass criteria, examples)')
+})
+
+
+/**
+ * @summary Remove a rule from a draft rulebook version
+ */
+export const DeleteRuleParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteRuleResponse = zod.void()
+
+
+/**
+ * @summary Rubric ratings per rule, theme and product, from the latest decisions
+ */
+export const GetAssessmentScorecardParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetAssessmentScorecardResponse = zod.object({
+  "assessmentId": zod.int(),
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "mean": zod.number().nullable(),
+  "percentage": zod.number().nullable(),
+  "nearCutoff": zod.boolean(),
+  "capReasons": zod.array(zod.string()),
+  "coverage": zod.object({
+  "assessed": zod.int(),
+  "notAssessed": zod.int(),
+  "documentMissing": zod.int(),
+  "ratio": zod.number().nullable()
+}),
+  "provisional": zod.boolean(),
+  "provisionalLabel": zod.string().nullable(),
+  "missingRoles": zod.array(zod.string()),
+  "themes": zod.array(zod.object({
+  "theme": zod.string(),
+  "mean": zod.number().nullable(),
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "percentage": zod.number().nullable(),
+  "capped": zod.boolean(),
+  "nearCutoff": zod.boolean(),
+  "assessed": zod.int(),
+  "notApplicable": zod.int(),
+  "notAssessed": zod.int(),
+  "documentMissing": zod.int(),
+  "scoredUnder": zod.int(),
+  "rulesAt4": zod.int(),
+  "complaints": zod.union([zod.object({
+  "count": zod.int(),
+  "peerMedian": zod.number().nullable(),
+  "corroborated": zod.boolean()
+}),zod.null()])
+})),
+  "rules": zod.array(zod.object({
+  "ruleId": zod.int(),
+  "code": zod.string(),
+  "title": zod.string(),
+  "theme": zod.string().nullable(),
+  "severity": zod.enum(['low', 'medium', 'high']),
+  "outcome": zod.enum(['Satisfied', 'Partially', 'Not satisfied', 'Not applicable', 'Scored under', 'Not assessed', 'Not assessed: document missing']),
+  "basis": zod.string(),
+  "contradiction": zod.boolean(),
+  "findingId": zod.int().nullable(),
+  "rating": zod.int().nullable()
+})),
+  "contradictions": zod.int(),
+  "configVersion": zod.string(),
+  "hasComplaintData": zod.boolean()
 })
 
 

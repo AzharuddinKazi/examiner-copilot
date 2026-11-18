@@ -181,6 +181,33 @@ export interface AuditChainVerification {
   checkedAt: string;
 }
 
+export type DeleteKind = typeof DeleteKind[keyof typeof DeleteKind];
+
+
+export const DeleteKind = {
+  bank: 'bank',
+  product: 'product',
+  document: 'document',
+  rulebook: 'rulebook',
+  rulebook_version: 'rulebook_version',
+  assessment: 'assessment',
+} as const;
+
+export interface DeleteImpact {
+  kind: DeleteKind;
+  id: number;
+  name: string;
+  products: number;
+  documents: number;
+  assessments: number;
+  rulebookVersions: number;
+  rules: number;
+  notices: number;
+  removesActiveRulebook: boolean;
+  /** @nullable */
+  blockedReason: string | null;
+}
+
 export interface ErrorResponse {
   /** Plain explanation of what went wrong and what to do */
   error: string;
@@ -195,12 +222,26 @@ export interface FileUploadInput {
   file: Blob | File;
 }
 
+export type DocRole = typeof DocRole[keyof typeof DocRole];
+
+
+export const DocRole = {
+  TC: 'TC',
+  REWARDS: 'REWARDS',
+  KFS: 'KFS',
+  SOFC: 'SOFC',
+  ADVERT: 'ADVERT',
+} as const;
+
 export interface Product {
   id: number;
   bankId: number;
   name: string;
   /** @nullable */
   cardTier: string | null;
+  isIslamic: boolean;
+  /** Document roles the card does not have by design (rules that only run on them are Not applicable) */
+  absentRoles: DocRole[];
   documentCount: number;
 }
 
@@ -875,6 +916,20 @@ export const FindingVerification = {
   unsupported: 'unsupported',
 } as const;
 
+/**
+ * Rubric verdict after code checks (null when there is none)
+ * @nullable
+ */
+export type FindingVerdict = typeof FindingVerdict[keyof typeof FindingVerdict] | null;
+
+
+export const FindingVerdict = {
+  satisfied: 'satisfied',
+  partially: 'partially',
+  not_satisfied: 'not_satisfied',
+  not_applicable: 'not_applicable',
+} as const;
+
 export interface Finding {
   id: number;
   /** @nullable */
@@ -891,6 +946,11 @@ export interface Finding {
   verification: FindingVerification;
   /** Which agent or check produced the proposal */
   proposedBy: string;
+  /**
+     * Rubric verdict after code checks (null when there is none)
+     * @nullable
+     */
+  verdict?: FindingVerdict;
   evidence: Evidence[];
   checks: CodeCheck[];
 }
@@ -1098,6 +1158,240 @@ export interface BulkAcceptInput {
 
 export interface BulkAcceptResult {
   accepted: number;
+}
+
+export type SettingsKind = typeof SettingsKind[keyof typeof SettingsKind];
+
+
+export const SettingsKind = {
+  scoring: 'scoring',
+  document_roles: 'document_roles',
+} as const;
+
+export type ScoringSettingsContent = { [key: string]: unknown };
+
+export interface ScoringSettings {
+  kind: SettingsKind;
+  content: ScoringSettingsContent;
+  /** True when no edited copy is saved and the loaded file is used */
+  isDefault: boolean;
+  /** @nullable */
+  updatedAt: string | null;
+  /** @nullable */
+  updatedBy: string | null;
+}
+
+export type ScoringSettingsInputContent = { [key: string]: unknown };
+
+export interface ScoringSettingsInput {
+  content: ScoringSettingsInputContent;
+}
+
+export interface ComplaintTheme {
+  id: number;
+  category: string;
+  theme: string;
+  /** The theme is one of the scoring themes */
+  knownTheme: boolean;
+  /** Complaints recorded under this category */
+  complaintCount: number;
+}
+
+export interface ComplaintThemeList {
+  items: ComplaintTheme[];
+  themes: string[];
+  unmappedCategories: string[];
+}
+
+export interface ComplaintThemeInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  category: string;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  theme: string;
+}
+
+export interface Complaint {
+  id: number;
+  bankId: number;
+  bankName: string;
+  /** @nullable */
+  productId: number | null;
+  /** @nullable */
+  productName: string | null;
+  category: string;
+  /**
+     * From the category mapping; null when unmapped
+     * @nullable
+     */
+  theme: string | null;
+  count: number;
+  /** @nullable */
+  period: string | null;
+}
+
+export interface ComplaintList {
+  items: Complaint[];
+}
+
+export interface ComplaintInput {
+  bankId: number;
+  /** @nullable */
+  productId?: number | null;
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  category: string;
+  /**
+     * @minimum 0
+     * @maximum 100000000
+     */
+  count: number;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  period?: string | null;
+}
+
+export interface ImportSummary {
+  added: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface ProductUpdate {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  name?: string;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  cardTier?: string | null;
+  isIslamic?: boolean;
+  absentRoles?: DocRole[];
+}
+
+export interface RuleUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 300
+     */
+  title?: string;
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  text?: string;
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  category?: string | null;
+  severity?: Severity;
+  checkType?: CheckType;
+  /** @minItems 1 */
+  appliesToDocTypes?: DocType[];
+  details?: RuleDetail[];
+}
+
+export type ScoreClass = typeof ScoreClass[keyof typeof ScoreClass];
+
+
+export const ScoreClass = {
+  Satisfied: 'Satisfied',
+  Partially: 'Partially',
+  Not_satisfied: 'Not satisfied',
+  Not_applicable: 'Not applicable',
+  Scored_under: 'Scored under',
+  Not_assessed: 'Not assessed',
+  'Not_assessed:_document_missing': 'Not assessed: document missing',
+} as const;
+
+export interface ScoredRule {
+  ruleId: number;
+  code: string;
+  title: string;
+  /** @nullable */
+  theme: string | null;
+  severity: Severity;
+  outcome: ScoreClass;
+  basis: string;
+  contradiction: boolean;
+  /** @nullable */
+  findingId: number | null;
+  /** @nullable */
+  rating: number | null;
+}
+
+export interface ThemeComplaints {
+  count: number;
+  /** @nullable */
+  peerMedian: number | null;
+  corroborated: boolean;
+}
+
+export interface ThemeScore {
+  theme: string;
+  /** @nullable */
+  mean: number | null;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  label: string | null;
+  /** @nullable */
+  percentage: number | null;
+  capped: boolean;
+  nearCutoff: boolean;
+  assessed: number;
+  notApplicable: number;
+  notAssessed: number;
+  documentMissing: number;
+  scoredUnder: number;
+  rulesAt4: number;
+  complaints: ThemeComplaints | null;
+}
+
+export type ScorecardCoverage = {
+  assessed: number;
+  notAssessed: number;
+  documentMissing: number;
+  /** @nullable */
+  ratio: number | null;
+};
+
+export interface Scorecard {
+  assessmentId: number;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  label: string | null;
+  /** @nullable */
+  mean: number | null;
+  /** @nullable */
+  percentage: number | null;
+  nearCutoff: boolean;
+  capReasons: string[];
+  coverage: ScorecardCoverage;
+  provisional: boolean;
+  /** @nullable */
+  provisionalLabel: string | null;
+  missingRoles: string[];
+  themes: ThemeScore[];
+  rules: ScoredRule[];
+  contradictions: number;
+  configVersion: string;
+  hasComplaintData: boolean;
 }
 
 export type ListAuditEventsParams = {

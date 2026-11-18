@@ -62,7 +62,7 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 - 14 business days count from an examiner-entered reference date; day 1 is the next business day; weekend Sat–Sun.
 - Disclosures PDF only; rulebook .xlsx or CSV (UTF-8). Rulebook check types include binary/subjective/calculation (judged by the Rule agent in batches of 12); document roles TC→tnc, SOFC→fees, ADVERT→advert.
 
-- Model provider: OpenRouter. The key is stored as the secret `OPENAI_API_KEY` (`OPENROUTER_API_KEY` also accepted and wins if both exist). Model in env var `OPENROUTER_MODEL`, currently the free `nvidia/nemotron-3.5-super-vl:free` (user asked for a free model).
+- Model provider: OpenRouter. The key is stored as the secret `OPENAI_API_KEY` (`OPENROUTER_API_KEY` also accepted and wins if both exist). Model in env var `OPENROUTER_MODEL`, currently `anthropic/claude-fable-5.2` (user asked for the best available model, Claude; paid per token on the user's OpenRouter key, which has a spending limit). Earlier the free Nemotron model was used.
 
 ## Assessment runs (M2)
 - Agents (Coordinator, Evidence, Consistency, Rule) only return JSON proposals; code in `lib/assess/` verifies every quote against stored page text and makes all numeric, cross-document, bilingual and readability decisions.
@@ -98,3 +98,6 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
 - Assessment step/token budgets are switched off at the user's request (LIMITS = 0 means no limit in `lib/assess/run.ts`); runs continue until every rule is judged. Re-introduce limits later by setting non-zero values.
+
+## End-to-end test run
+`artifacts/api-server/scripts/e2e-run.ts <productId>` runs the real assessment pipeline on a product in the dev database (costs model credit). Run it as a background task; it dies if its shell ends.

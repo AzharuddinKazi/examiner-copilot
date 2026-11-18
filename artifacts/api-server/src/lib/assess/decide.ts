@@ -116,6 +116,18 @@ export function verify(c: CitedQuote, docs: Map<number, AssessDoc>): VerifiedQuo
 
 const isVerified = (q: VerifiedQuote) => q.verified !== "not_found";
 
+/**
+ * Pages whose missing text could hide the wording a rule needs. A near-empty first or last page that still has
+ * some text (a cover or a back page with just a web address) is not a reading gap.
+ */
+export function readingGaps(d: Pick<AssessDoc, "gapPages" | "pages">): number[] {
+  const last = Math.max(0, ...d.pages.map((p) => p.pageNo));
+  return d.gapPages.filter((n) => {
+    const text = d.pages.find((p) => p.pageNo === n)?.text.trim() ?? "";
+    return !((n === 1 || n === last) && text.length > 0);
+  });
+}
+
 function quoteCheck(qs: VerifiedQuote[], docs: Map<number, AssessDoc>): CodeCheck {
   const ok = qs.filter(isVerified).length;
   const moved = qs.filter((q) => q.verified === "normalized").length;
@@ -437,7 +449,7 @@ export function decideReadability(rule: AssessRule, docs: AssessDoc[]): Decision
 
 export interface Judgement {
   ruleCode: string;
-  status: "compliant" | "breach" | "needs_review" | "not_applicable";
+  status: "compliant" | "breach" | "warning" | "needs_review" | "not_applicable";
   rationale: string;
   quotes: CitedQuote[];
 }
@@ -452,15 +464,17 @@ export function decideJudgement(rule: AssessRule, j: Judgement | undefined, docs
   const verified = evidence.filter(isVerified);
   const checks: CodeCheck[] = [quoteCheck(evidence, byId)];
   const targets = applicableDocs(rule, docs, "en");
-  const gaps = targets.filter((d) => d.gapPages.length);
-  if (j.status === "breach" && (rule.checkType === "presence" || rule.checkType === "binary") && verified.length === 0) {
+  const gaps = targets.filter((d) => readingGaps(d).length);
+  // An absence finding: a presence check, or any judgement that cites no quote because the wording is missing.
+  const absence = rule.checkType === "presence" || rule.checkType === "binary" || j.quotes.length === 0;
+  if (j.status === "breach" && absence && verified.length === 0) {
     // An absence finding has nothing to quote. It is only reliable if every page was readable.
     checks.push({
       label: "Whole document readable",
       result: gaps.length ? "fail" : "pass",
       detail: gaps.length
-        ? `Unreadable pages: ${gaps.map((d) => `${d.name} p. ${d.gapPages.join(", ")}`).join("; ")}. The missing wording may be on those pages.`
-        : `Every page of ${targets.map((d) => d.name).join(", ")} had a text layer, so the absence is not caused by an extraction gap.`,
+        ? `Unreadable pages: ${gaps.map((d) => `${d.name} p. ${readingGaps(d).join(", ")}`).join("; ")}. The missing wording may be on those pages.`
+        : `Every content page of ${targets.map((d) => d.name).join(", ")} had a text layer, so the absence is not caused by an extraction gap.`,
     });
     if (gaps.length) {
       return { ...base, status: "needs_review", rationale: `${j.rationale} However, some pages could not be read, so absence cannot be confirmed.`, evidence, checks };

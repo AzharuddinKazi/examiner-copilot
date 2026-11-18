@@ -63,7 +63,7 @@ function toDecision(d: typeof decisionsTable.$inferSelect) {
   return { id: d.id, decision: d.decision, finalStatus: d.finalStatus, examinerNote: d.examinerNote, role: d.role, actor: d.actor, decidedAt: d.decidedAt };
 }
 
-async function latestDecisions(findingIds: number[]) {
+export async function latestDecisions(findingIds: number[]) {
   const m = new Map<number, ReturnType<typeof toDecision>>();
   if (!findingIds.length) return m;
   const rows = await db.select().from(decisionsTable).where(inArray(decisionsTable.findingId, findingIds)).orderBy(desc(decisionsTable.id));

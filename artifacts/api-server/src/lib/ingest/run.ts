@@ -1,6 +1,6 @@
 /**
  * Runs the Ingestion agent for one document in the background and stores its checked proposal.
- * Calls run one at a time so a batch upload does not trip the free model's rate limit.
+ * Calls run one at a time so a batch upload does not trip the provider rate limit.
  * A failure is stored with its reason; the rule-based suggestion is unaffected.
  */
 import { db, documentsTable } from "@workspace/db";

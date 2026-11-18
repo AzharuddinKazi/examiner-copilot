@@ -1,0 +1,103 @@
+{
+ "version": "v1.0-hackathon (18 Nov 2026)",
+ "scale": {
+  "1": "Strong",
+  "2": "Acceptable",
+  "3": "Needs Improvement",
+  "4": "Weak",
+  "direction": "higher number = higher risk",
+  "percentage": "125 - 25 * rating"
+ },
+ "verdicts": [
+  "Satisfied",
+  "Partially",
+  "Not satisfied",
+  "Not applicable"
+ ],
+ "rating_matrix": {
+  "Satisfied": {
+   "Low": 1,
+   "Medium": 1,
+   "High": 1
+  },
+  "Partially": {
+   "Low": 2,
+   "Medium": 2,
+   "High": 3
+  },
+  "Not satisfied": {
+   "Low": 2,
+   "Medium": 3,
+   "High": 4
+  }
+ },
+ "cutoffs": [
+  1.5,
+  2.5,
+  3.5
+ ],
+ "on_cutoff_goes_to": "weaker rating",
+ "near_cutoff_margin": 0.15,
+ "caps": {
+  "trigger_rating": 4,
+  "any_rule_at_trigger_floor": 3,
+  "any_theme_at_trigger_floor": 4,
+  "theme_cap": "any rule in the theme rated 4 -> theme at least 3"
+ },
+ "combine": {
+  "worst": "Each document / Document level: rating = max over the roles the rule ran on.",
+  "best": "Product pack: rating = min over the roles (requirement needs to appear once).",
+  "best_terms_then_worse_of_advert": "Product pack with an advert: min over terms roles, then max with the advert rating if the advert was assessed."
+ },
+ "aggregation": {
+  "theme": "mean of rule ratings in the theme, banded, theme cap applied",
+  "product": "mean of theme ratings (equal weight), banded, graded caps applied",
+  "excluded_from_means": [
+   "Not applicable",
+   "Scored under",
+   "Not assessed",
+   "Not assessed: document missing"
+  ]
+ },
+ "applicability": {
+  "islamic_only_rules": "N/A unless the card is Islamic",
+  "role_absent_by_design": "N/A when every role the rule runs on is marked NA for the card (e.g. card has no rewards programme)",
+  "role_expected_but_missing": "'Not assessed: document missing' and counts against coverage",
+  "scored_under": "secondary rule of a repository overlap is not scored; its parent is"
+ },
+ "coverage": "assessed / (assessed + not assessed + document missing)",
+ "completeness": {
+  "required_roles": [
+   "TC (card agreement section)",
+   "KFS",
+   "SOFC"
+  ],
+  "required_if_detected": {
+   "REWARDS": "card advertises cashback, points or miles"
+  },
+  "optional": [
+   "ADVERT"
+  ],
+  "label_if_incomplete": "Provisional: incomplete submission"
+ },
+ "contradiction_flag": "When a best-of rule is satisfied in one terms document but another terms document has an explicit clause that fails it (e.g. 60-day notice in general T&C vs \"without any intimation\" in rewards terms), show a Contradiction flag on the rule for examiner review. Display only in v1.",
+ "themes": [
+  "Advertising and value proposition vs terms",
+  "Instalment plans and balance transfers",
+  "Islamic product disclosure",
+  "Rewards, offers and promotions",
+  "Changes to terms and notice",
+  "Interest, APR and billing",
+  "Fees and charges",
+  "Card security, fraud and unauthorised transactions",
+  "Credit limit and responsible lending",
+  "Arrears, collections and account blocking",
+  "Insurance, bundling and conflicts",
+  "Cancellation, closure and switching",
+  "Data privacy and marketing consent",
+  "Complaints handling",
+  "Fair treatment and unfair terms",
+  "Disclosure clarity and accuracy"
+ ],
+ "complaints": "Display only: volume and type per theme next to the theme rating; \"Corroborated\" when theme >= 3 and complaints above peer median. Never changes the score."
+}

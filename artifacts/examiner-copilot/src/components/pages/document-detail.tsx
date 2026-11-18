@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { DeleteButton } from "@/components/delete-button";
 import { format } from "date-fns";
 import { getGetDocumentQueryKey, useGetDocument, type DocumentPage } from "@workspace/api-client-react";
 import { AlertTriangle, ChevronDown, ExternalLink } from "lucide-react";
@@ -58,6 +60,7 @@ export function DocumentDetailView({ id }: { id: number }) {
   });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
+  const router = useRouter();
   const d = q.data;
 
   if (q.isLoading) {
@@ -101,6 +104,7 @@ export function DocumentDetailView({ id }: { id: number }) {
               {d.status !== "rejected" ? (
                 <Button variant="outline" className="bg-card" onClick={() => setRejectOpen(true)} disabled={!canWrite} data-testid="button-reject">Reject</Button>
               ) : null}
+              <DeleteButton kind="document" id={d.id} label={d.originalName} variant="text" onDeleted={() => router.push("/upload")} />
               <Button onClick={() => setConfirmOpen(true)} disabled={!canWrite} data-testid="button-confirm-details">
                 {d.status === "confirmed" ? "Change details" : "Confirm details"}
               </Button>

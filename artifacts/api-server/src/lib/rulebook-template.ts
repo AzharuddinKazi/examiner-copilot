@@ -12,8 +12,9 @@ export async function renderRulebookTemplate(): Promise<Buffer> {
   ws.columns.forEach((c, i) => (c.width = [10, 28, 70, 14, 14, 18, 12, 10][i] ?? 14));
   const notes = wb.addWorksheet("Guide");
   notes.addRow(["One row per rule on the Rules sheet. Column names can differ; you map them on import."]);
-  notes.addRow(["Check: Must be stated, Maximum, Minimum, Consistency, Bilingual, Readability, Prohibited wording."]);
-  notes.addRow(["Applies to: KFS, T&C, Rewards, Fees or All (comma-separated)."]);
+  notes.addRow(["Check: Binary, Subjective, Calculation, Must be stated, Maximum, Minimum, Consistency, Bilingual, Readability, Prohibited wording."]);
+  notes.addRow(["Applies to: KFS, T&C (or TC), Rewards, Fees (or SOFC), Advert, or All. Separate with commas or semicolons."]);
+  notes.addRow(["Rule name is optional; if left out, it is taken from the requirement text. Any extra columns are kept with each rule."]);
   notes.addRow(["Limit: needed for Maximum and Minimum checks, e.g. 3.25% or AED 300."]);
   notes.addRow(["Severity: Low, Medium or High."]);
   notes.getColumn(1).width = 100;

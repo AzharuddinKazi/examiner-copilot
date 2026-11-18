@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import {
-  getListBanksQueryKey, useCreateBank, useCreateProduct, useListBanks, type Bank,
+  getListBanksQueryKey, useCreateBank, useCreateProduct, useListBanks, useUpdateProduct, type Bank, type DocRole, type Product,
 } from "@workspace/api-client-react";
-import { Building2, Plus } from "lucide-react";
+import { Building2, Pencil, Plus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
 import { BankLogo } from "@/components/bank-logo";
+import { DeleteButton } from "@/components/delete-button";
 import { EmptyState, QueryError } from "@/components/states";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
@@ -95,9 +98,83 @@ function ProductForm({ bank, onDone }: { bank: Bank; onDone: () => void }) {
   );
 }
 
+const ROLES: { role: DocRole; label: string }[] = [
+  { role: "REWARDS", label: "Rewards programme" },
+  { role: "ADVERT", label: "Advert" },
+  { role: "TC", label: "Card T&C" },
+  { role: "KFS", label: "Key Facts Statement" },
+  { role: "SOFC", label: "Schedule of charges" },
+];
+
+function ProductDialog({ product, bankName, onClose }: { product: Product; bankName: string; onClose: () => void }) {
+  const { canWrite } = useCanWrite();
+  const update = useUpdateProduct();
+  const invalidate = useInvalidate();
+  const [name, setName] = useState(product.name);
+  const [tier, setTier] = useState(product.cardTier ?? "");
+  const [islamic, setIslamic] = useState(product.isIslamic);
+  const [absent, setAbsent] = useState<DocRole[]>(product.absentRoles);
+  const [error, setError] = useState<string | null>(null);
+  const submit = () => {
+    setError(null);
+    update.mutate({ id: product.id, data: { name: name.trim(), cardTier: tier.trim() || null, isIslamic: islamic, absentRoles: absent } }, {
+      onSuccess: () => { invalidate([getListBanksQueryKey()]); onClose(); },
+      onError: (e) => setError(parseApiError(e).message),
+    });
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md" data-testid="dialog-edit-product">
+        <DialogHeader>
+          <DialogTitle>Edit {product.name}</DialogTitle>
+          <DialogDescription>{bankName}. These settings decide which rules apply when the card is assessed.</DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+          <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+            <div>
+              <Label htmlFor="ep-name">Product name</Label>
+              <Input id="ep-name" className="mt-1.5" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} data-testid="input-edit-product-name" />
+            </div>
+            <div>
+              <Label htmlFor="ep-tier">Card tier</Label>
+              <Input id="ep-tier" className="mt-1.5" value={tier} maxLength={60} onChange={(e) => setTier(e.target.value)} data-testid="input-edit-product-tier" />
+            </div>
+          </div>
+          <div className="flex items-start justify-between gap-3 rounded-md border border-border p-3">
+            <div>
+              <Label htmlFor="ep-islamic">Islamic card</Label>
+              <p className="text-xs text-muted-foreground">Rules for Islamic cards are Not applicable unless this is on.</p>
+            </div>
+            <Switch id="ep-islamic" checked={islamic} onCheckedChange={setIslamic} data-testid="switch-islamic" />
+          </div>
+          <fieldset className="rounded-md border border-border p-3">
+            <legend className="px-1 text-sm font-medium">The card does not have, by design</legend>
+            <p className="mb-2 text-xs text-muted-foreground">Rules that only apply to these documents are marked Not applicable, and they are not counted as missing.</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {ROLES.map((r) => (
+                <label key={r.role} className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={absent.includes(r.role)} onCheckedChange={(c) => setAbsent((a) => (c ? [...a, r.role] : a.filter((x) => x !== r.role)))} data-testid={`checkbox-absent-${r.role}`} />
+                  {r.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          {error ? <p role="alert" className="text-sm text-[hsl(var(--tone-bad))]" data-testid="text-edit-product-error">{error}</p> : null}
+          <ViewerReason />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={!canWrite || name.trim().length < 2 || update.isPending} data-testid="button-save-product">{update.isPending ? "Saving…" : "Save"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function BankCard({ bank }: { bank: Bank }) {
   const { canWrite } = useCanWrite();
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Product | null>(null);
   return (
     <article className="rounded-lg border border-card-border bg-card p-4" data-testid={`card-bank-${bank.id}`}>
       <header className="flex items-center gap-3 border-b border-border pb-3">
@@ -107,13 +184,27 @@ function BankCard({ bank }: { bank: Bank }) {
           {bank.nameAr ? <p dir="rtl" lang="ar" className="font-arabic text-base text-muted-foreground" data-testid={`text-bank-name-ar-${bank.id}`}>{bank.nameAr}</p> : null}
         </div>
         <span className="shrink-0 font-mono text-xs text-muted-foreground">{bank.documentCount} {bank.documentCount === 1 ? "doc" : "docs"}</span>
+        <DeleteButton kind="bank" id={bank.id} label={bank.nameEn} />
       </header>
       {bank.products.length ? (
         <ul className="divide-y divide-dashed divide-border">
           {bank.products.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm" data-testid={`row-product-${p.id}`}>
-              <span>{p.name}{p.cardTier ? <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{p.cardTier}</span> : null}</span>
-              <span className="font-mono text-xs text-muted-foreground">{p.documentCount} docs</span>
+              <span>
+                {p.name}
+                {p.cardTier ? <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{p.cardTier}</span> : null}
+                {p.isIslamic ? <span className="ml-1.5 rounded bg-[hsl(var(--tone-info-bg))] px-1.5 py-0.5 text-[11px] text-[hsl(var(--tone-info))]" data-testid={`badge-islamic-${p.id}`}>Islamic</span> : null}
+                {p.absentRoles.length ? <span className="ml-1.5 text-[11px] text-muted-foreground" data-testid={`text-absent-${p.id}`}>no {p.absentRoles.map((r) => ROLES.find((x) => x.role === r)?.label.toLowerCase() ?? r).join(", ")}</span> : null}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="font-mono text-xs text-muted-foreground">{p.documentCount} docs</span>
+                {canWrite ? (
+                  <Button variant="ghost" size="icon" className="size-7 text-muted-foreground" aria-label={`Edit ${p.name}`} onClick={() => setEditing(p)} data-testid={`button-edit-product-${p.id}`}>
+                    <Pencil className="size-3.5" aria-hidden />
+                  </Button>
+                ) : null}
+                <DeleteButton kind="product" id={p.id} label={`${p.name} (${bank.nameEn})`} />
+              </span>
             </li>
           ))}
         </ul>
@@ -123,6 +214,7 @@ function BankCard({ bank }: { bank: Bank }) {
           <Plus aria-hidden /> Add product
         </Button>
       )}
+      {editing ? <ProductDialog product={editing} bankName={bank.nameEn} onClose={() => setEditing(null)} /> : null}
     </article>
   );
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { extractPdf, PdfValidationError, PDF_LIMITS } from "../lib/pdf";
-import { suggestDocType, suggestLanguage, suggestBankAndProduct } from "../lib/suggest";
+import { suggestDocType, suggestLanguage, productOccurrences, suggestBankAndProduct } from "../lib/suggest";
 import { renderDemoPdf } from "./fixtures/generate";
 import { DEMO_DOCUMENTS } from "./fixtures/content";
 
@@ -61,7 +61,15 @@ describe("rule-based suggestions", () => {
   it("detects language by script share and refuses when mixed", () => {
     expect(suggestLanguage("Annual fee is AED 500 and the late fee is AED 230").value).toBe("en");
     expect(suggestLanguage("الرسوم السنوية خمسمائة درهم ورسوم التأخير مائتان وثلاثون درهما").value).toBe("ar");
-    expect(suggestLanguage("Annual fee is five hundred dirhams per year الرسوم السنوية").value).toBeNull();
+    expect(suggestLanguage("Annual fee is five hundred dirhams per year charged monthly الرسوم السنوية").value).toBeNull();
+    // Side-by-side bilingual pages: the English text is the one assessed.
+    expect(suggestLanguage("Annual fee is AED 500. Late fee is AED 230. الرسوم السنوية 500 درهم. رسوم التأخير 230 درهم.").value).toBe("en");
+  });
+
+  it("matches product names despite spacing and generic words", () => {
+    expect(productOccurrences("The SUPER SAVER card offers 5% back. Super-Saver terms.", "Supersaver Credit Card")).toBe(2);
+    expect(productOccurrences("365 Cashback card", "Cashback Credit Card")).toBe(1);
+    expect(productOccurrences("Platinum card", "Credit Card")).toBe(0);
   });
 
   it("matches bank and product by name, and abstains on ties", () => {

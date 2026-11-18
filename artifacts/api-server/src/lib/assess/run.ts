@@ -14,6 +14,8 @@ import {
   documentsTable,
   documentPagesTable,
   rulesTable,
+  productsTable,
+  banksTable,
 } from "@workspace/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { LlmError, type ChatMessage } from "../llm/adapter";
@@ -32,6 +34,7 @@ import {
   decideReadability,
   decideThreshold,
   missingDocTypes,
+  readingGaps,
   type AssessDoc,
   type AssessRule,
   type Conflict,
@@ -50,12 +53,18 @@ import {
   ruleMessages,
   ruleSchema,
   type OpenIssue,
+  type RuleContext,
+  type RuleJudgementOut,
 } from "./agents";
 import { detectInjection } from "./text";
+import { decideRubric, type RubricDecision } from "./rubric";
+import { DOC_TYPE_ROLE, ROLE_LABEL, parseRoles, ruleMeta, type RuleMeta } from "../scoring/rule-meta";
+import { getDocumentRoles, getScoringConfig } from "../scoring/settings";
+import type { Role } from "../scoring/config";
 
 /** 0 means no limit. Step and token budgets are switched off for now; runs go until every rule is judged. */
 export const LIMITS = { stepLimit: 0, tokenLimit: 0, coordinatorRounds: 2 } as const;
-const MAX_TOKENS = { evidence: 12000, rule: 10000, consistency: 8000, coordinator: 6000 } as const;
+const MAX_TOKENS = { evidence: 12000, rule: 16000, consistency: 8000, coordinator: 6000 } as const;
 const DOC_LABEL = { kfs: "KFS", tnc: "T&C", rewards: "Rewards", fees: "Fees Schedule", advert: "Advert" } as const;
 
 export interface Alert {
@@ -217,7 +226,45 @@ async function loadInputs(dataset: Dataset, assessmentId: number) {
     appliesToDocTypes: r.appliesToDocTypes,
     details: r.details ?? [],
   }));
-  return { assessment: a, docs, rules };
+  const [product] = a.productId ? await db.select().from(productsTable).where(eq(productsTable.id, a.productId)) : [];
+  const [bank] = a.bankId ? await db.select().from(banksTable).where(eq(banksTable.id, a.bankId)) : [];
+  return {
+    assessment: a,
+    docs,
+    rules,
+    ruleRows,
+    product: product
+      ? { bank: bank?.nameEn ?? null, name: product.name, isIslamic: product.isIslamic, absentRoles: parseRoles(product.absentRoles.join(";")) }
+      : { bank: bank?.nameEn ?? null, name: null, isIslamic: false, absentRoles: [] as Role[] },
+  };
+}
+
+/** Documents that carry a role. Rewards terms often sit inside the card T&C, so with no rewards file the T&C stands in. */
+function docsForRoles(roles: Role[], docs: AssessDoc[]): AssessDoc[] {
+  const types = new Set(roles.map((r) => r));
+  const out = docs.filter((d) => types.has(DOC_TYPE_ROLE[d.docType]));
+  if (types.has("REWARDS") && !docs.some((d) => d.docType === "rewards")) {
+    for (const d of docs) if (d.docType === "tnc" && !out.includes(d)) out.push(d);
+  }
+  return out;
+}
+
+/**
+ * Applicability decided by code, before any model call (saves cost and cannot be argued away):
+ * scored-under rules, Islamic-only rules on a conventional card, roles absent by design, and
+ * optional roles (adverts) that were not submitted.
+ */
+export function codeApplicability(meta: RuleMeta, product: { isIslamic: boolean; absentRoles: Role[] }, presentRoles: Set<Role>, optionalRoles: Role[]): string | null {
+  if (meta.scoredUnder && /^[A-Z]{1,3}-[\w.]+-\d+$/i.test(meta.scoredUnder)) return `Scored under ${meta.scoredUnder}: the parent rule carries the score, so this rule is not scored separately.`;
+  if (meta.islamicOnly && !product.isIslamic) return "Applies to Islamic cards only; this card is not marked as Islamic.";
+  const roles = meta.runsOnRoles;
+  if (roles.length && roles.every((r) => product.absentRoles.includes(r))) {
+    return `The card has no ${roles.map((r) => ROLE_LABEL[r]).join(" or ")} by design, so this rule does not apply.`;
+  }
+  if (roles.length && roles.every((r) => optionalRoles.includes(r) && !presentRoles.has(r))) {
+    return `No ${roles.map((r) => ROLE_LABEL[r]).join(" or ")} was submitted; it is optional${meta.applicability ? ` and the rule applies only when: ${meta.applicability}` : ""}.`;
+  }
+  return null;
 }
 
 /** Document types a rule compares against (from a "compares with" rulebook column), besides those it runs on. */
@@ -230,6 +277,8 @@ const NUMERIC: CheckType[] = ["max_value", "min_value", "cross_document"];
 const JUDGED: CheckType[] = ["presence", "prohibited_language", "binary", "subjective", "calculation"];
 /** Most rules the Rule agent judges in one call; large rulebooks are split so answers stay complete. */
 const JUDGE_BATCH = 12;
+/** Above this many characters of document text, rules are judged one per call so the reply stays complete. */
+const MAX_BATCH_CHARS = 450_000;
 
 async function pool<T>(items: T[], size: number, fn: (t: T) => Promise<void>) {
   const queue = [...items];
@@ -253,11 +302,30 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
     const docs = inputs.docs;
     const byId = new Map(docs.map((d) => [d.id, d]));
     const english = docs.filter((d) => d.language === "en");
+    const [scoring, rolesCfg] = await Promise.all([getScoringConfig(dataset), getDocumentRoles(dataset)]);
+    const metas = new Map(inputs.ruleRows.map((r) => [r.code, ruleMeta(r)]));
+    const presentRoles = new Set<Role>(english.map((d) => DOC_TYPE_ROLE[d.docType]));
+    const optionalRoles = parseRoles(scoring.completeness.optional.join(";"));
 
     // ---- Code: applicability, gaps, injection ----
     const active: AssessRule[] = [];
     for (const r of rules) {
-      const present = applicableDocs(r, docs, r.checkType === "bilingual" ? "any" : "en");
+      const meta = metas.get(r.code)!;
+      const na = codeApplicability(meta, inputs.product, presentRoles, optionalRoles);
+      if (na) {
+        decisions.set(r.id, {
+          ruleId: r.id,
+          status: "not_applicable",
+          rationale: na,
+          evidence: [],
+          checks: [{ label: "Applicability", result: "info", detail: na }],
+          proposedBy: meta.scoredUnder && na.startsWith("Scored under") ? "Code (scored under)" : "Code (applicability rules)",
+          verdict: "not_applicable",
+        } as RubricDecision);
+        continue;
+      }
+      // Rewards rules can be checked in the T&C when the rewards terms sit inside it.
+      const present = JUDGED.includes(r.checkType) ? docsForRoles(meta.runsOnRoles, english) : applicableDocs(r, docs, r.checkType === "bilingual" ? "any" : "en");
       if (present.length === 0) {
         const missing = missingDocTypes(r, docs).map((t) => DOC_LABEL[t]).join(", ");
         decisions.set(r.id, {
@@ -271,14 +339,19 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
       } else active.push(r);
     }
     const missingTypes = (["kfs", "tnc", "rewards", "fees", "advert"] as const).filter(
-      (t) => (t !== "advert" || rules.some((r) => r.appliesToDocTypes.includes(t))) && !english.some((d) => d.docType === t),
+      (t) =>
+        !optionalRoles.includes(DOC_TYPE_ROLE[t]) &&
+        !inputs.product.absentRoles.includes(DOC_TYPE_ROLE[t]) &&
+        active.some((r) => r.appliesToDocTypes.includes(t)) &&
+        !english.some((d) => d.docType === t),
     );
     for (const t of missingTypes) {
       alerts.push({ kind: "missing_document", message: `No confirmed English ${DOC_LABEL[t]} document is included. Rules that need it are marked Needs review.`, documentId: null, documentName: null, pageNo: null, quote: null });
     }
     for (const d of docs) {
-      if (d.gapPages.length) {
-        alerts.push({ kind: "extraction_gap", message: `Page ${d.gapPages.join(", ")} has no readable text (likely a scan). Nothing on it can be quoted or checked.`, documentId: d.id, documentName: d.name, pageNo: d.gapPages[0]!, quote: null });
+      const gapPages = readingGaps(d);
+      if (gapPages.length) {
+        alerts.push({ kind: "extraction_gap", message: `Page ${gapPages.join(", ")} has no readable text (likely a scan). Nothing on it can be quoted or checked.`, documentId: d.id, documentName: d.name, pageNo: gapPages[0]!, quote: null });
       }
       for (const hit of detectInjection(d.pages)) {
         alerts.push({ kind: "injection", message: "This document contains text addressed to an AI system. It was treated as data and ignored.", documentId: d.id, documentName: d.name, pageNo: hit.pageNo, quote: hit.quote });
@@ -287,7 +360,7 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
     await ctx.log({
       agent: "code",
       tool: "prepare",
-      summary: `Prepared ${docs.length} document(s) and ${rules.length} rules: ${active.length} can be checked, ${rules.length - active.length} lack a document. ${alerts.filter((a) => a.kind === "injection").length} instruction-like passage(s) detected and kept as data.`,
+      summary: `Prepared ${docs.length} document(s) and ${rules.length} rules: ${active.length} can be checked, ${[...decisions.values()].filter((d) => d.status === "not_applicable").length} do not apply to this card, ${[...decisions.values()].filter((d) => d.status === "needs_review").length} lack a document. ${alerts.filter((a) => a.kind === "injection").length} instruction-like passage(s) detected and kept as data.`,
       output: { documents: docs.map((d) => ({ id: d.id, type: d.docType, language: d.language, gapPages: d.gapPages })), alerts: alerts.length },
     });
 
@@ -391,33 +464,54 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
 
     // ---- Rule agent ----
     const judged = active.filter((r) => JUDGED.includes(r.checkType));
-    const judgements = new Map<string, Judgement>();
-    const judge = async (rs: AssessRule[], focusDocs?: AssessDoc[], focus?: string) => {
-      const relevant = focusDocs ?? english.filter((d) => rs.some((r) => r.appliesToDocTypes.includes(d.docType) || compareDocTypes(r).includes(d.docType)));
-      return ctx.call({
+    const judgements = new Map<string, RuleJudgementOut>();
+    const ruleCtx: RuleContext = { metas, roles: rolesCfg, product: inputs.product };
+    const relevantDocs = (r: AssessRule) => {
+      const m = metas.get(r.code)!;
+      const runs = docsForRoles(m.runsOnRoles, english);
+      const compare = docsForRoles(m.comparesWithRoles, english).filter((d) => !runs.includes(d));
+      const legacy = english.filter((d) => compareDocTypes(r).includes(d.docType) && !runs.includes(d) && !compare.includes(d));
+      return [...runs, ...compare, ...legacy].sort((a, b) => a.id - b.id);
+    };
+    const judge = async (rs: AssessRule[], docsIn: AssessDoc[], focus?: string) =>
+      ctx.call({
         agent: "rule",
         tool: "judge_rules",
         name: "rule_judgements",
         schema: ruleSchema,
-        messages: ruleMessages(rs, relevant, focus),
+        messages: ruleMessages(rs, docsIn, focus, ruleCtx),
         maxTokens: MAX_TOKENS.rule,
-        input: { rules: rs.map((r) => r.code), documents: relevant.map((d) => d.id) },
-        summarize: (o) => `Proposed statuses for ${o.judgements.length} rule(s): ${o.judgements.map((j) => `${j.ruleCode} ${j.status.replace("_", " ")}`).join(", ")}.`,
+        input: { rules: rs.map((r) => r.code), documents: docsIn.map((d) => d.id) },
+        summarize: (o) => `Proposed rubric verdicts for ${o.judgements.length} rule(s): ${o.judgements.map((j) => `${j.ruleCode} ${j.verdict.replace(/_/g, " ")}`).join(", ")}.`,
       });
-    };
     if (judged.length) {
-      const totalChars = english.reduce((n, d) => n + d.pages.reduce((m, p) => m + p.text.length, 0), 0);
-      const groups: AssessRule[][] = [];
-      if (totalChars > 60_000) for (const r of judged) groups.push([r]);
-      else for (let i = 0; i < judged.length; i += JUDGE_BATCH) groups.push(judged.slice(i, i + JUDGE_BATCH));
-      for (const [i, g] of groups.entries()) {
-        await ctx.progress(`Rule agent judging ${g.map((r) => r.code).join(", ")}${groups.length > 1 ? ` (${i + 1} of ${groups.length})` : ""}`);
-        const out = await judge(g);
-        for (const j of out?.judgements ?? []) {
-          if (g.some((r) => r.code === j.ruleCode)) judgements.set(j.ruleCode, j);
-        }
+      // Rules that need the same documents are judged together, so each document set is sent as few times as possible.
+      const bySet = new Map<string, { docs: AssessDoc[]; rules: AssessRule[] }>();
+      for (const r of judged) {
+        const ds = relevantDocs(r);
+        const key = ds.map((d) => d.id).join(",");
+        const g = bySet.get(key) ?? { docs: ds, rules: [] };
+        g.rules.push(r);
+        bySet.set(key, g);
       }
-      for (const r of judged) decisions.set(r.id, decideJudgement(r, judgements.get(r.code), docs));
+      const groups: { docs: AssessDoc[]; rules: AssessRule[] }[] = [];
+      for (const g of bySet.values()) {
+        const chars = g.docs.reduce((n, d) => n + d.pages.reduce((m, p) => m + p.text.length, 0), 0);
+        const size = chars > MAX_BATCH_CHARS ? 1 : JUDGE_BATCH;
+        for (let i = 0; i < g.rules.length; i += size) groups.push({ docs: g.docs, rules: g.rules.slice(i, i + size) });
+      }
+      let finished = 0;
+      await pool(groups, 2, async (g) => {
+        await ctx.progress(`Rule agent judging ${g.rules.map((r) => r.code).join(", ")} (${finished + 1} of ${groups.length})`);
+        const out = await judge(g.rules, g.docs);
+        finished++;
+        for (const j of out?.judgements ?? []) {
+          if (g.rules.some((r) => r.code === j.ruleCode)) judgements.set(j.ruleCode, j);
+        }
+        // Record each batch as it lands, so a run that ends early keeps the verdicts already paid for.
+        for (const r of g.rules) if (judgements.has(r.code)) decisions.set(r.id, decideRubric(r, metas.get(r.code)!, judgements.get(r.code), docs));
+      });
+      for (const r of judged) decisions.set(r.id, decideRubric(r, metas.get(r.code)!, judgements.get(r.code), docs));
     }
 
     // ---- Coordinator: bounded follow-up ----
@@ -425,13 +519,13 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
       const issues: OpenIssue[] = active
         .filter((r) => [...NUMERIC, ...JUDGED].includes(r.checkType))
         .map((r) => ({ r, d: decisions.get(r.id)! }))
-        .filter(({ d }) => d.status === "warning" || (d.status === "needs_review" && !/could not be read|no confirmed|examiner/i.test(d.rationale)))
+        .filter(({ d }) => ((d.status === "warning" && (d as RubricDecision).verdict !== "partially") || (d.status === "needs_review" && !/could not be read|no confirmed|examiner/i.test(d.rationale))))
         .map(({ r, d }) => ({
           ruleCode: r.code,
           ruleTitle: r.title,
           status: d.status.replace("_", " "),
           problem: d.rationale,
-          documents: applicableDocs(r, docs, "en").map((x) => ({ id: x.id, name: x.name })),
+          documents: (JUDGED.includes(r.checkType) ? docsForRoles(metas.get(r.code)!.runsOnRoles, english) : applicableDocs(r, docs, "en")).map((x) => ({ id: x.id, name: x.name })),
         }));
       if (!issues.length) {
         await ctx.log({ agent: "code", tool: "check_gaps", summary: round === 1 ? "No open evidence gaps; no follow-up needed." : "Follow-up resolved the open evidence gaps." });
@@ -478,9 +572,9 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
             decisions.set(rule.id, decideNumeric(rule));
           }
         } else {
-          const out = await judge([rule], [doc], a.instruction);
+          const out = await judge([rule], relevantDocs(rule), `${a.instruction} Look again especially at document ${doc.id} (${doc.name}).`);
           const j = out?.judgements.find((x) => x.ruleCode === rule.code);
-          if (j) decisions.set(rule.id, decideJudgement(rule, j, docs));
+          if (j) decisions.set(rule.id, decideRubric(rule, metas.get(rule.code)!, j, docs));
         }
       }
     }
@@ -492,15 +586,17 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
       finalStatus = "failed";
       stopReason = err instanceof LlmError ? err.message : "An unexpected error ended the run.";
       if (!(err instanceof LlmError)) logger.error({ err, assessmentId }, "assessment run failed");
-      alerts.push({ kind: "model_error", message: `${stopReason} No findings were written; nothing was invented.`, documentId: null, documentName: null, pageNo: null, quote: null });
+      alerts.push({ kind: "model_error", message: `${stopReason} Results finished before this point are kept; the remaining rules are marked as not assessed. Nothing was invented.`, documentId: null, documentName: null, pageNo: null, quote: null });
     }
   }
 
   try {
-    if (finalStatus !== "failed") {
+    // Stopped and failed runs keep what was finished; every other rule is marked as not assessed.
+    if (rules.length) {
+      const why = finalStatus === "failed" ? "The run failed before this rule was assessed." : "The run stopped before this rule was assessed.";
       for (const r of rules) {
         if (!decisions.has(r.id)) {
-          decisions.set(r.id, { ruleId: r.id, status: "needs_review", rationale: "The run stopped before this rule was assessed.", evidence: [], checks: [], proposedBy: "Code (run stopped)" });
+          decisions.set(r.id, { ruleId: r.id, status: "needs_review", rationale: why, evidence: [], checks: [], proposedBy: "Code (run stopped)" });
         }
       }
       await writeFindings(dataset, assessmentId, rules, decisions);
@@ -529,9 +625,9 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
       entityId: String(assessmentId),
       summary:
         finalStatus === "failed"
-          ? `Assessment ${assessmentId} failed: ${stopReason}`
+          ? `Assessment ${assessmentId} failed: ${stopReason} Kept: ${counts.breach} breach, ${counts.warning} warning, ${counts.compliant} compliant.`
           : `Assessment ${assessmentId} ${finalStatus === "complete" ? "finished" : "stopped"}: ${counts.breach} breach, ${counts.warning} warning, ${counts.needs_review} needs review, ${counts.compliant} compliant.`,
-      after: { status: row?.status, steps: ctx.steps, tokens: ctx.tokensUsed, counts: finalStatus === "failed" ? null : counts },
+      after: { status: row?.status, steps: ctx.steps, tokens: ctx.tokensUsed, counts },
     });
   } catch (err) {
     logger.error({ err, assessmentId }, "could not finalise assessment");
@@ -550,8 +646,9 @@ export function countStatuses(ds: { status: string }[]) {
 async function writeFindings(dataset: Dataset, assessmentId: number, rules: AssessRule[], decisions: Map<number, Decision>) {
   await db.transaction(async (tx) => {
     for (const r of rules) {
-      const d = decisions.get(r.id)!;
-      const unsupported = d.evidence.some((e) => e.verified === "not_found") || d.status === "warning";
+      const d = decisions.get(r.id)! as RubricDecision;
+      const verdict = d.verdict ?? null;
+      const unsupported = d.evidence.some((e) => e.verified === "not_found") || (d.status === "warning" && verdict !== "partially");
       const [f] = await tx
         .insert(findingsTable)
         .values({
@@ -563,6 +660,7 @@ async function writeFindings(dataset: Dataset, assessmentId: number, rules: Asse
           rationale: d.rationale,
           verification: unsupported ? "unsupported" : "verified",
           proposedBy: d.proposedBy,
+          verdict,
           checks: d.checks,
         })
         .returning();

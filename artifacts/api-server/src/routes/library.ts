@@ -17,6 +17,12 @@ import {
   ActivateRulebookVersionResponse,
   RequestRulebookAgentMappingParams,
   RequestRulebookAgentMappingResponse,
+  UpdateProductParams,
+  UpdateProductBody,
+  UpdateProductResponse,
+  UpdateRuleParams,
+  UpdateRuleBody,
+  UpdateRuleResponse,
 } from "@workspace/api-zod";
 import {
   db,
@@ -39,6 +45,7 @@ import { proposeMappingWithAgent } from "../lib/ingest/agent";
 import { llmReady } from "../lib/ingest/run";
 import { LlmError } from "../lib/llm/adapter";
 import { bankLogoUrl } from "../lib/bank-logos";
+import { refreshPendingSuggestions } from "../lib/documents";
 import { renderRulebookTemplate, RULEBOOK_TEMPLATE_FILE } from "../lib/rulebook-template";
 
 const router: IRouter = Router();
@@ -69,6 +76,8 @@ router.get("/banks", async (_req, res): Promise<void> => {
         bankId: p.bankId,
         name: p.name,
         cardTier: p.cardTier,
+        isIslamic: p.isIslamic,
+        absentRoles: p.absentRoles,
         documentCount: docCounts.filter((d) => d.productId === p.id).reduce((s, d) => s + d.n, 0),
       })),
   }));
@@ -99,6 +108,7 @@ router.post("/banks", async (req, res): Promise<void> => {
     );
     return b!;
   });
+  await refreshPendingSuggestions(dataset);
   res.status(201).json(CreateBankResponse.parse({ ...bank, logoUrl: bankLogoUrl(bank.nameEn, bank.nameAr), products: [], documentCount: 0 }));
 });
 
@@ -143,7 +153,145 @@ router.post("/banks/:id/products", async (req, res): Promise<void> => {
     );
     return p!;
   });
+  await refreshPendingSuggestions(dataset);
   res.status(201).json(CreateProductResponse.parse({ ...product, documentCount: 0 }));
+});
+
+router.patch("/products/:id", async (req, res): Promise<void> => {
+  const role = requireWriter(req, res);
+  if (!role) return;
+  const params = UpdateProductParams.safeParse(req.params);
+  const body = UpdateProductBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: "Check the product fields: a name of 2 to 120 characters and known document roles." });
+    return;
+  }
+  const dataset = await getActiveDataset();
+  const [cur] = await db.select().from(productsTable).where(and(eq(productsTable.dataset, dataset), eq(productsTable.id, params.data.id)));
+  if (!cur) {
+    res.status(404).json({ error: "Product not found." });
+    return;
+  }
+  const patch: Partial<typeof productsTable.$inferInsert> = {};
+  if (body.data.name !== undefined) {
+    const name = body.data.name.trim();
+    const siblings = await db.select().from(productsTable).where(eq(productsTable.bankId, cur.bankId));
+    if (siblings.some((p) => p.id !== cur.id && sameName(p.name, name))) {
+      res.status(409).json({ error: `This bank already has a product named "${name}".` });
+      return;
+    }
+    patch.name = name;
+  }
+  if (body.data.cardTier !== undefined) patch.cardTier = body.data.cardTier?.trim() || null;
+  if (body.data.isIslamic !== undefined) patch.isIslamic = body.data.isIslamic;
+  if (body.data.absentRoles !== undefined) patch.absentRoles = [...new Set(body.data.absentRoles)];
+  const updated = await db.transaction(async (tx) => {
+    const [p] = await tx.update(productsTable).set(patch).where(eq(productsTable.id, cur.id)).returning();
+    await appendAudit(
+      {
+        dataset,
+        role,
+        action: "product.updated",
+        entityType: "product",
+        entityId: String(cur.id),
+        summary: `Updated product ${p!.name}.`,
+        before: { name: cur.name, cardTier: cur.cardTier, isIslamic: cur.isIslamic, absentRoles: cur.absentRoles },
+        after: { name: p!.name, cardTier: p!.cardTier, isIslamic: p!.isIslamic, absentRoles: p!.absentRoles },
+      },
+      tx,
+    );
+    return p!;
+  });
+  const [{ n }] = (await db.select({ n: sql<number>`count(*)::int` }).from(documentsTable).where(eq(documentsTable.productId, cur.id))) as [{ n: number }];
+  res.json(UpdateProductResponse.parse({ ...updated, documentCount: n }));
+});
+
+// ---------------- Rules (draft versions only) ----------------
+
+async function draftRule(dataset: Awaited<ReturnType<typeof getActiveDataset>>, id: number) {
+  const [rule] = await db.select().from(rulesTable).where(and(eq(rulesTable.dataset, dataset), eq(rulesTable.id, id)));
+  if (!rule) return { error: [404, "Rule not found."] as const };
+  const [v] = await db.select().from(rulebookVersionsTable).where(eq(rulebookVersionsTable.id, rule.versionId));
+  if (v?.status !== "draft") return { error: [409, "Only rules in a draft version can be changed. Active and retired versions are kept as they were used. Import a new version to change rules."] as const };
+  return { rule, version: v, error: undefined };
+}
+
+router.patch("/rules/:id", async (req, res): Promise<void> => {
+  const role = requireWriter(req, res);
+  if (!role) return;
+  const params = UpdateRuleParams.safeParse(req.params);
+  const body = UpdateRuleBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: "Check the rule fields: title and text are required and at least one document type must be chosen." });
+    return;
+  }
+  const dataset = await getActiveDataset();
+  const found = await draftRule(dataset, params.data.id);
+  if (found.error) {
+    res.status(found.error[0]).json({ error: found.error[1] });
+    return;
+  }
+  const cur = found.rule;
+  const patch: Partial<typeof rulesTable.$inferInsert> = {};
+  const b = body.data;
+  if (b.title !== undefined) patch.title = b.title.trim();
+  if (b.text !== undefined) patch.text = b.text.trim();
+  if (b.category !== undefined) patch.category = b.category?.trim() || null;
+  if (b.severity !== undefined) patch.severity = b.severity;
+  if (b.checkType !== undefined) patch.checkType = b.checkType;
+  if (b.appliesToDocTypes !== undefined) patch.appliesToDocTypes = [...new Set(b.appliesToDocTypes)];
+  if (b.details !== undefined) patch.details = b.details.filter((d) => d.label.trim()).map((d) => ({ label: d.label.trim(), value: d.value }));
+  const updated = await db.transaction(async (tx) => {
+    const [r] = await tx.update(rulesTable).set(patch).where(eq(rulesTable.id, cur.id)).returning();
+    await appendAudit(
+      {
+        dataset,
+        role,
+        action: "rule.updated",
+        entityType: "rule",
+        entityId: String(cur.id),
+        summary: `Edited rule ${cur.code} in draft version ${found.version.version}.`,
+        before: { title: cur.title, text: cur.text, category: cur.category, severity: cur.severity, checkType: cur.checkType, appliesToDocTypes: cur.appliesToDocTypes, details: cur.details },
+        after: patch,
+      },
+      tx,
+    );
+    return r!;
+  });
+  res.json(
+    UpdateRuleResponse.parse({
+      id: updated.id,
+      code: updated.code,
+      title: updated.title,
+      text: updated.text,
+      category: updated.category,
+      appliesToDocTypes: updated.appliesToDocTypes,
+      checkType: updated.checkType,
+      threshold: updated.threshold ?? null,
+      severity: updated.severity,
+      details: updated.details ?? [],
+    }),
+  );
+});
+
+router.delete("/rules/:id", async (req, res): Promise<void> => {
+  const role = requireWriter(req, res);
+  if (!role) return;
+  const params = UpdateRuleParams.safeParse(req.params);
+  const dataset = await getActiveDataset();
+  const found = params.success ? await draftRule(dataset, params.data.id) : { error: [404, "Rule not found."] as const };
+  if (found.error) {
+    res.status(found.error[0]).json({ error: found.error[1] });
+    return;
+  }
+  await db.transaction(async (tx) => {
+    await tx.delete(rulesTable).where(eq(rulesTable.id, found.rule.id));
+    await appendAudit(
+      { dataset, role, action: "rule.deleted", entityType: "rule", entityId: String(found.rule.id), summary: `Removed rule ${found.rule.code} from draft version ${found.version.version}.`, before: found.rule },
+      tx,
+    );
+  });
+  res.status(204).end();
 });
 
 // ---------------- Rulebooks ----------------
@@ -278,6 +426,16 @@ router.post("/rulebooks/import/commit", async (req, res): Promise<void> => {
   const base = { dryRun: body.data.dryRun, valid, rules, rowErrors, versionId: null, rulebookId: null, version: null };
   if (body.data.dryRun || !valid) {
     res.json(CommitRulebookImportResponse.parse(base));
+    return;
+  }
+
+  // The same upload is only imported once, so a double click or a retry does not create a second version.
+  const [already] = await db
+    .select()
+    .from(rulebookVersionsTable)
+    .where(and(eq(rulebookVersionsTable.dataset, dataset), eq(rulebookVersionsTable.sourceFileKey, String(file.id))));
+  if (already) {
+    res.json(CommitRulebookImportResponse.parse({ ...base, versionId: already.id, rulebookId: already.rulebookId, version: already.version }));
     return;
   }
 
