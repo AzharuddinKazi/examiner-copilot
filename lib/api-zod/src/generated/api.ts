@@ -2269,3 +2269,563 @@ export const GetAssessmentScorecardResponse = zod.object({
 })
 
 
+/**
+ * @summary Cards ready for a findings report, and the reports so far
+ */
+export const ListNoticesResponse = zod.object({
+  "ready": zod.array(zod.object({
+  "assessmentId": zod.int(),
+  "productName": zod.string(),
+  "bankName": zod.string(),
+  "breaches": zod.int(),
+  "warnings": zod.int(),
+  "noticeId": zod.int().nullable()
+})),
+  "notices": zod.array(zod.object({
+  "id": zod.int(),
+  "assessmentId": zod.int().nullable(),
+  "productName": zod.string(),
+  "bankName": zod.string(),
+  "state": zod.enum(['draft', 'awaiting', 'approved', 'returned']),
+  "findings": zod.int(),
+  "responseDueDate": zod.string().nullable(),
+  "updatedAt": zod.coerce.date(),
+  "outdated": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Draft a findings report from the approved breaches and warnings of one assessment
+ */
+export const createNoticeBodyReferenceDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const CreateNoticeBody = zod.object({
+  "assessmentId": zod.int(),
+  "referenceDate": zod.string().regex(createNoticeBodyReferenceDateRegExp).nullish()
+})
+
+export const CreateNoticeResponse = zod.object({
+  "id": zod.int(),
+  "assessmentId": zod.int().nullable(),
+  "productName": zod.string(),
+  "bankName": zod.string(),
+  "state": zod.enum(['draft', 'awaiting', 'approved', 'returned']),
+  "referenceDate": zod.string().nullable(),
+  "responseDueDate": zod.string().nullable(),
+  "responseDays": zod.int(),
+  "body": zod.string(),
+  "overall": zod.object({
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "provisional": zod.boolean()
+}),
+  "themes": zod.array(zod.object({
+  "theme": zod.string(),
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "breaches": zod.int(),
+  "warnings": zod.int(),
+  "complaints": zod.int().nullable(),
+  "peerMedian": zod.number().nullable()
+})),
+  "findings": zod.array(zod.object({
+  "findingId": zod.int(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "sourceRef": zod.string().nullable(),
+  "theme": zod.string(),
+  "status": zod.enum(['breach', 'warning']),
+  "severity": zod.enum(['high', 'medium', 'low']),
+  "rationale": zod.string(),
+  "examinerNote": zod.string().nullable(),
+  "decidedBy": zod.string().nullable(),
+  "approvedBy": zod.string().nullable(),
+  "evidence": zod.array(zod.object({
+  "documentName": zod.string(),
+  "docType": zod.string().nullable(),
+  "pageNo": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean()
+})),
+  "action": zod.string(),
+  "dueDate": zod.string().nullable(),
+  "included": zod.boolean(),
+  "stillEligible": zod.boolean()
+})),
+  "newlyEligible": zod.int(),
+  "outdated": zod.boolean().describe('True when a later finished assessment of the same card replaced this report\'s assessment.'),
+  "newer": zod.union([zod.object({
+  "assessmentId": zod.int(),
+  "noticeId": zod.int().nullable().describe('The report already drafted for the newer assessment, if any.'),
+  "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
+}),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
+  "history": zod.array(zod.object({
+  "action": zod.enum(['submit', 'approve', 'return']),
+  "actor": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "at": zod.coerce.date()
+})),
+  "submittedBy": zod.string().nullable(),
+  "submittedByYou": zod.boolean(),
+  "checker": zod.string().nullable(),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "canEdit": zod.boolean(),
+  "canSubmit": zod.boolean(),
+  "canApprove": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary One findings report with its findings, next steps and approval history
+ */
+export const GetNoticeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const GetNoticeResponse = zod.object({
+  "id": zod.int(),
+  "assessmentId": zod.int().nullable(),
+  "productName": zod.string(),
+  "bankName": zod.string(),
+  "state": zod.enum(['draft', 'awaiting', 'approved', 'returned']),
+  "referenceDate": zod.string().nullable(),
+  "responseDueDate": zod.string().nullable(),
+  "responseDays": zod.int(),
+  "body": zod.string(),
+  "overall": zod.object({
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "provisional": zod.boolean()
+}),
+  "themes": zod.array(zod.object({
+  "theme": zod.string(),
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "breaches": zod.int(),
+  "warnings": zod.int(),
+  "complaints": zod.int().nullable(),
+  "peerMedian": zod.number().nullable()
+})),
+  "findings": zod.array(zod.object({
+  "findingId": zod.int(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "sourceRef": zod.string().nullable(),
+  "theme": zod.string(),
+  "status": zod.enum(['breach', 'warning']),
+  "severity": zod.enum(['high', 'medium', 'low']),
+  "rationale": zod.string(),
+  "examinerNote": zod.string().nullable(),
+  "decidedBy": zod.string().nullable(),
+  "approvedBy": zod.string().nullable(),
+  "evidence": zod.array(zod.object({
+  "documentName": zod.string(),
+  "docType": zod.string().nullable(),
+  "pageNo": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean()
+})),
+  "action": zod.string(),
+  "dueDate": zod.string().nullable(),
+  "included": zod.boolean(),
+  "stillEligible": zod.boolean()
+})),
+  "newlyEligible": zod.int(),
+  "outdated": zod.boolean().describe('True when a later finished assessment of the same card replaced this report\'s assessment.'),
+  "newer": zod.union([zod.object({
+  "assessmentId": zod.int(),
+  "noticeId": zod.int().nullable().describe('The report already drafted for the newer assessment, if any.'),
+  "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
+}),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
+  "history": zod.array(zod.object({
+  "action": zod.enum(['submit', 'approve', 'return']),
+  "actor": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "at": zod.coerce.date()
+})),
+  "submittedBy": zod.string().nullable(),
+  "submittedByYou": zod.boolean(),
+  "checker": zod.string().nullable(),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "canEdit": zod.boolean(),
+  "canSubmit": zod.boolean(),
+  "canApprove": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Edit the cover note, reference date, or the next step and due date per finding (draft or returned only)
+ */
+export const UpdateNoticeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const updateNoticeBodyBodyMax = 20000;
+
+export const updateNoticeBodyReferenceDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateNoticeBodyFindingsItemActionMax = 4000;
+
+export const updateNoticeBodyFindingsItemDueDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const UpdateNoticeBody = zod.object({
+  "body": zod.string().max(updateNoticeBodyBodyMax).optional(),
+  "referenceDate": zod.string().regex(updateNoticeBodyReferenceDateRegExp).optional(),
+  "findings": zod.array(zod.object({
+  "findingId": zod.int(),
+  "action": zod.string().max(updateNoticeBodyFindingsItemActionMax).optional(),
+  "dueDate": zod.string().regex(updateNoticeBodyFindingsItemDueDateRegExp).nullish(),
+  "included": zod.boolean().optional()
+})).optional()
+})
+
+export const UpdateNoticeResponse = zod.object({
+  "id": zod.int(),
+  "assessmentId": zod.int().nullable(),
+  "productName": zod.string(),
+  "bankName": zod.string(),
+  "state": zod.enum(['draft', 'awaiting', 'approved', 'returned']),
+  "referenceDate": zod.string().nullable(),
+  "responseDueDate": zod.string().nullable(),
+  "responseDays": zod.int(),
+  "body": zod.string(),
+  "overall": zod.object({
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "provisional": zod.boolean()
+}),
+  "themes": zod.array(zod.object({
+  "theme": zod.string(),
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "breaches": zod.int(),
+  "warnings": zod.int(),
+  "complaints": zod.int().nullable(),
+  "peerMedian": zod.number().nullable()
+})),
+  "findings": zod.array(zod.object({
+  "findingId": zod.int(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "sourceRef": zod.string().nullable(),
+  "theme": zod.string(),
+  "status": zod.enum(['breach', 'warning']),
+  "severity": zod.enum(['high', 'medium', 'low']),
+  "rationale": zod.string(),
+  "examinerNote": zod.string().nullable(),
+  "decidedBy": zod.string().nullable(),
+  "approvedBy": zod.string().nullable(),
+  "evidence": zod.array(zod.object({
+  "documentName": zod.string(),
+  "docType": zod.string().nullable(),
+  "pageNo": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean()
+})),
+  "action": zod.string(),
+  "dueDate": zod.string().nullable(),
+  "included": zod.boolean(),
+  "stillEligible": zod.boolean()
+})),
+  "newlyEligible": zod.int(),
+  "outdated": zod.boolean().describe('True when a later finished assessment of the same card replaced this report\'s assessment.'),
+  "newer": zod.union([zod.object({
+  "assessmentId": zod.int(),
+  "noticeId": zod.int().nullable().describe('The report already drafted for the newer assessment, if any.'),
+  "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
+}),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
+  "history": zod.array(zod.object({
+  "action": zod.enum(['submit', 'approve', 'return']),
+  "actor": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "at": zod.coerce.date()
+})),
+  "submittedBy": zod.string().nullable(),
+  "submittedByYou": zod.boolean(),
+  "checker": zod.string().nullable(),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "canEdit": zod.boolean(),
+  "canSubmit": zod.boolean(),
+  "canApprove": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a draft or returned report. Approved reports are kept.
+ */
+export const DeleteNoticeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const DeleteNoticeResponse = zod.void()
+
+
+/**
+ * @summary Bring the report in line with current decisions (adds newly approved findings, drops ones no longer eligible)
+ */
+export const SyncNoticeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SyncNoticeResponse = zod.object({
+  "id": zod.int(),
+  "assessmentId": zod.int().nullable(),
+  "productName": zod.string(),
+  "bankName": zod.string(),
+  "state": zod.enum(['draft', 'awaiting', 'approved', 'returned']),
+  "referenceDate": zod.string().nullable(),
+  "responseDueDate": zod.string().nullable(),
+  "responseDays": zod.int(),
+  "body": zod.string(),
+  "overall": zod.object({
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "provisional": zod.boolean()
+}),
+  "themes": zod.array(zod.object({
+  "theme": zod.string(),
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "breaches": zod.int(),
+  "warnings": zod.int(),
+  "complaints": zod.int().nullable(),
+  "peerMedian": zod.number().nullable()
+})),
+  "findings": zod.array(zod.object({
+  "findingId": zod.int(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "sourceRef": zod.string().nullable(),
+  "theme": zod.string(),
+  "status": zod.enum(['breach', 'warning']),
+  "severity": zod.enum(['high', 'medium', 'low']),
+  "rationale": zod.string(),
+  "examinerNote": zod.string().nullable(),
+  "decidedBy": zod.string().nullable(),
+  "approvedBy": zod.string().nullable(),
+  "evidence": zod.array(zod.object({
+  "documentName": zod.string(),
+  "docType": zod.string().nullable(),
+  "pageNo": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean()
+})),
+  "action": zod.string(),
+  "dueDate": zod.string().nullable(),
+  "included": zod.boolean(),
+  "stillEligible": zod.boolean()
+})),
+  "newlyEligible": zod.int(),
+  "outdated": zod.boolean().describe('True when a later finished assessment of the same card replaced this report\'s assessment.'),
+  "newer": zod.union([zod.object({
+  "assessmentId": zod.int(),
+  "noticeId": zod.int().nullable().describe('The report already drafted for the newer assessment, if any.'),
+  "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
+}),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
+  "history": zod.array(zod.object({
+  "action": zod.enum(['submit', 'approve', 'return']),
+  "actor": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "at": zod.coerce.date()
+})),
+  "submittedBy": zod.string().nullable(),
+  "submittedByYou": zod.boolean(),
+  "checker": zod.string().nullable(),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "canEdit": zod.boolean(),
+  "canSubmit": zod.boolean(),
+  "canApprove": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Send the report to a senior examiner for approval
+ */
+export const SubmitNoticeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const SubmitNoticeResponse = zod.object({
+  "id": zod.int(),
+  "assessmentId": zod.int().nullable(),
+  "productName": zod.string(),
+  "bankName": zod.string(),
+  "state": zod.enum(['draft', 'awaiting', 'approved', 'returned']),
+  "referenceDate": zod.string().nullable(),
+  "responseDueDate": zod.string().nullable(),
+  "responseDays": zod.int(),
+  "body": zod.string(),
+  "overall": zod.object({
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "provisional": zod.boolean()
+}),
+  "themes": zod.array(zod.object({
+  "theme": zod.string(),
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "breaches": zod.int(),
+  "warnings": zod.int(),
+  "complaints": zod.int().nullable(),
+  "peerMedian": zod.number().nullable()
+})),
+  "findings": zod.array(zod.object({
+  "findingId": zod.int(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "sourceRef": zod.string().nullable(),
+  "theme": zod.string(),
+  "status": zod.enum(['breach', 'warning']),
+  "severity": zod.enum(['high', 'medium', 'low']),
+  "rationale": zod.string(),
+  "examinerNote": zod.string().nullable(),
+  "decidedBy": zod.string().nullable(),
+  "approvedBy": zod.string().nullable(),
+  "evidence": zod.array(zod.object({
+  "documentName": zod.string(),
+  "docType": zod.string().nullable(),
+  "pageNo": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean()
+})),
+  "action": zod.string(),
+  "dueDate": zod.string().nullable(),
+  "included": zod.boolean(),
+  "stillEligible": zod.boolean()
+})),
+  "newlyEligible": zod.int(),
+  "outdated": zod.boolean().describe('True when a later finished assessment of the same card replaced this report\'s assessment.'),
+  "newer": zod.union([zod.object({
+  "assessmentId": zod.int(),
+  "noticeId": zod.int().nullable().describe('The report already drafted for the newer assessment, if any.'),
+  "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
+}),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
+  "history": zod.array(zod.object({
+  "action": zod.enum(['submit', 'approve', 'return']),
+  "actor": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "at": zod.coerce.date()
+})),
+  "submittedBy": zod.string().nullable(),
+  "submittedByYou": zod.boolean(),
+  "checker": zod.string().nullable(),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "canEdit": zod.boolean(),
+  "canSubmit": zod.boolean(),
+  "canApprove": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary A senior examiner other than the sender approves or returns the report
+ */
+export const ApproveNoticeParams = zod.object({
+  "id": zod.coerce.number().int()
+})
+
+export const approveNoticeBodyNoteMax = 2000;
+
+
+
+export const ApproveNoticeBody = zod.object({
+  "action": zod.enum(['approve', 'return']),
+  "note": zod.string().max(approveNoticeBodyNoteMax).nullish()
+})
+
+export const ApproveNoticeResponse = zod.object({
+  "id": zod.int(),
+  "assessmentId": zod.int().nullable(),
+  "productName": zod.string(),
+  "bankName": zod.string(),
+  "state": zod.enum(['draft', 'awaiting', 'approved', 'returned']),
+  "referenceDate": zod.string().nullable(),
+  "responseDueDate": zod.string().nullable(),
+  "responseDays": zod.int(),
+  "body": zod.string(),
+  "overall": zod.object({
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "provisional": zod.boolean()
+}),
+  "themes": zod.array(zod.object({
+  "theme": zod.string(),
+  "rating": zod.int().nullable(),
+  "label": zod.string().nullable(),
+  "breaches": zod.int(),
+  "warnings": zod.int(),
+  "complaints": zod.int().nullable(),
+  "peerMedian": zod.number().nullable()
+})),
+  "findings": zod.array(zod.object({
+  "findingId": zod.int(),
+  "ruleCode": zod.string(),
+  "ruleTitle": zod.string(),
+  "ruleText": zod.string(),
+  "sourceRef": zod.string().nullable(),
+  "theme": zod.string(),
+  "status": zod.enum(['breach', 'warning']),
+  "severity": zod.enum(['high', 'medium', 'low']),
+  "rationale": zod.string(),
+  "examinerNote": zod.string().nullable(),
+  "decidedBy": zod.string().nullable(),
+  "approvedBy": zod.string().nullable(),
+  "evidence": zod.array(zod.object({
+  "documentName": zod.string(),
+  "docType": zod.string().nullable(),
+  "pageNo": zod.int(),
+  "quote": zod.string(),
+  "verified": zod.boolean()
+})),
+  "action": zod.string(),
+  "dueDate": zod.string().nullable(),
+  "included": zod.boolean(),
+  "stillEligible": zod.boolean()
+})),
+  "newlyEligible": zod.int(),
+  "outdated": zod.boolean().describe('True when a later finished assessment of the same card replaced this report\'s assessment.'),
+  "newer": zod.union([zod.object({
+  "assessmentId": zod.int(),
+  "noticeId": zod.int().nullable().describe('The report already drafted for the newer assessment, if any.'),
+  "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
+}),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
+  "history": zod.array(zod.object({
+  "action": zod.enum(['submit', 'approve', 'return']),
+  "actor": zod.string().nullable(),
+  "note": zod.string().nullable(),
+  "at": zod.coerce.date()
+})),
+  "submittedBy": zod.string().nullable(),
+  "submittedByYou": zod.boolean(),
+  "checker": zod.string().nullable(),
+  "checkerNote": zod.string().nullable(),
+  "checkedAt": zod.coerce.date().nullable(),
+  "canEdit": zod.boolean(),
+  "canSubmit": zod.boolean(),
+  "canApprove": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+

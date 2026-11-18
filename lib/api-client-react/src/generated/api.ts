@@ -55,6 +55,10 @@ import type {
   ListAuditEventsParams,
   LlmStatus,
   LlmTestResult,
+  Notice,
+  NoticeCreateInput,
+  NoticeList,
+  NoticeUpdateInput,
   Product,
   ProductInput,
   ProductUpdate,
@@ -4518,4 +4522,646 @@ export function useGetAssessmentScorecard<TData = Awaited<ReturnType<typeof getA
 
 
 
+
+export const getListNoticesUrl = () => {
+
+
+
+
+  return `/api/notices`
+}
+
+/**
+ * @summary Cards ready for a findings report, and the reports so far
+ */
+export const listNotices = async ( options?: Parameters<typeof customFetch>[1]): Promise<NoticeList> => {
+
+  return customFetch<NoticeList>(getListNoticesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListNoticesQueryKey = () => {
+    return [
+    `/api/notices`
+    ] as const;
+    }
+
+
+export const getListNoticesQueryOptions = <TData = Awaited<ReturnType<typeof listNotices>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listNotices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListNoticesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listNotices>>> = ({ signal }) => listNotices({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listNotices>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListNoticesQueryResult = NonNullable<Awaited<ReturnType<typeof listNotices>>>
+export type ListNoticesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Cards ready for a findings report, and the reports so far
+ */
+
+export function useListNotices<TData = Awaited<ReturnType<typeof listNotices>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listNotices>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListNoticesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateNoticeUrl = () => {
+
+
+
+
+  return `/api/notices`
+}
+
+/**
+ * @summary Draft a findings report from the approved breaches and warnings of one assessment
+ */
+export const createNotice = async (noticeCreateInput: NoticeCreateInput, options?: Parameters<typeof customFetch>[1]): Promise<Notice> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Notice>(getCreateNoticeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(noticeCreateInput)
+  }
+);}
+
+
+
+
+
+export const getCreateNoticeMutationKey = () => ['createNotice'] as const;
+
+export const getCreateNoticeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createNotice>>, TError,CreateNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createNotice>>, TError,CreateNoticeMutationVariables, TContext> => {
+
+const mutationKey = getCreateNoticeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createNotice>>, CreateNoticeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createNotice(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateNoticeMutationResult = NonNullable<Awaited<ReturnType<typeof createNotice>>>
+    export type CreateNoticeMutationBody = BodyType<NoticeCreateInput>
+    export type CreateNoticeMutationError = ErrorType<ErrorResponse>
+    export type CreateNoticeMutationVariables = {data: BodyType<NoticeCreateInput>}
+
+    /**
+ * @summary Draft a findings report from the approved breaches and warnings of one assessment
+ */
+export const useCreateNotice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createNotice>>, TError,CreateNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createNotice>>,
+        TError,
+        CreateNoticeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateNoticeMutationOptions(options));
+    }
+
+export const getGetNoticeUrl = (id: number,) => {
+
+
+
+
+  return `/api/notices/${id}`
+}
+
+/**
+ * @summary One findings report with its findings, next steps and approval history
+ */
+export const getNotice = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Notice> => {
+
+  return customFetch<Notice>(getGetNoticeUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNoticeQueryKey = (id: number,) => {
+    return [
+    `/api/notices/${id}`
+    ] as const;
+    }
+
+
+export const getGetNoticeQueryOptions = <TData = Awaited<ReturnType<typeof getNotice>>, TError = ErrorType<ErrorResponse>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNotice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNoticeQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNotice>>> = ({ signal }) => getNotice(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNotice>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNoticeQueryResult = NonNullable<Awaited<ReturnType<typeof getNotice>>>
+export type GetNoticeQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary One findings report with its findings, next steps and approval history
+ */
+
+export function useGetNotice<TData = Awaited<ReturnType<typeof getNotice>>, TError = ErrorType<ErrorResponse>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNotice>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNoticeQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateNoticeUrl = (id: number,) => {
+
+
+
+
+  return `/api/notices/${id}`
+}
+
+/**
+ * @summary Edit the cover note, reference date, or the next step and due date per finding (draft or returned only)
+ */
+export const updateNotice = async (id: number,
+    noticeUpdateInput: NoticeUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<Notice> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Notice>(getUpdateNoticeUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(noticeUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateNoticeMutationKey = () => ['updateNotice'] as const;
+
+export const getUpdateNoticeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNotice>>, TError,UpdateNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateNotice>>, TError,UpdateNoticeMutationVariables, TContext> => {
+
+const mutationKey = getUpdateNoticeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateNotice>>, UpdateNoticeMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateNotice(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateNoticeMutationResult = NonNullable<Awaited<ReturnType<typeof updateNotice>>>
+    export type UpdateNoticeMutationBody = BodyType<NoticeUpdateInput>
+    export type UpdateNoticeMutationError = ErrorType<ErrorResponse>
+    export type UpdateNoticeMutationVariables = {id: number;data: BodyType<NoticeUpdateInput>}
+
+    /**
+ * @summary Edit the cover note, reference date, or the next step and due date per finding (draft or returned only)
+ */
+export const useUpdateNotice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateNotice>>, TError,UpdateNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateNotice>>,
+        TError,
+        UpdateNoticeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateNoticeMutationOptions(options));
+    }
+
+export const getDeleteNoticeUrl = (id: number,) => {
+
+
+
+
+  return `/api/notices/${id}`
+}
+
+/**
+ * @summary Delete a draft or returned report. Approved reports are kept.
+ */
+export const deleteNotice = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteNoticeUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteNoticeMutationKey = () => ['deleteNotice'] as const;
+
+export const getDeleteNoticeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteNotice>>, TError,DeleteNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteNotice>>, TError,DeleteNoticeMutationVariables, TContext> => {
+
+const mutationKey = getDeleteNoticeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteNotice>>, DeleteNoticeMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteNotice(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteNoticeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteNotice>>>
+
+    export type DeleteNoticeMutationError = ErrorType<ErrorResponse>
+    export type DeleteNoticeMutationVariables = {id: number}
+
+    /**
+ * @summary Delete a draft or returned report. Approved reports are kept.
+ */
+export const useDeleteNotice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteNotice>>, TError,DeleteNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteNotice>>,
+        TError,
+        DeleteNoticeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteNoticeMutationOptions(options));
+    }
+
+export const getSyncNoticeUrl = (id: number,) => {
+
+
+
+
+  return `/api/notices/${id}/sync`
+}
+
+/**
+ * @summary Bring the report in line with current decisions (adds newly approved findings, drops ones no longer eligible)
+ */
+export const syncNotice = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Notice> => {
+
+  return customFetch<Notice>(getSyncNoticeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSyncNoticeMutationKey = () => ['syncNotice'] as const;
+
+export const getSyncNoticeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncNotice>>, TError,SyncNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof syncNotice>>, TError,SyncNoticeMutationVariables, TContext> => {
+
+const mutationKey = getSyncNoticeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof syncNotice>>, SyncNoticeMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  syncNotice(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SyncNoticeMutationResult = NonNullable<Awaited<ReturnType<typeof syncNotice>>>
+
+    export type SyncNoticeMutationError = ErrorType<ErrorResponse>
+    export type SyncNoticeMutationVariables = {id: number}
+
+    /**
+ * @summary Bring the report in line with current decisions (adds newly approved findings, drops ones no longer eligible)
+ */
+export const useSyncNotice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof syncNotice>>, TError,SyncNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof syncNotice>>,
+        TError,
+        SyncNoticeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSyncNoticeMutationOptions(options));
+    }
+
+export const getSubmitNoticeUrl = (id: number,) => {
+
+
+
+
+  return `/api/notices/${id}/submit`
+}
+
+/**
+ * @summary Send the report to a senior examiner for approval
+ */
+export const submitNotice = async (id: number, options?: Parameters<typeof customFetch>[1]): Promise<Notice> => {
+
+  return customFetch<Notice>(getSubmitNoticeUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getSubmitNoticeMutationKey = () => ['submitNotice'] as const;
+
+export const getSubmitNoticeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitNotice>>, TError,SubmitNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitNotice>>, TError,SubmitNoticeMutationVariables, TContext> => {
+
+const mutationKey = getSubmitNoticeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitNotice>>, SubmitNoticeMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  submitNotice(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitNoticeMutationResult = NonNullable<Awaited<ReturnType<typeof submitNotice>>>
+
+    export type SubmitNoticeMutationError = ErrorType<ErrorResponse>
+    export type SubmitNoticeMutationVariables = {id: number}
+
+    /**
+ * @summary Send the report to a senior examiner for approval
+ */
+export const useSubmitNotice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitNotice>>, TError,SubmitNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitNotice>>,
+        TError,
+        SubmitNoticeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitNoticeMutationOptions(options));
+    }
+
+export const getApproveNoticeUrl = (id: number,) => {
+
+
+
+
+  return `/api/notices/${id}/approval`
+}
+
+/**
+ * @summary A senior examiner other than the sender approves or returns the report
+ */
+export const approveNotice = async (id: number,
+    approvalInput: ApprovalInput, options?: Parameters<typeof customFetch>[1]): Promise<Notice> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Notice>(getApproveNoticeUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(approvalInput)
+  }
+);}
+
+
+
+
+
+export const getApproveNoticeMutationKey = () => ['approveNotice'] as const;
+
+export const getApproveNoticeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveNotice>>, TError,ApproveNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveNotice>>, TError,ApproveNoticeMutationVariables, TContext> => {
+
+const mutationKey = getApproveNoticeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveNotice>>, ApproveNoticeMutationVariables> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  approveNotice(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveNoticeMutationResult = NonNullable<Awaited<ReturnType<typeof approveNotice>>>
+    export type ApproveNoticeMutationBody = BodyType<ApprovalInput>
+    export type ApproveNoticeMutationError = ErrorType<ErrorResponse>
+    export type ApproveNoticeMutationVariables = {id: number;data: BodyType<ApprovalInput>}
+
+    /**
+ * @summary A senior examiner other than the sender approves or returns the report
+ */
+export const useApproveNotice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveNotice>>, TError,ApproveNoticeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveNotice>>,
+        TError,
+        ApproveNoticeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getApproveNoticeMutationOptions(options));
+    }
 

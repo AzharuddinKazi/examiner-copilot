@@ -1,0 +1,19 @@
+kind = "design-system"
+previewPath = "/examination-design-system/"
+title = "Examination Findings Design System"
+description = "Shared navy-and-gold component library for the Examination Findings Assistant. Source-matched dark theme and a derived light theme use identical components, layout and interaction states."
+version = "1.0.0"
+id = "artifacts/examination-design-system"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/examination-design-system/" ]
+localPort = 19074
+
+[services.development]
+run = "pnpm --filter @workspace/examination-design-system run dev"
+
+[services.env]
+PORT = "19074"
+BASE_PATH = "/examination-design-system/"

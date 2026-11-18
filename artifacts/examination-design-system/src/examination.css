@@ -1,0 +1,96 @@
+/* Source-derived component rules; colours always resolve from generated tokens. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap");
+
+:root {
+  --exam-gold-start: color-mix(in srgb, hsl(var(--primary)), white 16%);
+  --exam-gold-end: hsl(var(--primary));
+  --exam-glass-fill: color-mix(in srgb, hsl(var(--card)), transparent 12%);
+  --exam-glass-shadow: 0 10px 40px rgb(24 34 54 / .06), inset 0 1px 0 rgb(255 255 255 / .5);
+  --exam-info: hsl(var(--muted-foreground));
+}
+.dark {
+  --exam-gold-start: color-mix(in srgb, hsl(var(--primary)), #E6D7A2 45%);
+  --exam-gold-end: color-mix(in srgb, hsl(var(--primary)), #92722A 35%);
+  --exam-glass-fill: rgb(255 255 255 / .06);
+  --exam-glass-shadow: 0 10px 40px rgb(0 0 0 / .28), inset 0 1px 0 rgb(255 255 255 / .08);
+}
+.exam-btn, .exam-tag, .exam-steps, .exam-finding, .exam-glass { font-family: var(--app-font-sans); }
+.exam-btn, .exam-steps button, .exam-finding { cursor:pointer; }
+:where(.exam-btn,.exam-finding,.exam-steps button):focus-visible {
+  outline:2px solid hsl(var(--ring)); outline-offset:3px;
+}
+:where(.exam-btn,.exam-finding,.exam-steps button):disabled { cursor:not-allowed; opacity:.45; }
+.exam-btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  height:34px; padding:0 14px; border-radius:10px; border:1px solid hsl(var(--border));
+  background:hsl(var(--secondary) / .55); color:hsl(var(--foreground)); font-size:13px; font-weight:600;
+  white-space:nowrap; transition:background .15s,border-color .15s,filter .15s;
+}
+.exam-btn:hover:not(:disabled) { background:hsl(var(--secondary)); border-color:hsl(var(--input)); }
+.exam-btn--gold, .exam-btn--gold:hover:not(:disabled) {
+  background:linear-gradient(135deg,var(--exam-gold-start),var(--exam-gold-end));
+  color:hsl(var(--primary-foreground)); border-color:transparent;
+  box-shadow:0 6px 22px hsl(var(--primary) / .2);
+}
+.exam-btn--gold:hover:not(:disabled) { filter:brightness(1.07); }
+.exam-btn--small { height:28px; padding:0 10px; font-size:12px; border-radius:8px; }
+.exam-btn--ghost { background:transparent; border-color:transparent; box-shadow:none; }
+.exam-glass {
+  border:1px solid hsl(var(--border)); border-radius:16px; background:var(--exam-glass-fill);
+  backdrop-filter:blur(18px) saturate(140%); -webkit-backdrop-filter:blur(18px) saturate(140%);
+  box-shadow:var(--exam-glass-shadow);
+}
+.exam-tag {
+  display:inline-flex; align-items:center; gap:5px; height:22px; padding:0 9px;
+  border-radius:999px; font-size:11px; font-weight:700; letter-spacing:.02em;
+  white-space:nowrap; border:1px solid color-mix(in srgb,currentColor 35%,transparent);
+  background:color-mix(in srgb,currentColor 12%,transparent);
+}
+.exam-tag::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; flex-shrink:0; }
+.exam-tier--critical { color:hsl(var(--chart-2)); }
+.exam-tier--medium { color:hsl(var(--chart-3)); }
+.exam-tier--low { color:hsl(var(--chart-4)); }
+.exam-tier--info { color:var(--exam-info); }
+.exam-tier--cleared { color:hsl(var(--chart-5)); }
+.exam-steps { display:flex; align-items:center; gap:4px; min-width:0; flex-wrap:wrap; }
+.exam-steps button {
+  display:flex; align-items:center; gap:7px; height:36px; padding:0 12px; border-radius:10px;
+  border:1px solid transparent; background:none; font-size:12px; font-weight:600;
+  color:hsl(var(--muted-foreground)); white-space:nowrap;
+}
+.exam-steps button:hover:not(:disabled) { background:hsl(var(--secondary)); }
+.exam-step-number { width:22px; height:22px; border-radius:50%; display:grid; place-items:center;
+  font-size:11px; font-weight:800; border:1.5px solid hsl(var(--input)); }
+.exam-steps button.is-done .exam-step-number { background:hsl(var(--primary)); border-color:hsl(var(--primary)); color:hsl(var(--primary-foreground)); }
+.exam-steps button[aria-current="step"] { background:hsl(var(--accent)); border-color:hsl(var(--primary) / .45); color:hsl(var(--foreground)); }
+.exam-steps button[aria-current="step"] .exam-step-number { background:hsl(var(--primary)); border-color:hsl(var(--primary)); color:hsl(var(--primary-foreground)); }
+.exam-step-separator { width:12px; height:1px; background:hsl(var(--border)); flex-shrink:0; }
+.exam-finding {
+  display:grid; grid-template-columns:104px minmax(0,1fr) auto; align-items:center; gap:10px;
+  text-align:left; width:100%; padding:7px 10px 7px 8px; line-height:1.3;
+  border-radius:11px; border:1px solid hsl(var(--border) / .6);
+  background:hsl(var(--card) / .55); color:hsl(var(--foreground));
+  transition:border-color .2s,background .2s,opacity .2s;
+}
+.exam-finding:hover:not(:disabled) { border-color:hsl(var(--input)); background:hsl(var(--secondary)); }
+.exam-finding.is-dimmed { opacity:.28; }
+.exam-finding-text { min-width:0; }
+.exam-finding-text strong { display:block; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.exam-finding-values { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
+.exam-value { font-family:var(--app-font-mono); font-size:10.5px; font-weight:700; padding:2px 6px; border-radius:5px; background:color-mix(in srgb,currentColor 10%,transparent); }
+.exam-finding-end { display:flex; align-items:center; gap:6px; }
+.exam-finding-id { font-family:var(--app-font-mono); font-size:10.5px; color:hsl(var(--muted-foreground)); }
+.exam-chevron { color:hsl(var(--primary)); font-size:18px; font-weight:800; }
+.exam-mini-stamp { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; padding:2px 6px; border-radius:4px; border:1.5px solid; color:hsl(var(--chart-5)); }
+.exam-mini-stamp.is-rejected { color:hsl(var(--muted-foreground)); }
+@media(max-width:600px) {
+  .exam-finding { grid-template-columns:92px minmax(0,1fr) auto; gap:6px; }
+  .exam-finding-text strong { white-space:normal; }
+  .exam-mini-stamp { display:none; }
+  .exam-steps { gap:3px; }
+  .exam-steps button { padding:0 7px; }
+  .exam-step-separator { display:none; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .exam-btn,.exam-steps button,.exam-finding { transition:none; animation:none; }
+}

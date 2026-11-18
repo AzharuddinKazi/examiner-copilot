@@ -10,6 +10,7 @@ import reviewRouter from "./review";
 import deletionsRouter from "./deletions";
 import usersRouter from "./users";
 import scoringRouter from "./scoring";
+import noticesRouter from "./notices";
 import { requireUser } from "../lib/auth";
 
 const router: IRouter = Router();
@@ -27,5 +28,6 @@ router.use(assessmentsRouter);
 router.use(reviewRouter);
 router.use(deletionsRouter);
 router.use(scoringRouter);
+router.use(noticesRouter);
 
 export default router;

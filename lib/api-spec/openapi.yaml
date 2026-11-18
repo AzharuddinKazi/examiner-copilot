@@ -26,6 +26,8 @@ tags:
     description: Agent runs that propose a status per rule, with evidence checked by code
   - name: review
     description: Examiner decisions on proposed findings (append-only)
+  - name: notices
+    description: Findings reports (draft notices); drafts only, never sent
   - name: scoring
     description: Scoring rubric, document roles and complaint data
 paths:
@@ -1581,6 +1583,281 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
 
+  /notices:
+    get:
+      operationId: listNotices
+      tags: [notices]
+      summary: Cards ready for a findings report, and the reports so far
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoticeList"
+    post:
+      operationId: createNotice
+      tags: [notices]
+      summary: Draft a findings report from the approved breaches and warnings of one assessment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoticeCreateInput"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notice"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: View-only account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Report exists, not the latest assessment, or nothing approved yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notices/{id}:
+    get:
+      operationId: getNotice
+      tags: [notices]
+      summary: One findings report with its findings, next steps and approval history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notice"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateNotice
+      tags: [notices]
+      summary: Edit the cover note, reference date, or the next step and due date per finding (draft or returned only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoticeUpdateInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notice"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: View-only account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Report is awaiting approval or approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteNotice
+      tags: [notices]
+      summary: Delete a draft or returned report. Approved reports are kept.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          description: View-only account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Awaiting approval or approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notices/{id}/sync:
+    post:
+      operationId: syncNotice
+      tags: [notices]
+      summary: Bring the report in line with current decisions (adds newly approved findings, drops ones no longer eligible)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notice"
+        "403":
+          description: View-only account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Not editable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notices/{id}/submit:
+    post:
+      operationId: submitNotice
+      tags: [notices]
+      summary: Send the report to a senior examiner for approval
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notice"
+        "403":
+          description: View-only account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Not ready or not editable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /notices/{id}/approval:
+    post:
+      operationId: approveNotice
+      tags: [notices]
+      summary: A senior examiner other than the sender approves or returns the report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalInput"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notice"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Not a senior examiner, or the sender
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Not awaiting approval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+
 components:
   schemas:
     HealthStatus:
@@ -2560,6 +2837,187 @@ components:
             - { $ref: "#/components/schemas/FindingStatus" }
             - { type: "null" }
         examinerNote: { type: ["string", "null"], maxLength: 2000 }
+
+    NoticeState:
+      type: string
+      enum: [draft, awaiting, approved, returned]
+
+    NoticeCreateInput:
+      type: object
+      required: [assessmentId]
+      properties:
+        assessmentId: { type: integer }
+        referenceDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+
+    NoticeFindingUpdate:
+      type: object
+      required: [findingId]
+      properties:
+        findingId: { type: integer }
+        action: { type: string, maxLength: 4000 }
+        dueDate: { type: ["string", "null"], pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        included: { type: boolean }
+
+    NoticeUpdateInput:
+      type: object
+      properties:
+        body: { type: string, maxLength: 20000 }
+        referenceDate: { type: string, pattern: "^\\d{4}-\\d{2}-\\d{2}$" }
+        findings:
+          type: array
+          items: { $ref: "#/components/schemas/NoticeFindingUpdate" }
+
+    NoticeEvidence:
+      type: object
+      required: [documentName, docType, pageNo, quote, verified]
+      properties:
+        documentName: { type: string }
+        docType: { type: ["string", "null"] }
+        pageNo: { type: integer }
+        quote: { type: string }
+        verified: { type: boolean }
+
+    NoticeFinding:
+      type: object
+      required: [findingId, ruleCode, ruleTitle, ruleText, sourceRef, theme, status, severity, rationale, examinerNote, decidedBy, approvedBy, evidence, action, dueDate, included, stillEligible]
+      properties:
+        findingId: { type: integer }
+        ruleCode: { type: string }
+        ruleTitle: { type: string }
+        ruleText: { type: string }
+        sourceRef: { type: ["string", "null"] }
+        theme: { type: string }
+        status: { type: string, enum: [breach, warning] }
+        severity: { type: string, enum: [high, medium, low] }
+        rationale: { type: string }
+        examinerNote: { type: ["string", "null"] }
+        decidedBy: { type: ["string", "null"] }
+        approvedBy: { type: ["string", "null"] }
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/NoticeEvidence" }
+        action: { type: string }
+        dueDate: { type: ["string", "null"] }
+        included: { type: boolean }
+        stillEligible: { type: boolean }
+
+    NoticeTheme:
+      type: object
+      required: [theme, rating, label, breaches, warnings, complaints, peerMedian]
+      properties:
+        theme: { type: string }
+        rating: { type: ["integer", "null"] }
+        label: { type: ["string", "null"] }
+        breaches: { type: integer }
+        warnings: { type: integer }
+        complaints: { type: ["integer", "null"] }
+        peerMedian: { type: ["number", "null"] }
+
+    NoticeStep:
+      type: object
+      required: [action, actor, note, at]
+      properties:
+        action: { type: string, enum: [submit, approve, return] }
+        actor: { type: ["string", "null"] }
+        note: { type: ["string", "null"] }
+        at: { type: string, format: date-time }
+
+    Notice:
+      type: object
+      required: [id, assessmentId, productName, bankName, state, referenceDate, responseDueDate, responseDays, body, overall, themes, findings, newlyEligible, outdated, newer, history, submittedBy, submittedByYou, checker, checkerNote, checkedAt, canEdit, canSubmit, canApprove, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        assessmentId: { type: ["integer", "null"] }
+        productName: { type: string }
+        bankName: { type: string }
+        state: { $ref: "#/components/schemas/NoticeState" }
+        referenceDate: { type: ["string", "null"] }
+        responseDueDate: { type: ["string", "null"] }
+        responseDays: { type: integer }
+        body: { type: string }
+        overall:
+          type: object
+          required: [rating, label, provisional]
+          properties:
+            rating: { type: ["integer", "null"] }
+            label: { type: ["string", "null"] }
+            provisional: { type: boolean }
+        themes:
+          type: array
+          items: { $ref: "#/components/schemas/NoticeTheme" }
+        findings:
+          type: array
+          items: { $ref: "#/components/schemas/NoticeFinding" }
+        newlyEligible: { type: integer }
+        outdated:
+          type: boolean
+          description: True when a later finished assessment of the same card replaced this report's assessment.
+        newer:
+          description: The assessment that replaced this report's one, when outdated.
+          oneOf:
+            - $ref: "#/components/schemas/NoticeNewerAssessment"
+            - type: "null"
+        history:
+          type: array
+          items: { $ref: "#/components/schemas/NoticeStep" }
+        submittedBy: { type: ["string", "null"] }
+        submittedByYou: { type: boolean }
+        checker: { type: ["string", "null"] }
+        checkerNote: { type: ["string", "null"] }
+        checkedAt: { type: ["string", "null"], format: date-time }
+        canEdit: { type: boolean }
+        canSubmit: { type: boolean }
+        canApprove: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    NoticeNewerAssessment:
+      type: object
+      required: [assessmentId, noticeId, approvedFindings]
+      properties:
+        assessmentId: { type: integer }
+        noticeId:
+          type: ["integer", "null"]
+          description: The report already drafted for the newer assessment, if any.
+        approvedFindings:
+          type: integer
+          description: Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.
+
+    NoticeReadyCard:
+      type: object
+      required: [assessmentId, productName, bankName, breaches, warnings, noticeId]
+      properties:
+        assessmentId: { type: integer }
+        productName: { type: string }
+        bankName: { type: string }
+        breaches: { type: integer }
+        warnings: { type: integer }
+        noticeId: { type: ["integer", "null"] }
+
+    NoticeSummary:
+      type: object
+      required: [id, assessmentId, productName, bankName, state, findings, responseDueDate, updatedAt, outdated]
+      properties:
+        id: { type: integer }
+        assessmentId: { type: ["integer", "null"] }
+        productName: { type: string }
+        bankName: { type: string }
+        state: { $ref: "#/components/schemas/NoticeState" }
+        findings: { type: integer }
+        responseDueDate: { type: ["string", "null"] }
+        updatedAt: { type: string, format: date-time }
+        outdated: { type: boolean }
+
+    NoticeList:
+      type: object
+      required: [ready, notices]
+      properties:
+        ready:
+          type: array
+          items: { $ref: "#/components/schemas/NoticeReadyCard" }
+        notices:
+          type: array
+          items: { $ref: "#/components/schemas/NoticeSummary" }
 
     ApprovalInput:
       type: object

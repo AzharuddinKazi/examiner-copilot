@@ -1095,6 +1095,214 @@ export interface DecisionInput {
   examinerNote?: string | null;
 }
 
+export type NoticeState = typeof NoticeState[keyof typeof NoticeState];
+
+
+export const NoticeState = {
+  draft: 'draft',
+  awaiting: 'awaiting',
+  approved: 'approved',
+  returned: 'returned',
+} as const;
+
+export interface NoticeCreateInput {
+  assessmentId: number;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  referenceDate?: string | null;
+}
+
+export interface NoticeFindingUpdate {
+  findingId: number;
+  /** @maxLength 4000 */
+  action?: string;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  dueDate?: string | null;
+  included?: boolean;
+}
+
+export interface NoticeUpdateInput {
+  /** @maxLength 20000 */
+  body?: string;
+  /** @pattern ^\d{4}-\d{2}-\d{2}$ */
+  referenceDate?: string;
+  findings?: NoticeFindingUpdate[];
+}
+
+export interface NoticeEvidence {
+  documentName: string;
+  /** @nullable */
+  docType: string | null;
+  pageNo: number;
+  quote: string;
+  verified: boolean;
+}
+
+export type NoticeFindingStatus = typeof NoticeFindingStatus[keyof typeof NoticeFindingStatus];
+
+
+export const NoticeFindingStatus = {
+  breach: 'breach',
+  warning: 'warning',
+} as const;
+
+export type NoticeFindingSeverity = typeof NoticeFindingSeverity[keyof typeof NoticeFindingSeverity];
+
+
+export const NoticeFindingSeverity = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const;
+
+export interface NoticeFinding {
+  findingId: number;
+  ruleCode: string;
+  ruleTitle: string;
+  ruleText: string;
+  /** @nullable */
+  sourceRef: string | null;
+  theme: string;
+  status: NoticeFindingStatus;
+  severity: NoticeFindingSeverity;
+  rationale: string;
+  /** @nullable */
+  examinerNote: string | null;
+  /** @nullable */
+  decidedBy: string | null;
+  /** @nullable */
+  approvedBy: string | null;
+  evidence: NoticeEvidence[];
+  action: string;
+  /** @nullable */
+  dueDate: string | null;
+  included: boolean;
+  stillEligible: boolean;
+}
+
+export interface NoticeTheme {
+  theme: string;
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  label: string | null;
+  breaches: number;
+  warnings: number;
+  /** @nullable */
+  complaints: number | null;
+  /** @nullable */
+  peerMedian: number | null;
+}
+
+export type NoticeStepAction = typeof NoticeStepAction[keyof typeof NoticeStepAction];
+
+
+export const NoticeStepAction = {
+  submit: 'submit',
+  approve: 'approve',
+  return: 'return',
+} as const;
+
+export interface NoticeStep {
+  action: NoticeStepAction;
+  /** @nullable */
+  actor: string | null;
+  /** @nullable */
+  note: string | null;
+  at: string;
+}
+
+export type NoticeOverall = {
+  /** @nullable */
+  rating: number | null;
+  /** @nullable */
+  label: string | null;
+  provisional: boolean;
+};
+
+export interface NoticeNewerAssessment {
+  assessmentId: number;
+  /**
+     * The report already drafted for the newer assessment, if any.
+     * @nullable
+     */
+  noticeId: number | null;
+  /** Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet. */
+  approvedFindings: number;
+}
+
+export interface Notice {
+  id: number;
+  /** @nullable */
+  assessmentId: number | null;
+  productName: string;
+  bankName: string;
+  state: NoticeState;
+  /** @nullable */
+  referenceDate: string | null;
+  /** @nullable */
+  responseDueDate: string | null;
+  responseDays: number;
+  body: string;
+  overall: NoticeOverall;
+  themes: NoticeTheme[];
+  findings: NoticeFinding[];
+  newlyEligible: number;
+  /** True when a later finished assessment of the same card replaced this report's assessment. */
+  outdated: boolean;
+  /** The assessment that replaced this report's one, when outdated. */
+  newer: NoticeNewerAssessment | null;
+  history: NoticeStep[];
+  /** @nullable */
+  submittedBy: string | null;
+  submittedByYou: boolean;
+  /** @nullable */
+  checker: string | null;
+  /** @nullable */
+  checkerNote: string | null;
+  /** @nullable */
+  checkedAt: string | null;
+  canEdit: boolean;
+  canSubmit: boolean;
+  canApprove: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NoticeReadyCard {
+  assessmentId: number;
+  productName: string;
+  bankName: string;
+  breaches: number;
+  warnings: number;
+  /** @nullable */
+  noticeId: number | null;
+}
+
+export interface NoticeSummary {
+  id: number;
+  /** @nullable */
+  assessmentId: number | null;
+  productName: string;
+  bankName: string;
+  state: NoticeState;
+  findings: number;
+  /** @nullable */
+  responseDueDate: string | null;
+  updatedAt: string;
+  outdated: boolean;
+}
+
+export interface NoticeList {
+  ready: NoticeReadyCard[];
+  notices: NoticeSummary[];
+}
+
 export type ApprovalInputAction = typeof ApprovalInputAction[keyof typeof ApprovalInputAction];
 
 
