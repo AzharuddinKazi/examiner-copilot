@@ -53,7 +53,8 @@ import {
 } from "./agents";
 import { detectInjection } from "./text";
 
-export const LIMITS = { stepLimit: 20, tokenLimit: 250_000, coordinatorRounds: 2 } as const;
+/** 0 means no limit. Step and token budgets are switched off for now; runs go until every rule is judged. */
+export const LIMITS = { stepLimit: 0, tokenLimit: 0, coordinatorRounds: 2 } as const;
 const MAX_TOKENS = { evidence: 12000, rule: 10000, consistency: 8000, coordinator: 6000 } as const;
 const DOC_LABEL = { kfs: "KFS", tnc: "T&C", rewards: "Rewards", fees: "Fees Schedule", advert: "Advert" } as const;
 
@@ -66,11 +67,11 @@ export interface Alert {
   quote: string | null;
 }
 
-/** Returns why the next model call must not run, or null if it fits the step and token limits. */
+/** Returns why the next model call must not run, or null if it fits the step and token limits (0 = no limit). */
 export function budgetStop(x: { steps: number; tokensUsed: number; messages: ChatMessage[]; maxTokens: number }, limits: { stepLimit: number; tokenLimit: number } = LIMITS): string | null {
-  if (x.steps >= limits.stepLimit) return `Step limit reached (${limits.stepLimit} model calls).`;
+  if (limits.stepLimit > 0 && x.steps >= limits.stepLimit) return `Step limit reached (${limits.stepLimit} model calls).`;
   const estimate = Math.ceil(x.messages.reduce((n, m) => n + m.content.length, 0) / 3) + x.maxTokens;
-  if (x.tokensUsed + estimate > limits.tokenLimit) {
+  if (limits.tokenLimit > 0 && x.tokensUsed + estimate > limits.tokenLimit) {
     return `Token limit would be exceeded (${x.tokensUsed.toLocaleString()} used of ${limits.tokenLimit.toLocaleString()}; the next call needs about ${estimate.toLocaleString()}).`;
   }
   return null;
@@ -442,7 +443,7 @@ export async function runAssessment(dataset: Dataset, assessmentId: number, role
         tool: "plan_next_step",
         name: "coordinator",
         schema: coordinatorSchema,
-        messages: coordinatorMessages(issues, { steps: LIMITS.stepLimit - ctx.steps, tokens: LIMITS.tokenLimit - ctx.tokensUsed }),
+        messages: coordinatorMessages(issues, LIMITS.stepLimit > 0 && LIMITS.tokenLimit > 0 ? { steps: LIMITS.stepLimit - ctx.steps, tokens: LIMITS.tokenLimit - ctx.tokensUsed } : null),
         maxTokens: MAX_TOKENS.coordinator,
         input: { round, issues: issues.map((i) => i.ruleCode) },
         summarize: (o) => (o.done || !o.actions.length ? `Stopped follow-up: ${o.reason}` : `Chose ${o.actions.length} re-read(s): ${o.actions.map((a) => `${a.ruleCode} in document ${a.documentId}`).join(", ")}. ${o.reason}`),

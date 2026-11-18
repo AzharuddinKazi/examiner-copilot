@@ -97,3 +97,4 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Assessment step/token budgets are switched off at the user's request (LIMITS = 0 means no limit in `lib/assess/run.ts`); runs continue until every rule is judged. Re-introduce limits later by setting non-zero values.

@@ -191,5 +191,6 @@ describe("bounded execution", () => {
   it("stops before a call that would exceed the token limit", () => {
     expect(budgetStop({ steps: 0, tokensUsed: 900, messages: msgs, maxTokens: 50 }, { stepLimit: 20, tokenLimit: 1000 })).toMatch(/Token limit/);
     expect(budgetStop({ steps: 0, tokensUsed: 0, messages: msgs, maxTokens: 50 }, { stepLimit: 20, tokenLimit: 1000 })).toBeNull();
+    expect(budgetStop({ steps: 999, tokensUsed: 9_999_999, messages: msgs, maxTokens: 50 }, { stepLimit: 0, tokenLimit: 0 })).toBeNull();
   });
 });

@@ -170,14 +170,14 @@ export interface OpenIssue {
   documents: { id: number; name: string }[];
 }
 
-export function coordinatorMessages(issues: OpenIssue[], remaining: { steps: number; tokens: number }): ChatMessage[] {
+export function coordinatorMessages(issues: OpenIssue[], remaining: { steps: number; tokens: number } | null): ChatMessage[] {
   const system = [
     "You are the Coordinator of a bounded, read-only assessment. You choose the next step; you never decide compliance.",
     "The available tool is a focused re-read: the Evidence agent reads one document again looking for one rule. Choose up to 4 re-reads that are most likely to resolve the open issues listed, or set done=true if more reading will not help (for example the wording is genuinely absent, or the document is missing).",
     "Do not re-read for a rule whose problem is that a document is missing or a page is unreadable. Always give a short reason.",
     "Reply with JSON only.",
   ].join("\n");
-  const user = `Remaining budget: ${remaining.steps} steps, about ${remaining.tokens} tokens.\nOpen issues:\n${issues
+  const user = `${remaining ? `Remaining budget: ${remaining.steps} steps, about ${remaining.tokens} tokens.` : "No step or token limit; still choose only re-reads that are likely to help."}\nOpen issues:\n${issues
     .map((i) => `- ${i.ruleCode} ${i.ruleTitle}: ${i.status}. ${i.problem} Documents: ${i.documents.map((d) => `${d.id} (${d.name})`).join(", ") || "none"}`)
     .join("\n")}`;
   return [

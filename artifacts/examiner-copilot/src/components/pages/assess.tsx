@@ -68,9 +68,9 @@ function Preconditions({ d }: { d: AssessmentCandidates }) {
       <div className="space-y-1 p-4">
         <p className="text-[11px] text-muted-foreground">Run limits</p>
         <ToolText className="text-xs" data-testid="text-limits">
-          steps ≤ {d.limits.stepLimit.toLocaleString()}<br />tokens ≤ {d.limits.tokenLimit.toLocaleString()}
+          steps {d.limits.stepLimit > 0 ? `≤ ${d.limits.stepLimit.toLocaleString()}` : "no limit"}<br />tokens {d.limits.tokenLimit > 0 ? `≤ ${d.limits.tokenLimit.toLocaleString()}` : "no limit"}
         </ToolText>
-        <p className="text-[11px] text-muted-foreground">A run stops when either limit is reached.</p>
+        <p className="text-[11px] text-muted-foreground">{d.limits.stepLimit > 0 || d.limits.tokenLimit > 0 ? "A run stops when either limit is reached." : "Limits are off: a run continues until every rule is judged."}</p>
       </div>
     </div>
   );

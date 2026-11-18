@@ -205,7 +205,7 @@ function Trace({ a }: { a: AssessmentDetail }) {
             </div>
           )}
           <ToolText className="border-t border-border px-4 py-3 text-xs" data-testid="text-trace-totals">
-            total: {a.stepsUsed}/{a.stepLimit} steps · {a.tokensIn.toLocaleString()} in / {a.tokensOut.toLocaleString()} out of {a.tokenLimit.toLocaleString()} tokens · {latency.toLocaleString()} ms model time
+            total: {a.stepsUsed}{a.stepLimit > 0 ? `/${a.stepLimit}` : ""} steps · {a.tokensIn.toLocaleString()} in / {a.tokensOut.toLocaleString()} out{a.tokenLimit > 0 ? ` of ${a.tokenLimit.toLocaleString()}` : ""} tokens · {latency.toLocaleString()} ms model time
             {a.stopReason ? <><br />ended: {a.stopReason}</> : null}
           </ToolText>
         </div>

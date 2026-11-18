@@ -58,7 +58,7 @@ export function UsageBar({ label, used, limit, testId }: { label: string; used: 
   return (
     <div className="space-y-1" data-testid={testId}>
       <div className="flex justify-between gap-2 font-mono text-[11px] text-muted-foreground">
-        <span>{label}</span><span className="text-foreground">{used.toLocaleString()} / {limit.toLocaleString()}</span>
+        <span>{label}</span><span className="text-foreground">{used.toLocaleString()}{limit > 0 ? ` / ${limit.toLocaleString()}` : " · no limit"}</span>
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={label} aria-valuenow={used} aria-valuemin={0} aria-valuemax={limit}>
         <div className={cn("h-full origin-left rounded-full transition-transform duration-500", pct > 85 ? "bg-[hsl(var(--tone-warn))]" : "bg-primary")}
