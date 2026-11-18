@@ -29,7 +29,23 @@ export const Role = {
   viewer: 'viewer',
 } as const;
 
+/**
+ * strict (default) needs a different senior examiner as checker; poc lets one senior examiner approve their own work, for single-user trials only.
+ */
+export type MakerCheckerMode = typeof MakerCheckerMode[keyof typeof MakerCheckerMode];
+
+
+export const MakerCheckerMode = {
+  strict: 'strict',
+  poc: 'poc',
+} as const;
+
+export interface MakerCheckerModeInput {
+  mode: MakerCheckerMode;
+}
+
 export interface WorkspaceStatus {
+  makerCheckerMode: MakerCheckerMode;
   mode: Dataset;
   /** @nullable */
   switchedAt: string | null;
@@ -1062,6 +1078,8 @@ export const ApprovalStatus = {
 } as const;
 
 export interface Decision {
+  /** True when the maker also checked it (PoC maker-checker mode only) */
+  selfApproved: boolean;
   approvalStatus: ApprovalStatus;
   /** True when the signed-in person recorded this decision (they cannot approve it) */
   makerIsYou: boolean;
@@ -1177,6 +1195,8 @@ export interface NoticeFinding {
   decidedBy: string | null;
   /** @nullable */
   approvedBy: string | null;
+  /** True when the decision was approved by its maker (PoC maker-checker mode only) */
+  selfApproved: boolean;
   evidence: NoticeEvidence[];
   action: string;
   /** @nullable */
@@ -1209,6 +1229,8 @@ export const NoticeStepAction = {
 } as const;
 
 export interface NoticeStep {
+  /** True on an approve or return step by the person who sent it (PoC maker-checker mode only) */
+  selfApproved: boolean;
   action: NoticeStepAction;
   /** @nullable */
   actor: string | null;
@@ -1267,6 +1289,8 @@ export interface Notice {
   checkerNote: string | null;
   /** @nullable */
   checkedAt: string | null;
+  /** True when the latest approval was by the person who sent it (PoC maker-checker mode only) */
+  selfApproved: boolean;
   canEdit: boolean;
   canSubmit: boolean;
   canApprove: boolean;

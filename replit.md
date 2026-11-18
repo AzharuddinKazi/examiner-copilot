@@ -9,6 +9,7 @@ A supervisory workbench that compares credit-card disclosures (KFS, T&C, Rewards
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate hooks + zod from `lib/api-spec/openapi.yaml`
 - `pnpm --filter @workspace/db run push` — push DB schema (dev only)
 - `pnpm --filter @workspace/api-server test` — Vitest unit tests (audit hash chain, LLM adapter, assessment decisions, injection handling, run limits, Challenger, maker-checker)
+- `pnpm --filter @workspace/examiner-copilot run test:e2e` — Playwright browser tests of the Notices screens (system Chromium; every /api call answered by an in-memory fake in `e2e/fake-api.ts` that switches the signed-in person, so no DB or Clerk is used; reuses the running web workflow)
 - `pnpm run typecheck` — full typecheck
 - Secrets: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (needed from Milestone 2; app shows a clear error without them)
 
@@ -80,6 +81,7 @@ Milestones: M0 foundations (done) → M1 upload and library (done) → M2 assess
 - Queue = findings from the latest finished (complete or stopped) assessment per product; older assessments are readable but closed to decisions (409).
 - Decisions are append-only; latest wins. Accept keeps the proposed status; Modify needs a different status and a note; Reject needs a note and stores no final status (no finding stands).
 - Maker-checker: a Breach decision and every Modify or Reject is "Awaiting approval" until a senior examiner other than the maker approves it or returns it with a note (server returns 403 for self-approval or a non-senior). Approval steps are an append-only table and each goes into the audit chain. A returned decision goes back to the maker's queue. Scores, statistics and notices use only the latest final decision (approved or no approval needed); `noticeEligible` in `lib/review.ts` is the filter for the notices step. Decisions made before maker-checker count as final.
+- Maker-checker mode (workspace setting in `app_state.maker_checker_mode`, Settings → "Maker-checker mode"): **Strict** (default) behaves as above. **Single-user PoC mode** lets a senior examiner approve or return their own decisions and reports; every other check (role, state, stale findings on reports) still applies, and each such step is stored with `self_approved = true`, put in its audit event, and labelled "Self-approved (PoC mode)" in the UI, the audit log and the PDF/DOCX exports. Only a senior examiner can change the mode (`PUT /api/workspace/maker-checker-mode`, audited with old and new values). **PoC mode is for single-user trials only; production requires a different senior examiner as checker.**
 - Bulk accept covers only undecided, verified Compliant/Not applicable proposals of one assessment.
 
 ## Gotchas

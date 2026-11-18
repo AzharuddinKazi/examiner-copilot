@@ -20,15 +20,15 @@ import {
   type RuleRow,
 } from "@workspace/db";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import type { Dataset } from "../dataset";
+import { getMakerCheckerMode, type Dataset, type MakerCheckerMode } from "../dataset";
 import { appendAudit } from "../audit";
 import { actorLabel, currentUser, type CurrentUser } from "../auth";
-import { ReviewError, decisionStates, latestFinished, noticeEligible, type DecisionState } from "../review";
+import { ReviewError, SELF_APPROVED_LABEL, decisionStates, latestFinished, noticeEligible, type DecisionState } from "../review";
 import { buildScorecard } from "../scoring/scorecard";
 import { FIX_DAYS, RESPONSE_DAYS, addBusinessDays, isValidDate, todayIn } from "./business-days";
 
 export type NoticeState = "draft" | "awaiting" | "approved" | "returned";
-type Step = { action: "submit" | "approve" | "return"; note: string | null; actor: string | null; userId: number | null; role: string; at: Date };
+type Step = { action: "submit" | "approve" | "return"; note: string | null; actor: string | null; userId: number | null; role: string; at: Date; selfApproved: boolean };
 
 /** Pure: report state from its steps, oldest first. */
 export function noticeState(steps: Pick<Step, "action">[]): NoticeState {
@@ -40,16 +40,24 @@ export function noticeState(steps: Pick<Step, "action">[]): NoticeState {
 export const canEditState = (s: NoticeState) => s === "draft" || s === "returned";
 
 /**
- * Pure: who may approve or return a report. Only a senior examiner, never the person who sent it for
- * approval, and only while it is awaiting approval.
+ * Pure: who may approve or return a report. Only a senior examiner, and only while it is awaiting
+ * approval. In strict mode (the default) never the person who sent it for approval; in PoC mode
+ * (single-user trials only) they may, and the result says it was a self-approval.
  */
-export function checkNoticeApprover(submitter: { userId: number | null; actor: string | null } | null, me: { id: number; role: string; actor: string | null } | undefined, state: NoticeState, staleIncluded = 0) {
+export function checkNoticeApprover(
+  submitter: { userId: number | null; actor: string | null } | null,
+  me: { id: number; role: string; actor: string | null } | undefined,
+  state: NoticeState,
+  staleIncluded = 0,
+  mode: MakerCheckerMode = "strict",
+): { selfApproved: boolean } {
   if (!me) throw new ReviewError(401, "Sign in to continue.");
   if (me.role !== "senior_examiner") throw new ReviewError(403, "Only a senior examiner can approve or return a report.");
   const same = !!submitter && (submitter.userId !== null ? submitter.userId === me.id : !!submitter.actor && submitter.actor === me.actor);
-  if (same) throw new ReviewError(403, "You sent this report for approval, so a different senior examiner must check it.");
+  if (same && mode !== "poc") throw new ReviewError(403, "You sent this report for approval, so a different senior examiner must check it.");
   if (state !== "awaiting") throw new ReviewError(409, state === "approved" ? "This report is already approved." : "This report is not waiting for approval.");
   if (staleIncluded > 0) throw new ReviewError(409, "Some findings in this report are no longer approved breaches or warnings. Return it so the examiner can update it from current decisions.");
+  return { selfApproved: same };
 }
 
 /**
@@ -93,7 +101,7 @@ async function eligibleFor(assessmentId: number) {
 
 async function steps(noticeId: number): Promise<Step[]> {
   const rows = await db.select().from(noticeApprovalsTable).where(eq(noticeApprovalsTable.noticeId, noticeId)).orderBy(asc(noticeApprovalsTable.id));
-  return rows.map((r) => ({ action: r.action, note: r.note, actor: r.actor, userId: r.userId, role: r.role, at: r.at }));
+  return rows.map((r) => ({ action: r.action, note: r.note, actor: r.actor, userId: r.userId, role: r.role, at: r.at, selfApproved: r.selfApproved }));
 }
 
 async function loadNotice(dataset: Dataset, id: number) {
@@ -169,6 +177,7 @@ export async function noticeView(dataset: Dataset, id: number) {
       examinerNote: fin?.examinerNote ?? null,
       decidedBy: fin?.actor ?? null,
       approvedBy: fin?.approvalStatus === "approved" ? fin.checker : null,
+      selfApproved: fin?.approvalStatus === "approved" ? fin.selfApproved : false,
       evidence: ev
         .filter((e) => e.findingId === row.findingId)
         .map((e) => ({ documentName: docs.find((d) => d.id === e.documentId)?.originalName ?? "Deleted document", docType: docs.find((d) => d.id === e.documentId)?.docType ?? null, pageNo: e.pageNo, quote: e.quote, verified: e.verified === "exact" || e.verified === "normalized" })),
@@ -201,7 +210,7 @@ export async function noticeView(dataset: Dataset, id: number) {
   const editable = canEditState(state) && !!me && me.role !== "viewer";
   let canApprove = false;
   try {
-    checkNoticeApprover(lastSubmit, me ? { id: me.id, role: me.role, actor: actorLabel(me) } : undefined, state, included.filter((i) => !i.stillEligible).length);
+    checkNoticeApprover(lastSubmit, me ? { id: me.id, role: me.role, actor: actorLabel(me) } : undefined, state, included.filter((i) => !i.stillEligible).length, await getMakerCheckerMode());
     canApprove = true;
   } catch {
     canApprove = false;
@@ -222,12 +231,13 @@ export async function noticeView(dataset: Dataset, id: number) {
     newlyEligible,
     outdated: newer.outdated,
     newer: newer.newer,
-    history: hist.map((s) => ({ action: s.action, actor: s.actor, note: s.note, at: s.at })),
+    history: hist.map((s) => ({ action: s.action, actor: s.actor, note: s.note, at: s.at, selfApproved: s.selfApproved })),
     submittedBy: lastSubmit?.actor ?? null,
     submittedByYou: isMe(me, lastSubmit),
     checker: lastCheck?.actor ?? null,
     checkerNote: lastCheck?.note ?? null,
     checkedAt: lastCheck?.at ?? null,
+    selfApproved: lastCheck?.selfApproved ?? false,
     canEdit: editable,
     canSubmit: editable && included.length > 0 && !!n.referenceDate,
     canApprove,
@@ -427,12 +437,13 @@ export async function reviewNotice(dataset: Dataset, id: number, input: { action
   const me = currentUser();
   const lastSubmit = [...hist].reverse().find((s) => s.action === "submit") ?? null;
   const stale = input.action === "approve" ? (await noticeView(dataset, id)).findings.filter((f) => f.included && !f.stillEligible).length : 0;
-  checkNoticeApprover(lastSubmit, me ? { id: me.id, role: me.role, actor: actorLabel(me) } : undefined, noticeState(hist), stale);
+  const mode = await getMakerCheckerMode();
+  const { selfApproved } = checkNoticeApprover(lastSubmit, me ? { id: me.id, role: me.role, actor: actorLabel(me) } : undefined, noticeState(hist), stale, mode);
   const note = input.note?.trim() || null;
   if (input.action === "return" && !note) throw new ReviewError(400, "Write a note telling the examiner what to change.");
   const nm = await names(n.productId, n.bankId);
   await db.transaction(async (tx) => {
-    await tx.insert(noticeApprovalsTable).values({ dataset, noticeId: n.id, action: input.action, note, role: me!.role, actor: actorLabel(me), userId: me!.id });
+    await tx.insert(noticeApprovalsTable).values({ dataset, noticeId: n.id, action: input.action, note, role: me!.role, actor: actorLabel(me), userId: me!.id, selfApproved });
     await touch(n.id, tx);
     await appendAudit(
       {
@@ -441,9 +452,16 @@ export async function reviewNotice(dataset: Dataset, id: number, input: { action
         action: input.action === "approve" ? "notice.approved" : "notice.returned",
         entityType: "notice",
         entityId: String(n.id),
-        summary: input.action === "approve" ? `Approved the report for ${nm.productName} (${nm.bankName}) sent by ${lastSubmit?.actor ?? "an examiner"}.` : `Returned the report for ${nm.productName} (${nm.bankName}) to ${lastSubmit?.actor ?? "the examiner"}: ${note}`,
+        summary:
+          input.action === "approve"
+            ? selfApproved
+              ? `${SELF_APPROVED_LABEL}: approved own report for ${nm.productName} (${nm.bankName}).`
+              : `Approved the report for ${nm.productName} (${nm.bankName}) sent by ${lastSubmit?.actor ?? "an examiner"}.`
+            : selfApproved
+              ? `Returned own report for ${nm.productName} (${nm.bankName}) (PoC mode): ${note}`
+              : `Returned the report for ${nm.productName} (${nm.bankName}) to ${lastSubmit?.actor ?? "the examiner"}: ${note}`,
         before: { state: "awaiting" },
-        after: { state: input.action === "approve" ? "approved" : "returned", note },
+        after: { state: input.action === "approve" ? "approved" : "returned", note, ...(selfApproved ? { self_approved: true, makerCheckerMode: mode } : {}) },
       },
       tx,
     );

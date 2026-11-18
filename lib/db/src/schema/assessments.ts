@@ -110,6 +110,8 @@ export const decisionApprovalsTable = pgTable("decision_approvals", {
   role: text("role").notNull(),
   actor: text("actor"),
   checkerUserId: integer("checker_user_id"),
+  /** True when the maker checked their own decision (only possible in PoC maker-checker mode). */
+  selfApproved: boolean("self_approved").notNull().default(false),
   checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

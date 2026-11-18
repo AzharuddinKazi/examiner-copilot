@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { sql, eq, and, inArray } from "drizzle-orm";
 import {
   db,
+  appStateTable,
   banksTable,
   productsTable,
   rulebookVersionsTable,
@@ -12,22 +13,64 @@ import {
   decisionsTable,
   noticesTable,
 } from "@workspace/db";
-import { GetWorkspaceStatusResponse, GetWorkspaceProgressResponse } from "@workspace/api-zod";
-import { getAppState, type Dataset } from "../lib/dataset";
+import { GetWorkspaceStatusResponse, GetWorkspaceProgressResponse, SetMakerCheckerModeBody } from "@workspace/api-zod";
+import { getAppState, type AppStateRow, type Dataset } from "../lib/dataset";
+import { appendAudit } from "../lib/audit";
+import { requireSenior } from "../lib/roles";
 import { reviewQueue } from "../lib/review";
 
 const router: IRouter = Router();
 
+const statusOf = (s: AppStateRow) =>
+  GetWorkspaceStatusResponse.parse({
+    mode: s.mode,
+    switchedAt: s.switchedAt,
+    switchedByRole: s.switchedByRole,
+    oneWay: true,
+    makerCheckerMode: s.makerCheckerMode,
+  });
+
 router.get("/workspace/status", async (_req, res): Promise<void> => {
-  const s = await getAppState();
-  res.json(
-    GetWorkspaceStatusResponse.parse({
-      mode: s.mode,
-      switchedAt: s.switchedAt,
-      switchedByRole: s.switchedByRole,
-      oneWay: true,
-    }),
-  );
+  res.json(statusOf(await getAppState()));
+});
+
+const MODE_LABEL = { strict: "Strict", poc: "Single-user PoC mode" } as const;
+
+/** Senior examiners only. Every change is audited with the old and new values and who made it. */
+router.put("/workspace/maker-checker-mode", async (req, res): Promise<void> => {
+  if (!requireSenior(req, res, "Only a senior examiner can change the maker-checker mode.")) return;
+  const parsed = SetMakerCheckerModeBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Choose a mode: strict or poc." });
+    return;
+  }
+  const next = parsed.data.mode;
+  const before = await getAppState();
+  const updated = await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('maker-checker-mode'))`);
+    const [cur] = await tx.select().from(appStateTable).where(eq(appStateTable.id, 1));
+    const prev = cur?.makerCheckerMode ?? before.makerCheckerMode;
+    if (prev === next) return cur ?? before;
+    const [row] = await tx.update(appStateTable).set({ makerCheckerMode: next, updatedAt: new Date() }).where(eq(appStateTable.id, 1)).returning();
+    await appendAudit(
+      {
+        dataset: before.mode,
+        role: req.user!.role,
+        action: "workspace.maker_checker_mode_changed",
+        entityType: "workspace",
+        entityId: "maker_checker_mode",
+        summary:
+          next === "poc"
+            ? `Changed maker-checker mode from ${MODE_LABEL[prev]} to ${MODE_LABEL[next]}: one senior examiner may now approve their own decisions and reports. Production requires a different senior examiner.`
+            : `Changed maker-checker mode from ${MODE_LABEL[prev]} to ${MODE_LABEL[next]}: a different senior examiner must approve again.`,
+        before: { makerCheckerMode: prev },
+        after: { makerCheckerMode: next },
+      },
+      tx,
+    );
+    return row!;
+  });
+  res.json(statusOf(updated));
 });
 
 const count = sql<number>`count(*)::int`;

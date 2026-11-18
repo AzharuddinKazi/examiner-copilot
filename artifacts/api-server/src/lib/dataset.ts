@@ -6,6 +6,7 @@ import {
 import { eq, sql } from "drizzle-orm";
 
 export type Dataset = "demo" | "live";
+export type AppStateRow = AppState;
 
 /**
  * Reads the singleton workspace state, creating it in live mode on first use.
@@ -23,6 +24,13 @@ export async function getAppState(): Promise<AppState> {
   const again = await db.select().from(appStateTable).where(eq(appStateTable.id, 1));
   if (!again[0]) throw new Error("Workspace state could not be initialised");
   return again[0];
+}
+
+export type MakerCheckerMode = "strict" | "poc";
+
+/** Strict (default): a different senior examiner must check. PoC: single-user trials only. */
+export async function getMakerCheckerMode(): Promise<MakerCheckerMode> {
+  return (await getAppState()).makerCheckerMode;
 }
 
 export async function getActiveDataset(): Promise<Dataset> {

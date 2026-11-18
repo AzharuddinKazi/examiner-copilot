@@ -55,6 +55,7 @@ import type {
   ListAuditEventsParams,
   LlmStatus,
   LlmTestResult,
+  MakerCheckerModeInput,
   Notice,
   NoticeCreateInput,
   NoticeList,
@@ -266,6 +267,94 @@ export function useGetWorkspaceStatus<TData = Awaited<ReturnType<typeof getWorks
 
 
 
+
+export const getSetMakerCheckerModeUrl = () => {
+
+
+
+
+  return `/api/workspace/maker-checker-mode`
+}
+
+/**
+ * @summary Change the maker-checker mode (senior examiners only; audited)
+ */
+export const setMakerCheckerMode = async (makerCheckerModeInput: MakerCheckerModeInput, options?: Parameters<typeof customFetch>[1]): Promise<WorkspaceStatus> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WorkspaceStatus>(getSetMakerCheckerModeUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(makerCheckerModeInput)
+  }
+);}
+
+
+
+
+
+export const getSetMakerCheckerModeMutationKey = () => ['setMakerCheckerMode'] as const;
+
+export const getSetMakerCheckerModeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMakerCheckerMode>>, TError,SetMakerCheckerModeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setMakerCheckerMode>>, TError,SetMakerCheckerModeMutationVariables, TContext> => {
+
+const mutationKey = getSetMakerCheckerModeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setMakerCheckerMode>>, SetMakerCheckerModeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setMakerCheckerMode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetMakerCheckerModeMutationResult = NonNullable<Awaited<ReturnType<typeof setMakerCheckerMode>>>
+    export type SetMakerCheckerModeMutationBody = BodyType<MakerCheckerModeInput>
+    export type SetMakerCheckerModeMutationError = ErrorType<unknown>
+    export type SetMakerCheckerModeMutationVariables = {data: BodyType<MakerCheckerModeInput>}
+
+    /**
+ * @summary Change the maker-checker mode (senior examiners only; audited)
+ */
+export const useSetMakerCheckerMode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setMakerCheckerMode>>, TError,SetMakerCheckerModeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setMakerCheckerMode>>,
+        TError,
+        SetMakerCheckerModeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetMakerCheckerModeMutationOptions(options));
+    }
 
 export const getGetWorkspaceProgressUrl = () => {
 

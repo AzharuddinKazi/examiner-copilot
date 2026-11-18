@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageFrame } from "@/components/page-frame";
 import { EmptyState, QueryError } from "@/components/states";
+import { PocModeBanner } from "@/components/review/maker-checker";
 import { DraftsOnlyNotice, NoticeStateTag, formatDay, formatStamp, useNoticeRefresh } from "@/components/notices/shared";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
@@ -134,6 +135,7 @@ export function NoticesView() {
       answer={
         <div className="space-y-4">
           <p className="text-[15px]" data-testid="text-answer">{answer}</p>
+          <PocModeBanner />
           <DraftsOnlyNotice />
           {d.notices.length ? (
             <ul className="divide-y divide-border overflow-hidden rounded-lg border border-card-border bg-card" data-testid="list-notices">

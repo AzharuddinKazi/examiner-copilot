@@ -18,6 +18,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { PageFrame } from "@/components/page-frame";
+import { PocModeBanner, SELF_APPROVED_LABEL, SelfApprovedTag, useMakerCheckerMode } from "@/components/review/maker-checker";
 import { QueryError } from "@/components/states";
 import { BankQuote, ExaminerNote, StatusPill, ToolText } from "@/components/voice";
 import {
@@ -91,6 +92,7 @@ function DownloadButtons({ n }: { n: Notice }) {
 /** Send for approval, or the senior examiner's approve / return step, or who must act. */
 function ApprovalBlock({ n, dirty }: { n: Notice; dirty: boolean }) {
   const { role, canWrite } = useCanWrite();
+  const { poc } = useMakerCheckerMode();
   const submit = useSubmitNotice();
   const approve = useApproveNotice();
   const refresh = useNoticeRefresh();
@@ -106,14 +108,20 @@ function ApprovalBlock({ n, dirty }: { n: Notice; dirty: boolean }) {
     return (
       <p className="flex items-start gap-2 rounded-lg border border-[hsl(var(--tone-ok)/0.35)] bg-[hsl(var(--tone-ok-bg))] p-4 text-sm" data-testid="text-approved">
         <Lock className="mt-0.5 size-4 shrink-0 text-[hsl(var(--tone-ok))]" aria-hidden />
-        <span>Approved by <strong className="font-semibold">{personName(n.checker, "a senior examiner")}</strong>{n.checkedAt ? ` on ${formatStamp(n.checkedAt)}` : ""}; prepared by {personName(n.submittedBy)}. The report is locked and kept for the record.</span>
+        <span>
+          {n.selfApproved ? <><SelfApprovedTag testId="tag-notice-self-approved" />{" "}</> : null}
+          Approved by <strong className="font-semibold">{personName(n.checker, "a senior examiner")}</strong>{n.checkedAt ? ` on ${formatStamp(n.checkedAt)}` : ""}; prepared by {personName(n.submittedBy)}. The report is locked and kept for the record.
+        </span>
       </p>
     );
   }
 
   if (n.state === "awaiting") {
     const sent = <>Sent for approval by <strong className="font-semibold">{personName(n.submittedBy)}</strong>. It cannot change until a senior examiner approves or returns it.</>;
-    if (n.canApprove) {
+    // Eligibility can block approval without removing a checker's right to
+    // return the report. The server still authorizes every requested action.
+    const canReturn = role === "senior_examiner" && (!n.submittedByYou || poc);
+    if (n.canApprove || canReturn) {
       const send = (action: "approve" | "return") => {
         if (action === "return" && !note.trim()) { setError("Write a note telling the examiner what to change."); return; }
         setError(null);
@@ -124,14 +132,19 @@ function ApprovalBlock({ n, dirty }: { n: Notice; dirty: boolean }) {
       };
       return (
         <div className="space-y-3 rounded-lg border border-[hsl(var(--tone-warn)/0.35)] bg-card p-4" data-testid="form-notice-approval">
-          <p className="text-sm">{sent} You can approve it or return it.</p>
+          <p className="text-sm">{sent} {n.canApprove ? "You can approve it or return it." : "Some findings are no longer eligible. Return the report so the examiner can update it."}</p>
+          {n.submittedByYou ? (
+            <p className="text-xs text-[hsl(var(--tone-warn))]" data-testid="text-self-approval">
+              You sent this report. PoC mode lets you check it yourself; it will be recorded as {SELF_APPROVED_LABEL}.
+            </p>
+          ) : null}
           <div className="space-y-2 border-t border-dashed border-border pt-3">
             <Label htmlFor="n-note">Checker note <span className="font-normal text-muted-foreground">(required to return)</span></Label>
             <Textarea id="n-note" rows={2} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should change, or why you approve"
               className="font-serif text-[15px] italic text-pen placeholder:not-italic" data-testid="input-checker-note" />
             {error ? <p role="alert" className="text-sm text-[hsl(var(--tone-bad))]" data-testid="text-approval-error">{error}</p> : null}
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => send("approve")} disabled={approve.isPending} data-testid="button-approve">Approve report</Button>
+              <Button size="sm" onClick={() => send("approve")} disabled={!n.canApprove || approve.isPending} data-testid="button-approve">Approve report</Button>
               <Button size="sm" variant="outline" className="bg-card" onClick={() => send("return")} disabled={approve.isPending} data-testid="button-return">Return to examiner</Button>
             </div>
           </div>
@@ -142,7 +155,7 @@ function ApprovalBlock({ n, dirty }: { n: Notice; dirty: boolean }) {
       <div className="space-y-1 rounded-lg border border-[hsl(var(--tone-warn)/0.35)] bg-[hsl(var(--tone-warn-bg))] p-4 text-sm" data-testid="text-awaiting">
         <p>{sent}</p>
         <p className="text-xs text-muted-foreground" data-testid="text-who-approves">
-          {n.submittedByYou
+          {n.submittedByYou && !poc
             ? "You sent this report, so a different senior examiner must approve it."
             : role === "senior_examiner"
               ? "You cannot approve this report."
@@ -180,7 +193,7 @@ function ApprovalBlock({ n, dirty }: { n: Notice; dirty: boolean }) {
       ) : null}
       {canWrite ? (
         <div className="space-y-2 rounded-lg border border-card-border bg-card p-4" data-testid="form-submit-notice">
-          <p className="text-sm">When the report is ready, send it for approval. A senior examiner other than you must approve it before it is final; until then it cannot change.</p>
+          <p className="text-sm">When the report is ready, send it for approval. {poc ? "A senior examiner must approve it before it is final (in PoC mode that can be you; production requires a different senior examiner)" : "A senior examiner other than you must approve it before it is final"}; until then it cannot change.</p>
           {error ? <p role="alert" className="text-sm text-[hsl(var(--tone-bad))]" data-testid="text-submit-error">{error}</p> : null}
           {blocker ? <p className="text-xs text-muted-foreground" data-testid="text-submit-blocker">{blocker}</p> : null}
           <Button onClick={go} disabled={!n.canSubmit || !!blocker || submit.isPending} data-testid="button-submit-notice">
@@ -253,6 +266,7 @@ function FindingCard({ f, idx, n, markDirty }: { f: NoticeFinding; idx: number; 
           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
             <StatusPill variant={f.status} />
             <StatusPill variant={sev.variant} label={`${sev.label} severity`} />
+            {f.selfApproved ? <SelfApprovedTag testId={`tag-finding-self-approved-${f.findingId}`} /> : null}
             <span>{f.theme}</span>
             <span>·</span>
             <Link href={`/review/${f.findingId}`} className="underline underline-offset-2">open finding</Link>
@@ -468,6 +482,7 @@ function History({ n }: { n: Notice }) {
             <span className="font-mono">{formatStamp(h.at)}</span>
             <span className={cn("font-medium", h.action === "approve" ? "text-[hsl(var(--tone-ok))]" : h.action === "return" ? "text-[hsl(var(--tone-bad))]" : "text-foreground")}>{STEP_LABEL[h.action]}</span>
             <span>by {personName(h.actor, "unknown")}</span>
+            {h.action === "approve" && h.selfApproved ? <SelfApprovedTag testId={`tag-history-self-approved-${i}`} /> : null}
           </p>
           {h.note ? <ExaminerNote>{h.note}</ExaminerNote> : null}
         </li>
@@ -560,6 +575,7 @@ export function NoticeDetailView({ id }: { id: number }) {
             {left ? ` ${left} left out.` : ""}
             {" "}Overall rating: <span className="font-mono">{n.overall.rating !== null ? `${n.overall.rating} ${n.overall.label ?? ""}${n.overall.provisional ? " (provisional)" : ""}` : "not rated"}</span>.
           </p>
+          <PocModeBanner />
           <OutdatedBanner n={n} />
           <DraftsOnlyNotice />
           {n.state !== "approved" ? (

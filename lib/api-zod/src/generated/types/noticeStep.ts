@@ -8,6 +8,8 @@
 import type { NoticeStepAction } from './noticeStepAction';
 
 export interface NoticeStep {
+  /** True on an approve or return step by the person who sent it (PoC maker-checker mode only) */
+  selfApproved: boolean;
   action: NoticeStepAction;
   /** @nullable */
   actor: string | null;

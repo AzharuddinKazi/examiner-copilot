@@ -43,6 +43,8 @@ export interface Notice {
   checkerNote: string | null;
   /** @nullable */
   checkedAt: Date | null;
+  /** True when the latest approval was by the person who sent it (PoC maker-checker mode only) */
+  selfApproved: boolean;
   canEdit: boolean;
   canSubmit: boolean;
   canApprove: boolean;

@@ -58,6 +58,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/WorkspaceStatus"
 
+  /workspace/maker-checker-mode:
+    put:
+      operationId: setMakerCheckerMode
+      tags: [workspace]
+      summary: Change the maker-checker mode (senior examiners only; audited)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MakerCheckerModeInput"
+      responses:
+        "200":
+          description: Updated workspace status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceStatus"
+
   /workspace/progress:
     get:
       operationId: getWorkspaceProgress
@@ -1877,10 +1896,22 @@ components:
       enum: [examiner, senior_examiner, viewer]
       description: Assigned to each signed-in person by a senior examiner.
 
+    MakerCheckerMode:
+      type: string
+      enum: [strict, poc]
+      description: strict (default) needs a different senior examiner as checker; poc lets one senior examiner approve their own work, for single-user trials only.
+
+    MakerCheckerModeInput:
+      type: object
+      required: [mode]
+      properties:
+        mode: { $ref: "#/components/schemas/MakerCheckerMode" }
+
     WorkspaceStatus:
       type: object
-      required: [mode, switchedAt, switchedByRole, oneWay]
+      required: [mode, switchedAt, switchedByRole, oneWay, makerCheckerMode]
       properties:
+        makerCheckerMode: { $ref: "#/components/schemas/MakerCheckerMode" }
         mode:
           $ref: "#/components/schemas/Dataset"
         switchedAt:
@@ -2809,8 +2840,9 @@ components:
 
     Decision:
       type: object
-      required: [id, decision, finalStatus, examinerNote, role, actor, decidedAt, approvalStatus, makerIsYou, checker, checkerNote, checkedAt]
+      required: [id, decision, finalStatus, examinerNote, role, actor, decidedAt, approvalStatus, makerIsYou, checker, checkerNote, checkedAt, selfApproved]
       properties:
+        selfApproved: { type: boolean, description: True when the maker also checked it (PoC maker-checker mode only) }
         approvalStatus: { $ref: "#/components/schemas/ApprovalStatus" }
         makerIsYou: { type: boolean, description: True when the signed-in person recorded this decision (they cannot approve it) }
         checker: { type: ["string", "null"], description: Senior examiner who approved or returned it }
@@ -2879,7 +2911,7 @@ components:
 
     NoticeFinding:
       type: object
-      required: [findingId, ruleCode, ruleTitle, ruleText, sourceRef, theme, status, severity, rationale, examinerNote, decidedBy, approvedBy, evidence, action, dueDate, included, stillEligible]
+      required: [findingId, ruleCode, ruleTitle, ruleText, sourceRef, theme, status, severity, rationale, examinerNote, decidedBy, approvedBy, selfApproved, evidence, action, dueDate, included, stillEligible]
       properties:
         findingId: { type: integer }
         ruleCode: { type: string }
@@ -2893,6 +2925,7 @@ components:
         examinerNote: { type: ["string", "null"] }
         decidedBy: { type: ["string", "null"] }
         approvedBy: { type: ["string", "null"] }
+        selfApproved: { type: boolean, description: True when the decision was approved by its maker (PoC maker-checker mode only) }
         evidence:
           type: array
           items: { $ref: "#/components/schemas/NoticeEvidence" }
@@ -2915,8 +2948,9 @@ components:
 
     NoticeStep:
       type: object
-      required: [action, actor, note, at]
+      required: [action, actor, note, at, selfApproved]
       properties:
+        selfApproved: { type: boolean, description: True on an approve or return step by the person who sent it (PoC maker-checker mode only) }
         action: { type: string, enum: [submit, approve, return] }
         actor: { type: ["string", "null"] }
         note: { type: ["string", "null"] }
@@ -2924,7 +2958,7 @@ components:
 
     Notice:
       type: object
-      required: [id, assessmentId, productName, bankName, state, referenceDate, responseDueDate, responseDays, body, overall, themes, findings, newlyEligible, outdated, newer, history, submittedBy, submittedByYou, checker, checkerNote, checkedAt, canEdit, canSubmit, canApprove, createdAt, updatedAt]
+      required: [id, assessmentId, productName, bankName, state, referenceDate, responseDueDate, responseDays, body, overall, themes, findings, newlyEligible, outdated, newer, history, submittedBy, submittedByYou, checker, checkerNote, checkedAt, selfApproved, canEdit, canSubmit, canApprove, createdAt, updatedAt]
       properties:
         id: { type: integer }
         assessmentId: { type: ["integer", "null"] }
@@ -2965,6 +2999,7 @@ components:
         checker: { type: ["string", "null"] }
         checkerNote: { type: ["string", "null"] }
         checkedAt: { type: ["string", "null"], format: date-time }
+        selfApproved: { type: boolean, description: True when the latest approval was by the person who sent it (PoC maker-checker mode only) }
         canEdit: { type: boolean }
         canSubmit: { type: boolean }
         canApprove: { type: boolean }

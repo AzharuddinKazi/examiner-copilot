@@ -54,3 +54,5 @@ Thumbs.db
 .cache/
 .local/
 .next-check/
+
+/generated-artifacts/

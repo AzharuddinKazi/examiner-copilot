@@ -18,7 +18,7 @@ import {
   type AssessmentRow,
 } from "@workspace/db";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import type { Dataset } from "./dataset";
+import { getMakerCheckerMode, type Dataset, type MakerCheckerMode } from "./dataset";
 import { appendAudit } from "./audit";
 import { detail } from "./assess/queries";
 import { normalizeText } from "./pdf";
@@ -81,20 +81,27 @@ export function approvalStatus(d: Pick<DecisionRow, "needsApproval">, steps: Pic
 export const isFinal = (s: ApprovalStatus) => s === "not_required" || s === "approved";
 
 /**
- * Who may approve or return. Only a senior examiner, never the person who made the decision, and only
- * while it is awaiting approval. Enforced on the server; the UI only mirrors it.
+ * Who may approve or return. Only a senior examiner, and only while it is awaiting approval. In strict
+ * mode (the default) never the person who made the decision. In PoC mode (single-user trials only) the
+ * maker may check their own decision; the result says so, and the step is stored as self-approved.
+ * Enforced on the server; the UI only mirrors it.
  */
 export function checkApprover(
   maker: { userId: number | null; actor: string | null },
   checker: { id: number; role: string; actor: string | null } | undefined,
   state: ApprovalStatus,
-): void {
+  mode: MakerCheckerMode = "strict",
+): { selfApproved: boolean } {
   if (!checker) throw new ReviewError(401, "Sign in to continue.");
   if (checker.role !== "senior_examiner") throw new ReviewError(403, "Only a senior examiner can approve or return a decision.");
   const same = maker.userId !== null ? maker.userId === checker.id : !!maker.actor && maker.actor === checker.actor;
-  if (same) throw new ReviewError(403, "You made this decision, so a different senior examiner must check it.");
+  if (same && mode !== "poc") throw new ReviewError(403, "You made this decision, so a different senior examiner must check it.");
   if (state !== "awaiting") throw new ReviewError(409, state === "not_required" ? "This decision does not need approval." : `This decision is already ${state}.`);
+  return { selfApproved: same };
 }
+
+/** Shown wherever a self-approval appears (UI, audit summary, exports). */
+export const SELF_APPROVED_LABEL = "Self-approved (PoC mode)";
 
 export interface DecisionView {
   id: number;
@@ -109,6 +116,8 @@ export interface DecisionView {
   checker: string | null;
   checkerNote: string | null;
   checkedAt: Date | null;
+  /** The latest checker step was by the maker (PoC mode only). */
+  selfApproved: boolean;
 }
 
 function toDecision(d: DecisionRow, steps: ApprovalRow[]): DecisionView {
@@ -127,6 +136,7 @@ function toDecision(d: DecisionRow, steps: ApprovalRow[]): DecisionView {
     checker: last?.actor ?? null,
     checkerNote: last?.note ?? null,
     checkedAt: last?.checkedAt ?? null,
+    selfApproved: last?.selfApproved ?? false,
   };
 }
 
@@ -462,7 +472,8 @@ export async function reviewDecision(dataset: Dataset, decisionId: number, input
   if (newest && newest.id !== d.id) throw new ReviewError(409, "A newer decision on this finding replaced this one. Check that one instead.");
   const steps = await db.select().from(decisionApprovalsTable).where(eq(decisionApprovalsTable.decisionId, d.id)).orderBy(decisionApprovalsTable.id);
   const me = currentUser();
-  checkApprover({ userId: d.makerUserId, actor: d.actor }, me ? { id: me.id, role: me.role, actor: actorLabel(me) } : undefined, approvalStatus(d, steps));
+  const mode = await getMakerCheckerMode();
+  const { selfApproved } = checkApprover({ userId: d.makerUserId, actor: d.actor }, me ? { id: me.id, role: me.role, actor: actorLabel(me) } : undefined, approvalStatus(d, steps), mode);
   const note = input.note?.trim() || null;
   if (input.action === "return" && !note) throw new ReviewError(400, "Write a note telling the examiner what to change.");
   const [f] = await db.select().from(findingsTable).where(eq(findingsTable.id, d.findingId));
@@ -472,7 +483,7 @@ export async function reviewDecision(dataset: Dataset, decisionId: number, input
   const code = rule?.code ?? `finding ${f.id}`;
   const what = d.decision === "reject" ? `rejection of ${STATUS_LABEL[f.proposedStatus]}` : `${d.decision} as ${STATUS_LABEL[d.finalStatus!]}`;
   await db.transaction(async (tx) => {
-    await tx.insert(decisionApprovalsTable).values({ dataset, decisionId: d.id, action: input.action, note, role: me!.role, actor: actorLabel(me), checkerUserId: me!.id });
+    await tx.insert(decisionApprovalsTable).values({ dataset, decisionId: d.id, action: input.action, note, role: me!.role, actor: actorLabel(me), checkerUserId: me!.id, selfApproved });
     await appendAudit(
       {
         dataset,
@@ -482,10 +493,14 @@ export async function reviewDecision(dataset: Dataset, decisionId: number, input
         entityId: String(f.id),
         summary:
           input.action === "approve"
-            ? `Approved the ${what} for ${code} made by ${d.actor ?? "an examiner"}.`
-            : `Returned the ${what} for ${code} to ${d.actor ?? "the examiner"}: ${note}`,
+            ? selfApproved
+              ? `${SELF_APPROVED_LABEL}: approved own ${what} for ${code}.`
+              : `Approved the ${what} for ${code} made by ${d.actor ?? "an examiner"}.`
+            : selfApproved
+              ? `Returned own ${what} for ${code} (PoC mode): ${note}`
+              : `Returned the ${what} for ${code} to ${d.actor ?? "the examiner"}: ${note}`,
         before: { decisionId: d.id, approval: "awaiting", maker: d.actor },
-        after: { decisionId: d.id, approval: input.action === "approve" ? "approved" : "returned", note },
+        after: { decisionId: d.id, approval: input.action === "approve" ? "approved" : "returned", note, ...(selfApproved ? { self_approved: true, makerCheckerMode: mode } : {}) },
       },
       tx,
     );

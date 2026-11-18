@@ -17,8 +17,13 @@ export const PREVIEW_AUTO_SIGNIN = process.env.NEXT_PUBLIC_PREVIEW_AUTO_SIGNIN =
 const clerkProxyUrl = process.env.NEXT_PUBLIC_CLERK_PROXY_URL || undefined;
 
 function clerkPubKey() {
+  // Next prerenders client components without a request hostname. Only the
+  // browser can resolve domain-specific keys; never pass an empty host to Clerk.
+  if (typeof window === "undefined") {
+    return process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  }
   return publishableKeyFromHost(
-    typeof window === "undefined" ? "" : window.location.hostname,
+    window.location.hostname,
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   );
 }

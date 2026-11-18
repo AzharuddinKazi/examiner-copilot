@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Dataset } from './dataset';
+import type { MakerCheckerMode } from './makerCheckerMode';
 
 export interface WorkspaceStatus {
+  makerCheckerMode: MakerCheckerMode;
   mode: Dataset;
   /** @nullable */
   switchedAt: Date | null;

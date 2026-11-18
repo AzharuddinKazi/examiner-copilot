@@ -4,7 +4,9 @@
     ".next/types/**/*.ts",
     "next-env.d.ts",
     "src/**/*",
-    ".next-check/types/**/*.ts"
+    ".next-check/types/**/*.ts",
+    "e2e/**/*",
+    "playwright.config.ts"
   ],
   "exclude": [
     "node_modules",

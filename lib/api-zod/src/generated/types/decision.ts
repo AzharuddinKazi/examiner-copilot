@@ -10,6 +10,8 @@ import type { DecisionKind } from './decisionKind';
 import type { FindingStatus } from './findingStatus';
 
 export interface Decision {
+  /** True when the maker also checked it (PoC maker-checker mode only) */
+  selfApproved: boolean;
   approvalStatus: ApprovalStatus;
   /** True when the signed-in person recorded this decision (they cannot approve it) */
   makerIsYou: boolean;

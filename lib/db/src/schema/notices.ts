@@ -49,5 +49,7 @@ export const noticeApprovalsTable = pgTable("notice_approvals", {
   role: text("role").notNull(),
   actor: text("actor"),
   userId: integer("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+  /** True when the person who sent the report also checked it (only possible in PoC maker-checker mode). */
+  selfApproved: boolean("self_approved").notNull().default(false),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });

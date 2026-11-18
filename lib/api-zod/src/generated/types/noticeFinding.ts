@@ -26,6 +26,8 @@ export interface NoticeFinding {
   decidedBy: string | null;
   /** @nullable */
   approvedBy: string | null;
+  /** True when the decision was approved by its maker (PoC maker-checker mode only) */
+  selfApproved: boolean;
   evidence: NoticeEvidence[];
   action: string;
   /** @nullable */

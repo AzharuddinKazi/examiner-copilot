@@ -19,6 +19,7 @@ import { PageFrame } from "@/components/page-frame";
 import { QueryError } from "@/components/states";
 import { ExaminerNote, StatusPill, ToolText } from "@/components/voice";
 import { DECISION_LABELS, DecisionOutcome, useReviewInvalidate } from "@/components/review/shared";
+import { SELF_APPROVED_LABEL, useMakerCheckerMode } from "@/components/review/maker-checker";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
 import { ROLE_LABELS, type RoleValue } from "@/lib/role";
@@ -29,9 +30,13 @@ import { cn } from "@/lib/utils";
 /** A decision that needs a senior examiner's sign-off before it counts. Mirrors the server rule. */
 const needsApproval = (kind: DecisionKind, finalStatus: FindingStatus | null) => kind !== "accept" || finalStatus === "breach";
 
-/** The checker step: approve, or return to the maker with a note. Shown only to a senior examiner who did not make the decision. */
+/**
+ * The checker step: approve, or return to the maker with a note. Shown only to a senior examiner who did
+ * not make the decision, or, in PoC mode, also to the senior examiner who made it (marked self-approved).
+ */
 function ApprovalPanel({ f, d }: { f: FindingDetail; d: Decision }) {
   const { role } = useCanWrite();
+  const { poc } = useMakerCheckerMode();
   const approve = useApproveDecision();
   const invalidate = useReviewInvalidate();
   const { toast } = useToast();
@@ -39,7 +44,7 @@ function ApprovalPanel({ f, d }: { f: FindingDetail; d: Decision }) {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { setNote(""); setError(null); }, [d.id]);
   if (d.approvalStatus !== "awaiting" || !f.isLatest) return null;
-  if (d.makerIsYou) {
+  if (d.makerIsYou && !poc) {
     return <p className="text-xs text-muted-foreground" data-testid="text-own-decision">You made this decision, so a different senior examiner must approve it.</p>;
   }
   if (role !== "senior_examiner") {
@@ -55,6 +60,11 @@ function ApprovalPanel({ f, d }: { f: FindingDetail; d: Decision }) {
   };
   return (
     <div className="space-y-2 border-t border-dashed border-border pt-3" data-testid="form-approval">
+      {d.makerIsYou ? (
+        <p className="text-xs text-[hsl(var(--tone-warn))]" data-testid="text-self-approval">
+          You made this decision. PoC mode lets you check it yourself; it will be recorded as {SELF_APPROVED_LABEL}.
+        </p>
+      ) : null}
       <Label htmlFor="a-note">Checker note <span className="font-normal text-muted-foreground">(required to return)</span></Label>
       <Textarea id="a-note" rows={2} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should change, or why you approve"
         className="font-serif text-[15px] italic text-pen placeholder:not-italic" data-testid="input-checker-note" />

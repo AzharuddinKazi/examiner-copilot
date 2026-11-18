@@ -9,6 +9,7 @@ import { PageFrame } from "@/components/page-frame";
 import { QueryError, errorMessage } from "@/components/states";
 import { StatusPill, ToolText } from "@/components/voice";
 import { People } from "@/components/settings/people";
+import { MakerCheckerModeCard } from "@/components/settings/maker-checker-mode";
 
 function Row({ k, v, testId }: { k: string; v: React.ReactNode; testId: string }) {
   return (
@@ -61,23 +62,26 @@ export function SettingsView() {
       evidence={
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
           <People />
-          <section className="rounded-lg border border-card-border bg-card p-4" data-testid="card-provider">
-            <div className="mb-3 flex items-center gap-2">
-              <Cpu className="size-4 text-muted-foreground" aria-hidden />
-              <h3 className="text-sm font-medium">Model provider</h3>
-              {llm.data ? <StatusPill className="ml-auto" variant={llm.data.configured ? "done" : "warning"} label={llm.data.configured ? "Configured" : "Not configured"} data-testid="status-provider" /> : null}
-            </div>
-            {llm.isLoading ? <Skeleton className="h-24 w-full" /> : llm.isError || !llm.data ? (
-              <QueryError title="Could not read provider status" error={llm.error} onRetry={() => llm.refetch()} retrying={llm.isFetching} testId="error-provider" />
-            ) : (
-              <>
-                <dl>
-                  <Row k="API key present" v={llm.data.keyPresent ? "yes" : "no"} testId="text-key-present" />
-                </dl>
-                <ToolText className="mt-3 text-xs" data-testid="text-provider-message">{llm.data.message}</ToolText>
-              </>
-            )}
-          </section>
+          <div className="space-y-4">
+            <MakerCheckerModeCard />
+            <section className="rounded-lg border border-card-border bg-card p-4" data-testid="card-provider">
+              <div className="mb-3 flex items-center gap-2">
+                <Cpu className="size-4 text-muted-foreground" aria-hidden />
+                <h3 className="text-sm font-medium">Model provider</h3>
+                {llm.data ? <StatusPill className="ml-auto" variant={llm.data.configured ? "done" : "warning"} label={llm.data.configured ? "Configured" : "Not configured"} data-testid="status-provider" /> : null}
+              </div>
+              {llm.isLoading ? <Skeleton className="h-24 w-full" /> : llm.isError || !llm.data ? (
+                <QueryError title="Could not read provider status" error={llm.error} onRetry={() => llm.refetch()} retrying={llm.isFetching} testId="error-provider" />
+              ) : (
+                <>
+                  <dl>
+                    <Row k="API key present" v={llm.data.keyPresent ? "yes" : "no"} testId="text-key-present" />
+                  </dl>
+                  <ToolText className="mt-3 text-xs" data-testid="text-provider-message">{llm.data.message}</ToolText>
+                </>
+              )}
+            </section>
+          </div>
         </div>
       }
       next={{ href: "/", label: "Overview" }}

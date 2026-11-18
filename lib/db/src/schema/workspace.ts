@@ -7,6 +7,11 @@ export const appStateTable = pgTable("app_state", {
   mode: datasetEnum("mode").notNull().default("demo"),
   switchedAt: timestamp("switched_at", { withTimezone: true }),
   switchedByRole: text("switched_by_role"),
+  /**
+   * Maker-checker mode. "strict" (default, production): a different senior examiner must approve.
+   * "poc": single-user trials only; a senior examiner may approve their own work (flagged self_approved).
+   */
+  makerCheckerMode: text("maker_checker_mode", { enum: ["strict", "poc"] }).notNull().default("strict"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

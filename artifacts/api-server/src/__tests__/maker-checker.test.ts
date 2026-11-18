@@ -24,6 +24,7 @@ const view = (over: Partial<DecisionView>): DecisionView => ({
   checker: null,
   checkerNote: null,
   checkedAt: null,
+  selfApproved: false,
   ...over,
 });
 const maker = { userId: 7, actor: "Maker <maker@x.ae>" };
@@ -64,6 +65,40 @@ describe("who may approve", () => {
     expect(() => checkApprover(maker, senior, "awaiting")).not.toThrow();
     expect(() => checkApprover(maker, senior, "approved")).toThrow(ReviewError);
     expect(() => checkApprover(maker, senior, "not_required")).toThrow(ReviewError);
+  });
+});
+
+describe("maker-checker mode", () => {
+  const me = { id: 7, role: "senior_examiner", actor: maker.actor };
+  const statusOf = (f: () => unknown) => { try { f(); } catch (e) { return (e as ReviewError).status; } return 0; };
+  it("strict mode (the default) still blocks self-approval, by id and by actor name", () => {
+    expect(statusOf(() => checkApprover(maker, me, "awaiting", "strict"))).toBe(403);
+    expect(statusOf(() => checkApprover({ userId: null, actor: maker.actor }, { id: 3, role: "senior_examiner", actor: maker.actor }, "awaiting", "strict"))).toBe(403);
+    expect(statusOf(() => checkApprover(maker, me, "awaiting"))).toBe(403);
+  });
+  it("PoC mode lets a senior examiner check their own decision and flags it as self-approved", () => {
+    expect(checkApprover(maker, me, "awaiting", "poc")).toEqual({ selfApproved: true });
+    expect(checkApprover({ userId: null, actor: maker.actor }, { id: 3, role: "senior_examiner", actor: maker.actor }, "awaiting", "poc")).toEqual({ selfApproved: true });
+    // A different checker is never flagged, in either mode.
+    expect(checkApprover(maker, senior, "awaiting", "poc")).toEqual({ selfApproved: false });
+    expect(checkApprover(maker, senior, "awaiting", "strict")).toEqual({ selfApproved: false });
+  });
+  it("PoC mode keeps the state checks", () => {
+    expect(statusOf(() => checkApprover(maker, me, "approved", "poc"))).toBe(409);
+    expect(statusOf(() => checkApprover(maker, me, "returned", "poc"))).toBe(409);
+    expect(statusOf(() => checkApprover(maker, me, "not_required", "poc"))).toBe(409);
+  });
+  it("a viewer or an examiner cannot approve in either mode, even their own decision", () => {
+    for (const mode of ["strict", "poc"] as const) {
+      for (const role of ["viewer", "examiner"]) {
+        expect(statusOf(() => checkApprover(maker, { ...senior, role }, "awaiting", mode))).toBe(403);
+        expect(statusOf(() => checkApprover(maker, { ...me, role }, "awaiting", mode))).toBe(403);
+      }
+      expect(statusOf(() => checkApprover(maker, undefined, "awaiting", mode))).toBe(401);
+    }
+  });
+  it("the self-approved flag travels with the decision view", () => {
+    expect(decisionState([view({ approvalStatus: "approved", checker: maker.actor, selfApproved: true })])!.final!.selfApproved).toBe(true);
   });
 });
 

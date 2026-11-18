@@ -11,6 +11,7 @@ const LIMITS: { title: string; body: string }[] = [
   { title: "Examiners decide and own enforcement", body: "Approval of findings and any action against a bank rest with you." },
   { title: "Notices are drafts and never sent", body: "The tool has no channel to contact a bank." },
   { title: "Roles are set inside the app", body: "Sign-in confirms who someone is. What they may do (Examiner, Senior examiner, Viewer) is assigned by a senior examiner in Settings, not by your organisation's directory." },
+  { title: "PoC maker-checker mode is for single-user trials only", body: "In PoC mode one senior examiner can both decide and approve; those approvals are marked Self-approved (PoC mode). Production requires a different senior examiner as checker, so keep the mode on Strict." },
   { title: "Document text is data, never instructions", body: "Anything written inside an uploaded document is analysed, not obeyed." },
   { title: "No OCR for scanned pages", body: "Pages without extractable text are flagged as extraction gaps and are not read." },
   { title: "Arabic extraction can be imperfect", body: "Right-to-left text, ligatures and mixed scripts may extract out of order. Check against the original." },

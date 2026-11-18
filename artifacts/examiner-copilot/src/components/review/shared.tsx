@@ -7,6 +7,7 @@ import {
   type Decision,
 } from "@workspace/api-client-react";
 import { StatusPill } from "@/components/voice";
+import { SelfApprovedTag } from "@/components/review/maker-checker";
 
 export const DECISION_LABELS: Record<Decision["decision"], string> = {
   accept: "Accepted",
@@ -31,9 +32,12 @@ export function ApprovalTag({ d }: { d: Decision }) {
         ? "border-[hsl(var(--tone-bad)/0.35)] bg-[hsl(var(--tone-bad-bg))] text-[hsl(var(--tone-bad))]"
         : "border-[hsl(var(--tone-warn)/0.35)] bg-[hsl(var(--tone-warn-bg))] text-[hsl(var(--tone-warn))]";
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone}`} data-testid={`tag-approval-${d.approvalStatus}`}>
-      {APPROVAL_LABELS[d.approvalStatus]}
-    </span>
+    <>
+      <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone}`} data-testid={`tag-approval-${d.approvalStatus}`}>
+        {APPROVAL_LABELS[d.approvalStatus]}
+      </span>
+      {d.approvalStatus === "approved" && d.selfApproved ? <SelfApprovedTag /> : null}
+    </>
   );
 }
 

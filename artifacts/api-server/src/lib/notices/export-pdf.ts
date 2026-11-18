@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, degrees, type PDFFont, type PDFPage } from "pdf-lib";
 import type { NoticeView } from "./report";
+import { SELF_APPROVED_LABEL } from "../review";
 import { formatLong } from "./business-days";
 
 const WIN_EXTRA = new Set("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ");
@@ -97,7 +98,7 @@ export async function renderNoticePdf(v: NoticeView): Promise<Buffer> {
     [
       "Approval",
       v.state === "approved"
-        ? `Approved by ${v.checker ?? "a senior examiner"} on ${v.checkedAt ? new Date(v.checkedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : ""}; prepared by ${v.submittedBy ?? "an examiner"}`
+        ? `${v.selfApproved ? `${SELF_APPROVED_LABEL}: approved` : "Approved"} by ${v.checker ?? "a senior examiner"} on ${v.checkedAt ? new Date(v.checkedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : ""}; prepared by ${v.submittedBy ?? "an examiner"}${v.selfApproved ? ". Production requires a different senior examiner as checker." : ""}`
         : v.state === "awaiting"
           ? `Awaiting approval; sent by ${v.submittedBy ?? "an examiner"}`
           : "Not approved: internal working copy",
@@ -159,7 +160,7 @@ export async function renderNoticePdf(v: NoticeView): Promise<Buffer> {
     text("Required action", { font: bold, size: 8.5, color: MUTED, gap: 1 });
     text(f.action, { size: 9.5, gap: 1 });
     text(`Fix by ${formatLong(f.dueDate)}`, { font: bold, size: 9.5, gap: 6 });
-    const decided = [f.decidedBy && `Decided by ${f.decidedBy}`, f.approvedBy && `approved by ${f.approvedBy}`].filter(Boolean).join(", ");
+    const decided = [f.decidedBy && `Decided by ${f.decidedBy}`, f.approvedBy && `approved by ${f.approvedBy}`, f.selfApproved && SELF_APPROVED_LABEL].filter(Boolean).join(", ");
     if (decided) text(decided, { size: 8, color: MUTED, gap: 6 });
     hr();
   });

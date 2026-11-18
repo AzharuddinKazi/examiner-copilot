@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/examination-replica/"
+title = "Examination Findings — Development Replica"
+description = "Isolated synthetic development replica of the supplied examination workflow, home page and document-to-finding network, with shared light and dark themes. No live data integration."
+version = "1.0.0"
+id = "artifacts/examination-replica"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/examination-replica/" ]
+localPort = 24342
+
+[services.development]
+run = "pnpm --filter @workspace/examination-replica run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/examination-replica", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/examination-replica/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24342"
+BASE_PATH = "/examination-replica/"

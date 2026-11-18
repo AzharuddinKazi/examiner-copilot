@@ -13,6 +13,7 @@ import { PageFrame } from "@/components/page-frame";
 import { EmptyState, QueryError } from "@/components/states";
 import { StatusPill } from "@/components/voice";
 import { DecisionOutcome, useReviewInvalidate } from "@/components/review/shared";
+import { PocModeBanner, useMakerCheckerMode } from "@/components/review/maker-checker";
 import { useToast } from "@/hooks/use-toast";
 import { parseApiError } from "@/lib/api-errors";
 import { SEVERITY_PILL } from "@/lib/labels";
@@ -93,6 +94,7 @@ export function ReviewView() {
   const invalidate = useReviewInvalidate();
   const { toast } = useToast();
   const isSenior = useCanWrite().role === "senior_examiner";
+  const { poc } = useMakerCheckerMode();
   const [filter, setFilter] = useState<Filter>("undecided");
   const [bulkFor, setBulkFor] = useState<ReviewProduct | null>(null);
   const d = q.data;
@@ -104,13 +106,13 @@ export function ReviewView() {
         case "all": return true;
         case "decided": return isFinal(i);
         case "awaiting": return i.decision?.approvalStatus === "awaiting";
-        case "to_approve": return i.decision?.approvalStatus === "awaiting" && !i.decision.makerIsYou;
+        case "to_approve": return i.decision?.approvalStatus === "awaiting" && (poc || !i.decision.makerIsYou);
         case "returned": return i.decision?.approvalStatus === "returned";
         case "disagrees": return i.challengerVerdict === "does_not_support";
         default: return needsMaker(i);
       }
     });
-  }, [d, filter]);
+  }, [d, filter, poc]);
 
   if (q.isLoading) {
     return <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6 lg:px-10"><Skeleton className="h-8 w-2/3" /><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div>;
@@ -126,7 +128,7 @@ export function ReviewView() {
   const firstUndecided = d.items.find(needsMaker);
   const c = d.counts;
   const serious = d.items.filter((i) => needsMaker(i) && (i.proposedStatus === "breach" || i.proposedStatus === "warning" || i.proposedStatus === "needs_review")).length;
-  const toApprove = d.items.filter((i) => i.decision?.approvalStatus === "awaiting" && !i.decision.makerIsYou);
+  const toApprove = d.items.filter((i) => i.decision?.approvalStatus === "awaiting" && (poc || !i.decision.makerIsYou));
   const filters: [Filter, string][] = [
     ["undecided", `To decide (${c.undecided})`],
     ...(isSenior ? ([["to_approve", `To approve (${toApprove.length})`]] as [Filter, string][]) : []),
@@ -165,12 +167,16 @@ export function ReviewView() {
         }
         answer={
           c.total === 0 ? (
-            <EmptyState icon={Inbox} title="Nothing to review" testId="empty-review"
-              action={<Button asChild variant="outline" className="bg-card"><Link href="/assess">Go to Assess</Link></Button>}>
-              Findings appear here after an assessment finishes.
-            </EmptyState>
+            <div className="space-y-3">
+              <PocModeBanner />
+              <EmptyState icon={Inbox} title="Nothing to review" testId="empty-review"
+                action={<Button asChild variant="outline" className="bg-card"><Link href="/assess">Go to Assess</Link></Button>}>
+                Findings appear here after an assessment finishes.
+              </EmptyState>
+            </div>
           ) : (
             <div className="space-y-3">
+              <PocModeBanner />
               <p className="text-[15px]" data-testid="text-answer">
                 {c.undecided === 0
                   ? c.awaitingApproval
@@ -180,7 +186,7 @@ export function ReviewView() {
               </p>
               {isSenior && toApprove.length ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[hsl(var(--tone-warn)/0.35)] bg-[hsl(var(--tone-warn-bg))] px-4 py-3 text-sm" data-testid="banner-to-approve">
-                  <span><strong className="font-semibold">{toApprove.length} decision{toApprove.length === 1 ? "" : "s"} to approve.</strong> Made by another examiner; they do not count until you approve them.</span>
+                  <span><strong className="font-semibold">{toApprove.length} decision{toApprove.length === 1 ? "" : "s"} to approve.</strong> {poc ? "They" : "Made by another examiner; they"} do not count until you approve them.</span>
                   <Button size="sm" variant="outline" className="bg-card" onClick={() => setFilter("to_approve")} data-testid="button-show-to-approve">Show them</Button>
                 </div>
               ) : null}

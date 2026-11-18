@@ -28,8 +28,12 @@ export function requireWriter(req: Request, res: Response): Role | null {
 }
 
 /** Managing people is limited to senior examiners. */
-export function requireSenior(req: Request, res: Response): boolean {
+export function requireSenior(req: Request, res: Response, message = "Only a senior examiner can change roles."): boolean {
   if (req.user?.role === "senior_examiner") return true;
-  res.status(403).json({ error: "Only a senior examiner can change roles." });
+  if (!req.user) {
+    res.status(401).json({ error: "Sign in to continue." });
+    return false;
+  }
+  res.status(403).json({ error: message });
   return false;
 }

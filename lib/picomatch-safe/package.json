@@ -1,0 +1,14 @@
+{
+  "name": "@workspace/picomatch-safe",
+  "version": "4.0.8-security.0",
+  "private": true,
+  "description": "Local security fork of picomatch with bounded single-branch wildcard repetition",
+  "license": "MIT",
+  "main": "index.js",
+  "sideEffects": false,
+  "files": ["index.js", "posix.js", "lib", "LICENSE", "README.md"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test/*.test.cjs"
+  }
+}

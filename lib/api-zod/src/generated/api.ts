@@ -21,6 +21,23 @@ export const HealthCheckResponse = zod.object({
  * @summary Current workspace mode and dataset
  */
 export const GetWorkspaceStatusResponse = zod.object({
+  "makerCheckerMode": zod.enum(['strict', 'poc']).describe('strict (default) needs a different senior examiner as checker; poc lets one senior examiner approve their own work, for single-user trials only.'),
+  "mode": zod.enum(['demo', 'live']),
+  "switchedAt": zod.coerce.date().nullable(),
+  "switchedByRole": zod.string().nullable(),
+  "oneWay": zod.boolean().describe('Always true. Live cannot switch back to demo.')
+})
+
+
+/**
+ * @summary Change the maker-checker mode (senior examiners only; audited)
+ */
+export const SetMakerCheckerModeBody = zod.object({
+  "mode": zod.enum(['strict', 'poc']).describe('strict (default) needs a different senior examiner as checker; poc lets one senior examiner approve their own work, for single-user trials only.')
+})
+
+export const SetMakerCheckerModeResponse = zod.object({
+  "makerCheckerMode": zod.enum(['strict', 'poc']).describe('strict (default) needs a different senior examiner as checker; poc lets one senior examiner approve their own work, for single-user trials only.'),
   "mode": zod.enum(['demo', 'live']),
   "switchedAt": zod.coerce.date().nullable(),
   "switchedByRole": zod.string().nullable(),
@@ -1476,6 +1493,7 @@ export const GetReviewQueueResponse = zod.object({
   "rationale": zod.string(),
   "evidenceCount": zod.int(),
   "decision": zod.union([zod.object({
+  "selfApproved": zod.boolean().describe('True when the maker also checked it (PoC maker-checker mode only)'),
   "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
   "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
   "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
@@ -1570,6 +1588,7 @@ export const GetFindingResponse = zod.object({
   "productName": zod.string().nullable(),
   "isLatest": zod.boolean().describe('false when a newer assessment of the product exists; decisions are then closed'),
   "decision": zod.union([zod.object({
+  "selfApproved": zod.boolean().describe('True when the maker also checked it (PoC maker-checker mode only)'),
   "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
   "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
   "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
@@ -1584,6 +1603,7 @@ export const GetFindingResponse = zod.object({
   "decidedAt": zod.coerce.date()
 }),zod.null()]),
   "history": zod.array(zod.object({
+  "selfApproved": zod.boolean().describe('True when the maker also checked it (PoC maker-checker mode only)'),
   "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
   "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
   "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
@@ -1683,6 +1703,7 @@ export const DecideFindingResponse = zod.object({
   "productName": zod.string().nullable(),
   "isLatest": zod.boolean().describe('false when a newer assessment of the product exists; decisions are then closed'),
   "decision": zod.union([zod.object({
+  "selfApproved": zod.boolean().describe('True when the maker also checked it (PoC maker-checker mode only)'),
   "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
   "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
   "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
@@ -1697,6 +1718,7 @@ export const DecideFindingResponse = zod.object({
   "decidedAt": zod.coerce.date()
 }),zod.null()]),
   "history": zod.array(zod.object({
+  "selfApproved": zod.boolean().describe('True when the maker also checked it (PoC maker-checker mode only)'),
   "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
   "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
   "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
@@ -1795,6 +1817,7 @@ export const ApproveDecisionResponse = zod.object({
   "productName": zod.string().nullable(),
   "isLatest": zod.boolean().describe('false when a newer assessment of the product exists; decisions are then closed'),
   "decision": zod.union([zod.object({
+  "selfApproved": zod.boolean().describe('True when the maker also checked it (PoC maker-checker mode only)'),
   "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
   "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
   "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
@@ -1809,6 +1832,7 @@ export const ApproveDecisionResponse = zod.object({
   "decidedAt": zod.coerce.date()
 }),zod.null()]),
   "history": zod.array(zod.object({
+  "selfApproved": zod.boolean().describe('True when the maker also checked it (PoC maker-checker mode only)'),
   "approvalStatus": zod.enum(['not_required', 'awaiting', 'approved', 'returned']).describe('not_required = a routine Compliant or Not applicable accept, final at once; awaiting = a senior examiner must approve; returned = sent back to the maker with a note'),
   "makerIsYou": zod.boolean().describe('True when the signed-in person recorded this decision (they cannot approve it)'),
   "checker": zod.string().nullable().describe('Senior examiner who approved or returned it'),
@@ -2343,6 +2367,7 @@ export const CreateNoticeResponse = zod.object({
   "examinerNote": zod.string().nullable(),
   "decidedBy": zod.string().nullable(),
   "approvedBy": zod.string().nullable(),
+  "selfApproved": zod.boolean().describe('True when the decision was approved by its maker (PoC maker-checker mode only)'),
   "evidence": zod.array(zod.object({
   "documentName": zod.string(),
   "docType": zod.string().nullable(),
@@ -2363,6 +2388,7 @@ export const CreateNoticeResponse = zod.object({
   "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
 }),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
   "history": zod.array(zod.object({
+  "selfApproved": zod.boolean().describe('True on an approve or return step by the person who sent it (PoC maker-checker mode only)'),
   "action": zod.enum(['submit', 'approve', 'return']),
   "actor": zod.string().nullable(),
   "note": zod.string().nullable(),
@@ -2373,6 +2399,7 @@ export const CreateNoticeResponse = zod.object({
   "checker": zod.string().nullable(),
   "checkerNote": zod.string().nullable(),
   "checkedAt": zod.coerce.date().nullable(),
+  "selfApproved": zod.boolean().describe('True when the latest approval was by the person who sent it (PoC maker-checker mode only)'),
   "canEdit": zod.boolean(),
   "canSubmit": zod.boolean(),
   "canApprove": zod.boolean(),
@@ -2425,6 +2452,7 @@ export const GetNoticeResponse = zod.object({
   "examinerNote": zod.string().nullable(),
   "decidedBy": zod.string().nullable(),
   "approvedBy": zod.string().nullable(),
+  "selfApproved": zod.boolean().describe('True when the decision was approved by its maker (PoC maker-checker mode only)'),
   "evidence": zod.array(zod.object({
   "documentName": zod.string(),
   "docType": zod.string().nullable(),
@@ -2445,6 +2473,7 @@ export const GetNoticeResponse = zod.object({
   "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
 }),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
   "history": zod.array(zod.object({
+  "selfApproved": zod.boolean().describe('True on an approve or return step by the person who sent it (PoC maker-checker mode only)'),
   "action": zod.enum(['submit', 'approve', 'return']),
   "actor": zod.string().nullable(),
   "note": zod.string().nullable(),
@@ -2455,6 +2484,7 @@ export const GetNoticeResponse = zod.object({
   "checker": zod.string().nullable(),
   "checkerNote": zod.string().nullable(),
   "checkedAt": zod.coerce.date().nullable(),
+  "selfApproved": zod.boolean().describe('True when the latest approval was by the person who sent it (PoC maker-checker mode only)'),
   "canEdit": zod.boolean(),
   "canSubmit": zod.boolean(),
   "canApprove": zod.boolean(),
@@ -2526,6 +2556,7 @@ export const UpdateNoticeResponse = zod.object({
   "examinerNote": zod.string().nullable(),
   "decidedBy": zod.string().nullable(),
   "approvedBy": zod.string().nullable(),
+  "selfApproved": zod.boolean().describe('True when the decision was approved by its maker (PoC maker-checker mode only)'),
   "evidence": zod.array(zod.object({
   "documentName": zod.string(),
   "docType": zod.string().nullable(),
@@ -2546,6 +2577,7 @@ export const UpdateNoticeResponse = zod.object({
   "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
 }),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
   "history": zod.array(zod.object({
+  "selfApproved": zod.boolean().describe('True on an approve or return step by the person who sent it (PoC maker-checker mode only)'),
   "action": zod.enum(['submit', 'approve', 'return']),
   "actor": zod.string().nullable(),
   "note": zod.string().nullable(),
@@ -2556,6 +2588,7 @@ export const UpdateNoticeResponse = zod.object({
   "checker": zod.string().nullable(),
   "checkerNote": zod.string().nullable(),
   "checkedAt": zod.coerce.date().nullable(),
+  "selfApproved": zod.boolean().describe('True when the latest approval was by the person who sent it (PoC maker-checker mode only)'),
   "canEdit": zod.boolean(),
   "canSubmit": zod.boolean(),
   "canApprove": zod.boolean(),
@@ -2618,6 +2651,7 @@ export const SyncNoticeResponse = zod.object({
   "examinerNote": zod.string().nullable(),
   "decidedBy": zod.string().nullable(),
   "approvedBy": zod.string().nullable(),
+  "selfApproved": zod.boolean().describe('True when the decision was approved by its maker (PoC maker-checker mode only)'),
   "evidence": zod.array(zod.object({
   "documentName": zod.string(),
   "docType": zod.string().nullable(),
@@ -2638,6 +2672,7 @@ export const SyncNoticeResponse = zod.object({
   "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
 }),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
   "history": zod.array(zod.object({
+  "selfApproved": zod.boolean().describe('True on an approve or return step by the person who sent it (PoC maker-checker mode only)'),
   "action": zod.enum(['submit', 'approve', 'return']),
   "actor": zod.string().nullable(),
   "note": zod.string().nullable(),
@@ -2648,6 +2683,7 @@ export const SyncNoticeResponse = zod.object({
   "checker": zod.string().nullable(),
   "checkerNote": zod.string().nullable(),
   "checkedAt": zod.coerce.date().nullable(),
+  "selfApproved": zod.boolean().describe('True when the latest approval was by the person who sent it (PoC maker-checker mode only)'),
   "canEdit": zod.boolean(),
   "canSubmit": zod.boolean(),
   "canApprove": zod.boolean(),
@@ -2700,6 +2736,7 @@ export const SubmitNoticeResponse = zod.object({
   "examinerNote": zod.string().nullable(),
   "decidedBy": zod.string().nullable(),
   "approvedBy": zod.string().nullable(),
+  "selfApproved": zod.boolean().describe('True when the decision was approved by its maker (PoC maker-checker mode only)'),
   "evidence": zod.array(zod.object({
   "documentName": zod.string(),
   "docType": zod.string().nullable(),
@@ -2720,6 +2757,7 @@ export const SubmitNoticeResponse = zod.object({
   "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
 }),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
   "history": zod.array(zod.object({
+  "selfApproved": zod.boolean().describe('True on an approve or return step by the person who sent it (PoC maker-checker mode only)'),
   "action": zod.enum(['submit', 'approve', 'return']),
   "actor": zod.string().nullable(),
   "note": zod.string().nullable(),
@@ -2730,6 +2768,7 @@ export const SubmitNoticeResponse = zod.object({
   "checker": zod.string().nullable(),
   "checkerNote": zod.string().nullable(),
   "checkedAt": zod.coerce.date().nullable(),
+  "selfApproved": zod.boolean().describe('True when the latest approval was by the person who sent it (PoC maker-checker mode only)'),
   "canEdit": zod.boolean(),
   "canSubmit": zod.boolean(),
   "canApprove": zod.boolean(),
@@ -2791,6 +2830,7 @@ export const ApproveNoticeResponse = zod.object({
   "examinerNote": zod.string().nullable(),
   "decidedBy": zod.string().nullable(),
   "approvedBy": zod.string().nullable(),
+  "selfApproved": zod.boolean().describe('True when the decision was approved by its maker (PoC maker-checker mode only)'),
   "evidence": zod.array(zod.object({
   "documentName": zod.string(),
   "docType": zod.string().nullable(),
@@ -2811,6 +2851,7 @@ export const ApproveNoticeResponse = zod.object({
   "approvedFindings": zod.int().describe('Approved breaches and warnings on the newer assessment; 0 means a report cannot be drafted yet.')
 }),zod.null()]).describe('The assessment that replaced this report\'s one, when outdated.'),
   "history": zod.array(zod.object({
+  "selfApproved": zod.boolean().describe('True on an approve or return step by the person who sent it (PoC maker-checker mode only)'),
   "action": zod.enum(['submit', 'approve', 'return']),
   "actor": zod.string().nullable(),
   "note": zod.string().nullable(),
@@ -2821,6 +2862,7 @@ export const ApproveNoticeResponse = zod.object({
   "checker": zod.string().nullable(),
   "checkerNote": zod.string().nullable(),
   "checkedAt": zod.coerce.date().nullable(),
+  "selfApproved": zod.boolean().describe('True when the latest approval was by the person who sent it (PoC maker-checker mode only)'),
   "canEdit": zod.boolean(),
   "canSubmit": zod.boolean(),
   "canApprove": zod.boolean(),

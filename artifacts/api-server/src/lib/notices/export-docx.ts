@@ -15,6 +15,7 @@ import {
   WidthType,
 } from "docx";
 import type { NoticeView } from "./report";
+import { SELF_APPROVED_LABEL } from "../review";
 import { formatLong } from "./business-days";
 
 const ARABIC = /[\u0600-\u06FF]/;
@@ -45,7 +46,7 @@ export async function renderNoticeDocx(v: NoticeView): Promise<Buffer> {
   const inc = v.findings.filter((f) => f.included);
   const approval =
     v.state === "approved"
-      ? `Approved by ${v.checker ?? "a senior examiner"} on ${v.checkedAt ? new Date(v.checkedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : ""}; prepared by ${v.submittedBy ?? "an examiner"}`
+      ? `${v.selfApproved ? `${SELF_APPROVED_LABEL}: approved` : "Approved"} by ${v.checker ?? "a senior examiner"} on ${v.checkedAt ? new Date(v.checkedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : ""}; prepared by ${v.submittedBy ?? "an examiner"}${v.selfApproved ? ". Production requires a different senior examiner as checker." : ""}`
       : v.state === "awaiting"
         ? `Awaiting approval; sent by ${v.submittedBy ?? "an examiner"}`
         : "Not approved: internal working copy";
@@ -128,7 +129,7 @@ export async function renderNoticeDocx(v: NoticeView): Promise<Buffer> {
       }
     }
     children.push(label("Required action"), ...para(f.action), new Paragraph({ children: [new TextRun({ text: `Fix by ${formatLong(f.dueDate)}`, bold: true, size: 20 })] }));
-    const decided = [f.decidedBy && `Decided by ${f.decidedBy}`, f.approvedBy && `approved by ${f.approvedBy}`].filter(Boolean).join(", ");
+    const decided = [f.decidedBy && `Decided by ${f.decidedBy}`, f.approvedBy && `approved by ${f.approvedBy}`, f.selfApproved && SELF_APPROVED_LABEL].filter(Boolean).join(", ");
     if (decided) children.push(new Paragraph({ children: [new TextRun({ text: decided, size: 16, color: MUTED })] }));
   });
   if (!inc.length) children.push(...para("No findings are included.", { color: MUTED }));
